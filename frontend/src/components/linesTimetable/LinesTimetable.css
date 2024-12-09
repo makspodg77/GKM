@@ -1,0 +1,35 @@
+.LineTimetable {
+    ul {
+        list-style-type: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    a {
+        text-decoration: none;
+    }
+
+    a:hover {
+        color: #009788;
+    }
+
+    .line {
+        width: 80px;
+        height: 35px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 1.2rem;
+        border-top: #facf00 3px solid;
+        color: aliceblue;
+        background-color: #056b89;
+    }
+
+    .line-container {
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+}

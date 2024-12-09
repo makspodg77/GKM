@@ -1,0 +1,56 @@
+html, body {
+  background-color: #fbfbfe;
+  font-family: "Roboto", sans-serif;
+  font-weight: 400;
+  font-size: 1rem;
+  font-style: normal;
+  margin: 0;
+  color: #202020;
+}
+
+h1 {
+  font-size: 2.2rem;
+}
+
+.container {
+  width: 70%;
+  margin: auto;
+  display: flex;
+  justify-content: space-between;
+}
+
+.menu {
+  font-weight: 500;
+  
+  a {
+    text-decoration: none;
+    color: #202020;
+  }
+
+  a:hover {
+    color: black;
+  }
+
+  ul {
+    list-style-type: none;
+    margin: 5px;
+    padding: 5px;
+  }
+
+  li {
+    margin-bottom: 10px;
+  }
+
+  width: 25%;
+  background-color: #f3f3f3;
+  padding: 1rem;
+  height: 700px;
+  border-radius: 0;
+}
+
+.content {
+  width: calc(70% - 24px);
+  border-radius: 10px;
+  padding: 1rem;
+  margin-left: 25px;
+}

@@ -1,0 +1,73 @@
+.LineTimetable {
+    h1 {
+        margin-bottom: 0;
+        margin-top: 0;
+    }
+
+    h2 {
+        margin-bottom: 15px;
+    }
+
+    h3 {
+        display: flex;
+        margin-top: 0;
+        > div {
+            height: 25px;
+            background-color: red;
+            width: 4px;
+            color: transparent;
+        }
+    }
+
+
+    .finalStops {
+        font-weight: 700;
+        margin-bottom: 0;
+        margin-top: 10px;
+        margin-bottom: 5px;
+    }
+
+    .Route {
+        width: 50%;
+        float: left;
+
+        .finalStop {
+            font-weight: 700;
+        }
+
+        .routeContainer {
+            display: flex;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+            
+            
+            a {
+                color: #056b89;
+              
+            }
+
+            a:hover {
+                color: #009788;
+            }
+
+            .routeStop {
+                display: flex;
+               
+            }
+
+            .stopName {
+                text-decoration: underline;
+            }
+
+            .stopOther, .stopTime {
+                width: 30px;
+                color: #202020;
+                text-decoration: none !important;
+                font-weight: 700;
+            }
+        }
+    }
+}

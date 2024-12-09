@@ -1,0 +1,43 @@
+.TransportLines {
+    h1 {
+        margin-top: 0;
+    }
+
+    .finalStops {
+        font-weight: 700;
+        display: block;
+    }
+
+    ul {
+        list-style-type: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .line-container {
+        border-left: #facf00 10px solid;
+        display: flex;
+        justify-content: center;
+        margin-bottom: 5px;
+
+        div:first-child {
+            background-color: #056b89;
+            width: 35%;
+            color:aliceblue;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 5rem;
+        }
+        div:last-child {
+            width: 65%;
+            height: 100%;
+            padding: 1rem;
+            font-weight: 500;
+            line-height: 35px;
+            flex-wrap: wrap;
+            font-size: 1rem;
+            font-style: italic;
+        }
+    }
+}
