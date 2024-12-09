@@ -1,0 +1,134 @@
+.LineStopTimetable {
+    .table-container{
+        width: 100%; 
+    }
+    h1 {
+        margin-top: 0;
+        margin-bottom: 0;
+    }
+
+    .nextDeparture {
+        color: #056b89;
+    }
+
+    .nextDeparture:hover {
+        color: #009788;
+    }
+
+    a {
+        color: inherit;
+    }
+
+    .lineType {
+        font-weight: 700;
+        margin-bottom: 20px;
+    }
+
+    button {
+        border: 0;
+        background-color: #056b89;
+        color: white;
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 10px;
+        margin-top: 20px;
+        padding: 10px;
+        font-size: 1rem;
+    }
+
+    .otherLine {
+        display: inline;
+        margin-left: 5px;
+        color: #056b89;
+        text-decoration: underline;
+    }
+
+    .bold {
+        font-weight: 700;
+    }
+
+    table { 
+        margin-top: 20px;
+        margin-bottom: 20px;
+        border-spacing: 0;
+        border: 1px solid #d0d0d0;
+        
+        width: 100%;
+
+        tr, td, th {
+            min-width: (100% / 20);
+        }
+    }
+    .left {
+        width: 65%;
+        margin-right: 5%;
+        float: left;
+    }
+    .right {
+        display: flex;
+        flex-direction: column;
+        flex-wrap: wrap;
+        gap: 0;
+        width: 30%;
+        float: left;
+        > div {
+            display: flex;
+            justify-content: flex-start;
+            
+
+            > div {
+                height: 25px;
+                text-align: center;
+                padding: 3px;
+            }
+
+            .totalTravelTime {
+                width: 25px;
+                font-weight: 700;
+            }
+
+            .stopOther {
+                width: 25px;
+                height:100%;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .travelTime {
+                width: 25px;
+                font-weight: 700;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .stopName {
+                display: flex;
+                align-items: center;
+                white-space: nowrap;
+                flex-grow: 1;
+                width: max-content;
+                text-align: left;
+                text-decoration: underline;
+                padding-right: 5px;
+                color: #056b89;
+            }
+
+            .stopName:hover {
+                color: #009788;
+            }
+        }
+    }
+    th, td {
+        width: 35px;
+        text-align: center;
+        border: 1px solid #d0d0d0;
+        line-height: 20px;
+        vertical-align: top;
+    }
+    
+    
+}

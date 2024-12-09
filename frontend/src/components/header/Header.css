@@ -1,0 +1,19 @@
+header {
+    height: 70px;
+    border-bottom: 2px solid #d0d0d0;
+    margin-bottom: 15px;
+    
+    img {
+        height: 50px;
+    }
+
+    .container2 {
+        width: 70%;
+        margin: auto;
+        display: flex;
+        height: 100%;
+        gap: 10px;
+        justify-content: flex-start;
+        align-items: center;
+    }
+}
