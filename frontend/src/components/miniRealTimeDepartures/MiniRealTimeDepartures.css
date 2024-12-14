@@ -1,62 +1,57 @@
-
 .MiniRealTimeDepartures {
-    button {
-        border: 0;
-        background-color: #056b89;
-        color: white;
+  button {
+    border: 0;
+    background-color: #056b89;
+    color: white;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    cursor: pointer;
+    padding: 10px;
+    font-size: 1rem;
+    transition: 0.15s ease-in-out all;
+  }
+
+  button:hover {
+    background-color: #009788;
+  }
+
+  .realTimeDepartures {
+    background-color: #f3f3f3;
+    margin-left: 30px;
+    margin-top: 20px;
+    min-height: 150px;
+    min-width: 300px;
+    width: fit-content;
+    padding: 10px;
+
+    > div {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      padding: 0 !important;
+
+      > div {
         display: flex;
         justify-content: flex-start;
-        align-items: center;
         gap: 10px;
-        margin-top: 20px;
-        cursor: pointer;
-        padding: 10px;
-        font-size: 1rem;
-        transition: 0.15s ease-in-out all;
-    }
 
-    button:hover {
-        background-color: #009788;
-    }
-
-    .realTimeDepartures {
-        background-color: #f3f3f3;
-        margin-left: 30px;
-        margin-top: 20px;
-        min-height: 150px;
-        min-width: 300px;
-        width: fit-content;
-        padding: 10px;
-
-        
-
-        > div {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            padding: 0 !important;
-    
-            > div {
-                display: flex;
-                justify-content: flex-start;
-                gap: 10px;
-    
-                > div:last-child {
-                    flex-grow: 1;
-                    text-align: right;
-                }
-    
-                > div:first-child {
-                    font-weight: 700;
-                    width: 30px;
-                }
-            }
+        > div:last-child {
+          flex-grow: 1;
+          text-align: right;
         }
-    }
 
-    img {
-        float: right;
+        > div:first-child {
+          font-weight: 700;
+          width: 30px;
+        }
+      }
     }
+  }
 
-    
+  img {
+    float: right;
+  }
 }
