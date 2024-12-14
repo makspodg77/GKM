@@ -1,5 +1,5 @@
-const sql = require('msnodesqlv8');
-const config = require('./utils/config');
+const sql = require("msnodesqlv8");
+const config = require("./utils/config");
 const connectionString = config.CONNECTION_STRING;
 
 const dropTables = `
@@ -8,6 +8,7 @@ const dropTables = `
     DROP TABLE IF EXISTS transport_lines;
     DROP TABLE IF EXISTS transport_stops;
     DROP TABLE IF EXISTS line_types;
+    DROP TABLE IF EXISTS news;
 `;
 
 const createLineTypesTable = `
@@ -24,6 +25,15 @@ const createTransportStopsTable = `
         id BIGINT PRIMARY KEY,
         stop_name VARCHAR(255) NOT NULL,
         stop_direction BIT
+    );
+`;
+
+const createNewsTable = `
+    CREATE TABLE news (
+        id BIGINT PRIMARY KEY IDENTITY(1,1),
+        title VARCHAR(255) NOT NULL,
+        content TEXT NOT NULL,
+        created_at DATETIME DEFAULT GETDATE()
     );
 `;
 
@@ -53,241 +63,242 @@ const createTimetableTable = `
         id INT PRIMARY KEY,
         route_number INT,
         departure_time VARCHAR(255) NOT NULL,
-        FOREIGN KEY (route_number) REFERENCES routes(id)
     );
 `;
 
-const insertExampleData = `
+const insertLineTypesData = `
     INSERT INTO line_types (id, line_type_name, line_type_color, line_type_image)
     VALUES
         (1, 'Linie autobusowe dzienne', '#FF0000', 'city.png'),
         (2, 'Linie tramwajowe dzienne', '#00FF00', 'suburban.png'),
         (3, 'Linie autobusowe nocne', '#0000FF', 'interurban.png'),
-        (4, 'Linie autobusowe dzienne dodatkowe', '#0000FF', 'interurban.png');
+        (4, 'Linie autobusowe dzienne dodatkowe', '#0000FF', 'interurban.png');`;
 
-   INSERT INTO transport_stops (id, stop_name, stop_direction)
-    VALUES
-        (1, 'Osiedle Kasztanowe', 1),
-        (2, 'SKM Załom (Kablowa)', 1),
-        (3, 'Załom Kościół', 1),
-        (4, 'Załom Parkowa', 1),
-        (5, 'Lubczyńska', 1),
-        (6, 'Kniewska', 1),
-        (7, 'SKM Trzebusz', 1),
-        (8, 'Dąbie Osiedle', 1),
-        (9, 'Osiedle Kasztanowe', 0),
-        (10, 'SKM Załom (Kablowa)', 0),
-        (11, 'Załom Kościół', 0),
-        (12, 'Załom Parkowa', 0),
-        (13, 'Lubczyńska', 0),
-        (14, 'Kniewska', 0),
-        (15, 'SKM Trzebusz', 0),
-        (16, 'Dąbie Osiedle', 0),
-        (17, 'Kliniska Rzemieślnicza', 1),
-        (18, 'Kliniska Szkoła', 1),
-        (19, 'SKM Kliniska', 1),
-        (20, 'Kliniska Nadleśnictwo', 1),
-        (21, 'Kliniska Las', 1),
-        (22, 'Łęsko', 1),
-        (23, 'Stawno', 1),
-        (24, 'Stawno Krzyżówka', 1),
-        (25, 'Bolechowo', 1),
-        (26, 'Pucice Krzyż', 1),
-        (27, 'Czarna Łąka Turystyczna', 1),
-        (28, 'Czarna Łąka Plażowa', 1),
-        (29, 'Lubczyna Dino', 1),
-        (30, 'Lubczyna Plaża', 1),
-        (31, 'Lubczyna Kasztanowa', 1),
-        (32, 'Borzysławiec', 1),
-        (33, 'Kliniska Rzemieślnicza', 0),
-        (34, 'Kliniska Szkoła', 0),
-        (35, 'SKM Kliniska', 0),
-        (36, 'Kliniska Nadleśnictwo', 0),
-        (37, 'Kliniska Las', 0),
-        (38, 'Łęsko', 0),
-        (39, 'Stawno', 0),
-        (40, 'Stawno Krzyżówka', 0),
-        (41, 'Bolechowo', 0),
-        (42, 'Pucice Krzyż', 0),
-        (43, 'Czarna Łąka Turystyczna', 0),
-        (44, 'Czarna Łąka Plażowa', 0),
-        (45, 'Lubczyna Dino', 0),
-        (46, 'Lubczyna Plaża', 0),
-        (47, 'Lubczyna Kasztanowa', 0),
-        (48, 'Borzysławiec', 0),
-        (49, 'Kliniska Klimatyczna', 1),
-        (50, 'Rurzyca Farmer', 1),
-        (51, 'Rurzyca Cmentarz', 1),
-        (52, 'Rurzyca Kościół', 1),
-        (53, 'Rurzyca Myśliwska', 1),
-        (54, 'Rurzyca Las', 1),
-        (55, 'Łozienica Granitowa', 1),
-        (56, 'SKM Goleniów Park Przemysłowy', 1),
-        (57, 'Goleniów Stadion', 1),
-        (58, 'Kliniska Klimatyczna', 0),
-        (59, 'Rurzyca Farmer', 0),
-        (60, 'Rurzyca Cmentarz', 0),
-        (61, 'Rurzyca Kościół', 0),
-        (62, 'Rurzyca Myśliwska', 0),
-        (63, 'Rurzyca Las', 0),
-        (64, 'Łozienica Granitowa', 0),
-        (65, 'SKM Goleniów Park Przemysłowy', 0),
-        (66, 'Goleniów Stadion', 0),
-        (67, 'Podańsko Topolowa', 0),
-        (68, 'Podańsko Topolowa', 1),
-        (69, 'Podańsko Podleśna', 0),
-        (70, 'Podańsko Podleśna', 1),
-        (71, 'Helenów Krzywoustego', 0),
-        (72, 'Helenów Krzywoustego', 1),
-        (73, 'Osiedle Bieda', 0),
-        (74, 'Osiedle Bieda', 1),
-        (75, 'Przetwornica', 0),
-        (76, 'Przetwornica', 1),
-        (77, 'Muzeum Motoryzacji', 0),
-        (78, 'Muzeum Motoryzacji', 1),
-        (79, 'Nadleśnictwo', 0),
-        (80, 'Nadleśnictwo', 1),
-        (81, 'Kasprowicza Rondo', 0),
-        (82, 'Kasprowicza Rondo', 1),
-        (83, 'SKM Goleniów', 0),
-        (84, 'SKM Goleniów', 1);
-    INSERT INTO transport_lines (id, line_name, line_type_id)
-    VALUES
-        (1, 'C', 1),
-        (2, '95', 1),
-        (3, '94', 1),
-        (4, '93', 1),
-        (5, '22', 4);
+const insertTransportStopsData = `
+        INSERT INTO transport_stops (id, stop_name, stop_direction)
+        VALUES
+            (17, 'Kliniska Rzemieślnicza', 1),
+            (18, 'Kliniska Rzemieślnicza', 0),
+            (19, 'Kliniska Szkoła', 1),
+            (20, 'Kliniska Szkoła', 0),
+            (21, 'SKM Kliniska', 1),
+            (22, 'SKM Kliniska', 0),
+            (23, 'Kliniska Nadleśnictwo', 1),
+            (24, 'Kliniska Nadleśnictwo', 0),
+            (25, 'Pucie', 1),
+            (26, 'Pucie', 0),
+            (27, 'Łęsko', 1),
+            (28, 'Łęsko', 0),
+            (29, 'Stawno', 1),
+            (30, 'Stawno', 0),
+            (31, 'Stawno Krzyżówka', 1),
+            (32, 'Stawno Krzyżówka', 0),
+            (33, 'Bolechowo', 1),
+            (34, 'Bolechowo', 0),
+            (35, 'Pucice Krzyż', 1),
+            (36, 'Pucice Krzyż', 0),
+            (37, 'Czarna Łąka Turystyczna', 1),
+            (38, 'Czarna Łąka Turystyczna', 0),
+            (39, 'Czarna Łąka Plażowa', 1),
+            (40, 'Czarna Łąka Plażowa', 0),
+            (41, 'Lubczyna Dino', 1),
+            (42, 'Lubczyna Dino', 0),
+            (43, 'Lubczyna Plaża', 1),
+            (44, 'Lubczyna Plaża', 0),
+            (45, 'Lubczyna Kasztanowa', 1),
+            (46, 'Lubczyna Kasztanowa', 0),
+            (47, 'Borzysławiec', 1),
+            (48, 'Borzysławiec', 0),
+            (49, 'Kliniska Klimatyczna', 1),
+            (50, 'Kliniska Klimatyczna', 0),
+            (51, 'Rurzyca Farmer', 1),
+            (52, 'Rurzyca Farmer', 0),
+            (53, 'Rurzyca Cmentarz', 1),
+            (54, 'Rurzyca Cmentarz', 0),
+            (55, 'Dobroszyn', 1),
+            (56, 'Dobroszyn', 0),
+            (57, 'Warcisławiec', 1),
+            (58, 'Warcisławiec', 0),
+            (59, 'Rurzyca Las', 1),
+            (60, 'Rurzyca Las', 0),
+            (61, 'Łozienica Granitowa', 1),
+            (62, 'Łozienica Granitowa', 0),
+            (63, 'SKM Goleniów Park Przemysłowy', 1),
+            (64, 'SKM Goleniów Park Przemysłowy', 0),
+            (65, 'Stadion Miejski OSiR', 1),
+            (66, 'Stadion Miejski OSiR', 0),
+            (67, 'Podańsko Topolowa', 1),
+            (68, 'Podańsko Topolowa', 0),
+            (69, 'Podańsko Podleśna', 1),
+            (70, 'Podańsko Podleśna', 0),
+            (71, 'Krzywoustego', 1),
+            (72, 'Krzywoustego', 0),
+            (73, 'Osiedle Bieda', 1),
+            (74, 'Osiedle Bieda', 0),
+            (75, 'Rozdzielnia', 1),
+            (76, 'Rozdzielnia', 0),
+            (77, 'Muzeum Motoryzacji', 1),
+            (78, 'Muzeum Motoryzacji', 0),
+            (79, 'Nadleśnictwo', 1),
+            (80, 'Nadleśnictwo', 0),
+            (81, 'Rondo Kasprowicza', 1),
+            (82, 'Rondo Kasprowicza', 0),
+            (83, 'SKM Goleniów', 1),
+            (84, 'SKM Goleniów', 0),
+            (85, 'Polna', 1),
+            (86, 'Polna', 0),
+            (87, 'Ogród Działkowy "Ina"', 1),
+            (88, 'Ogród Działkowy "Ina"', 0),
+            (89, 'ks. Włodzimierza Kowalskiego', 1),
+            (90, 'ks. Włodzimierza Kowalskiego', 0),
+            (91, 'Zarosty', 1),
+            (92, 'Zarosty', 0),
+            (93, 'Słowackiego', 1),
+            (94, 'Słowackiego', 0),
+            (95, 'Wawrzyniaka', 1),
+            (96, 'Wawrzyniaka', 0),
+            (97, 'Jana Pawła II', 1),
+            (98, 'Jana Pawła II', 0),
+            (99, 'Rondo Urlicha Schroedera', 1),
+            (100, 'Rondo Urlicha Schroedera', 0),
+            (101, 'Jana Matejki', 1),
+            (102, 'Jana Matejki', 0),
+            (103, 'Przestrzenna', 1),
+            (104, 'Przestrzenna', 0),
+            (105, 'Cmentarz Komunalny', 1),
+            (106, 'Cmentarz Komunalny', 0),
+            (107, 'Żeromskiego', 1),
+            (108, 'Żeromskiego', 0),
+            (109, 'Krzewno', 1),
+            (110, 'Krzewno', 0),
+            (111, 'Skórnica', 1),
+            (112, 'Skórnica', 0),
+            (113, 'Graniczna', 1),
+            (114, 'Graniczna', 0),
+            (115, 'Sadowa', 1),
+            (116, 'Sadowa', 0),
+            (117, 'Anny Jagielonki', 1),
+            (118, 'Anny Jagielonki', 0),
+            (119, 'Rondo Hanzeatyckie', 1),
+            (120, 'Rondo Hanzeatyckie', 0),
+            (121, 'ZSP "Dinozaur"', 1),
+            (122, 'ZSP "Dinozaur"', 0),
+            (123, 'Witosa', 1),
+            (124, 'Witosa', 0),
+            (125, 'Szkolna', 1),
+            (126, 'Szkolna', 0),
+            (127, 'Swedwood', 1),
+            (128, 'Swedwood', 0),
+            (129, 'Załom Kościół', 1),
+            (130, 'Załom Kościół', 0),
+            (131, 'Załom Leśna', 1),
+            (132, 'Załom Leśna', 0),
+            (133, 'Załom Starowieyskiego', 1),
+            (134, 'Załom Starowieyskiego', 0),
+            (135, 'Pucice Leśna', 1),
+            (136, 'Pucice Leśna', 0),
+            (137, 'Kliniska Księżycowa', 1),
+            (138, 'Kliniska Księżycowa', 0),
+            (139, 'Kliniska Park', 1),
+            (140, 'Kliniska Park', 0),
+            (141, 'Czarna Łąka Wczasowa', 1),
+            (142, 'Czarna Łąka Wczasowa', 0),
+            (143, 'Czarna Łąka Wycieczkowa', 1),
+            (144, 'Czarna Łąka Wycieczkowa', 0),
+            (145, 'Bystra Przyjazna', 1),
+            (146, 'Bystra Przyjazna', 0),
+            (147, 'Lubczyna Masztowa', 1),
+            (148, 'Lubczyna Masztowa', 0),
+            (149, 'OSP Lubczyna', 1),
+            (150, 'OSP Lubczyna', 0),
+            (151, 'Lubczyna Jesieniowa', 1),
+            (152, 'Lubczyna Jesieniowa', 0),
+            (153, 'Smolno', 1),
+            (154, 'Smolno', 0),
+            (155, 'Kanał Jankowski', 1),
+            (156, 'Kanał Jankowski', 0),
+            (157, 'Prosta', 1),
+            (158, 'Prosta', 0);
+    `;
 
-    INSERT INTO routes (id, line_id, stop_id, route_number, travel_time, is_on_request, stop_number)
-    VALUES
-        (1, 1, 1, 1, 0, 0, 1),
-        (2, 1, 2, 1, 3, 0, 2),
-        (3, 1, 3, 1, 2, 0, 3),
-        (4, 1, 4, 1, 2, 0, 4),
-        (5, 1, 5, 1, 1, 1, 5),
-        (6, 1, 6, 1, 1, 1, 6),
-        (7, 1, 7, 1, 2, 0, 7),
-        (8, 1, 8, 1, 5, 0, 8),
-        (9, 1, 16, 2, 4, 0, 8),
-        (10, 1, 15, 2, 3, 0, 7),
-        (11, 1, 14, 2, 2, 0, 6),
-        (12, 1, 13, 2, 2, 0, 5),
-        (13, 1, 12, 2, 1, 1, 4),
-        (14, 1, 11, 2, 1, 1, 3),
-        (15, 1, 10, 2, 2, 0, 2),
-        (16, 1, 9, 2, 0, 0, 1),
-        (17, 2, 33, 3, 0, 0, 1),
-        (18, 2, 58, 3, 2, 0, 2),
-        (19, 2, 59, 3, 2, 0, 3),
-        (20, 2, 60, 3, 3, 0, 4),
-        (21, 2, 61, 3, 1, 0, 5),
-        (22, 2, 62, 3, 4, 0, 6),
-        (23, 2, 63, 3, 5, 0, 7),
-        (24, 2, 64, 3, 2, 0, 8),
-        (25, 2, 65, 3, 1, 0, 9),
-        (26, 2, 66, 3, 5, 0, 10),
-        (27, 2, 57, 4, 0, 0, 1),
-        (28, 2, 56, 4, 5, 0, 2),
-        (29, 2, 55, 4, 1, 0, 3),
-        (30, 2, 54, 4, 2, 0, 4),
-        (41, 2, 53, 4, 5, 0, 5),
-        (42, 2, 52, 4, 5, 0, 6),
-        (43, 2, 51, 4, 1, 0, 7),
-        (44, 2, 50, 4, 3, 0, 8),
-        (45, 2, 49, 4, 2, 0, 9),
-        (46, 2, 17, 4, 2, 0, 10),
-        (47, 3, 33, 5, 0, 0, 1),
-        (48, 3, 34, 5, 2, 0, 2),
-        (49, 3, 35, 5, 2, 0, 3),
-        (50, 3, 36, 5, 4, 0, 4),
-        (51, 3, 37, 5, 6, 1, 5),
-        (52, 3, 38, 5, 6, 1, 6),
-        (53, 3, 39, 5, 5, 0, 7),
-        (54, 3, 40, 5, 2, 0, 8),
-        (55, 3, 41, 5, 4, 0, 9),
-        (56, 3, 25, 6, 0, 0, 1),
-        (57, 3, 24, 6, 2, 0, 2),
-        (58, 3, 23, 6, 5, 0, 3),
-        (59, 3, 22, 6, 6, 0, 4),
-        (60, 3, 21, 6, 6, 1, 5),
-        (61, 3, 20, 6, 4, 1, 6),
-        (62, 3, 19, 6, 2, 0, 7),
-        (63, 3, 18, 6, 2, 0, 8),
-        (64, 3, 17, 6, 2, 0, 9),
-        (65, 5, 67, 22, 0, 0, 1),
-        (66, 5, 69, 22, 3, 0, 2),
-        (67, 5, 71, 22, 2, 0, 3),
-        (68, 5, 73, 22, 1, 0, 4),
-        (69, 5, 75, 22, 4, 0, 5),
-        (70, 5, 77, 22, 3, 0, 6),
-        (71, 5, 79, 22, 2, 0, 7),
-        (72, 5, 81, 22, 1, 0, 8),
-        (73, 5, 83, 22, 1, 0, 9),
-        (75, 5, 84, 23, 0, 0, 1),
-        (76, 5, 82, 23, 1, 0, 2),
-        (77, 5, 80, 23, 2, 0, 3),
-        (78, 5, 78, 23, 1, 0, 4),
-        (79, 5, 76, 23, 4, 0, 5),
-        (80, 5, 74, 23, 1, 0, 6),
-        (81, 5, 72, 23, 2, 0, 7),
-        (82, 5, 70, 23, 3, 0, 8),
-        (83, 5, 68, 23, 3, 0, 9),
-        (84, 4, 17, 93, 0, 0, 1),
-        (85, 4, 26, 93, 4, 0, 2),
-        (86, 4, 27, 93, 3, 0, 3),
-        (87, 4, 28, 93, 2, 0, 4),
-        (88, 4, 29, 93, 2, 0, 5),
-        (89, 4, 30, 93, 3, 0, 6),
-        (90, 4, 31, 93, 4, 0, 7),
-        (91, 4, 32, 93, 4, 0, 8),
-        (92, 4, 48, 94, 0, 0, 1),
-        (93, 4, 47, 94, 4, 0, 2),
-        (94, 4, 46, 94, 3, 0, 3),
-        (95, 4, 45, 94, 2, 0, 4),
-        (96, 4, 44, 94, 2, 0, 5),
-        (97, 4, 43, 94, 3, 0, 6),
-        (98, 4, 42, 94, 4, 0, 7),
-        (99, 4, 33, 94, 4, 0, 8);
+const insertTransportLinesData = `INSERT INTO transport_lines(id,line_name,line_type_id)VALUES      
+    (2,'95',1),(3,'94',1),(4,'93',1),(5,'22',4), (6, '91', 1), (7, '42', 1), (8, '90', 1), (9, '38', 1);
 
+                                 `;
+
+const insertNewsData = `INSERT INTO news
+                                              (title,
+                                              content,
+                                              created_at)
+                                  VALUES     ('Zmiany w komunikacji - korekta nazw zespołów przystankowych',
+                                              'Ta Informacja dotyczy linii: 94, 95, 22, (C); <br> <br> <br>Od dnia 14 grudnia 2024 roku, linia C uległa likwidacji.  <br>Wprowadzone zostały również nowe nazwy niektórych przystanków. <br> <br>Wykaz zmienionych nazw: <br> <br>- "Rurzyca Kościół" na "Dobroszyn" (linia 95) <br>- "Rurzyca Myśliwska" na "Warcisławiec" (linia 95) <br>- "Goleniów Stadion" na "Stadion Miejski OSiR" (linia 95) <br>- "Kliniska Las" na "Pucie" (linia 94) <br>- "Helenów Krzywoustego" na "Krzywoustego" (linia 22) <br>- "Przetwornica" na "Rozdzielnia" (linia 22) <br>- "Kasprowicza Rondo" na "Rondo Kasprowicza" (linia 22)',
+                                              '2024-12-14 16:08:23.740');`;
+
+const insertRoutesData = `INSERT INTO routes (id, line_id, stop_id, route_number, travel_time, is_on_request, stop_number)
+    VALUES
+        (126, 8, 130, 90, 0, 0, 1),
+        (127, 8, 132, 90, 1, 0, 2),
+        (128, 8, 134, 90, 2, 0, 3),
+        (129, 8, 136, 90, 2, 0, 4),
+        (130, 8, 36, 90, 1, 0, 5),
+        (131, 8, 138, 90, 1, 0, 6),
+        (132, 8, 18, 90, 1, 0, 7),
+        (133, 8, 140, 90, 1, 0, 8),
+        (134, 8, 52, 90, 2, 0, 9),
+        (135, 8, 54, 90, 3, 0, 10),
+        (136, 8, 56, 90, 1, 0, 11),
+        (137, 8, 58, 90, 4, 0, 12),
+        (138, 8, 60, 90, 5, 0, 13),
+        (139, 8, 62, 90, 2, 0, 14),
+        (140, 8, 64, 90, 1, 0, 15),
+        (141, 8, 66, 90, 5, 0, 16),
+        (142, 8, 65, 91, 0, 0, 1),
+        (143, 8, 63, 91, 5, 0, 2),
+        (144, 8, 61, 91, 1, 0, 3),
+        (145, 8, 59, 91, 2, 0, 4),
+        (146, 8, 57, 91, 5, 0, 5),
+        (147, 8, 55, 91, 4, 0, 6),
+        (148, 8, 53, 91, 1, 0, 7),
+        (149, 8, 51, 91, 3, 0, 8),
+        (150, 8, 139, 91, 2, 0, 9),
+        (151, 8, 17, 91, 1, 0, 10),
+        (152, 8, 137, 91, 1, 0, 11),
+        (153, 8, 35, 91, 1, 0, 12),
+        (154, 8, 135, 91, 2, 0, 13),
+        (155, 8, 133, 91, 2, 0, 14),
+        (156, 8, 131, 91, 1, 0, 15),
+        (157, 8, 129, 91, 1, 0, 16),
+        (1, 7, 86, 7, 0, 0, 1),
+        (2, 7, 88, 7, 2, 0, 2),
+        (3, 7, 90, 7, 1, 0, 3),
+        (4, 7, 92, 7, 1, 0, 4),
+        (5, 7, 114, 7, 1, 0, 5),
+        (6, 7, 116, 7, 1, 0, 6),
+        (7, 7, 118, 7, 1, 0, 7),
+        (8, 7, 120, 7, 1, 0, 8),
+        (9, 7, 122, 7, 1, 0, 9),
+        (10, 7, 124, 7, 1, 0, 10),
+        (11, 7, 126, 7, 1, 0, 11),
+        (12, 7, 128, 7, 1, 0, 12),
+        (13, 7, 84, 7, 1, 0, 13),
+        (14, 7, 85, 8, 1, 0, 13),
+        (15, 7, 87, 8, 1, 0, 12),
+        (16, 7, 89, 8, 1, 0, 11),
+        (17, 7, 91, 8, 1, 0, 10),
+        (18, 7, 113, 8, 1, 0, 9),
+        (19, 7, 115, 8, 1, 0, 8),
+        (20, 7, 117, 8, 1, 0, 7),
+        (21, 7, 119, 8, 1, 0, 6),
+        (22, 7, 121, 8, 1, 0, 5),
+        (23, 7, 123, 8, 1, 0, 4),
+        (24, 7, 125, 8, 1, 0, 3),
+        (25, 7, 127, 8, 2, 0, 2),
+        (26, 7, 83, 8, 0, 0, 1);
+        `;
+
+const insertTimetableData = `
     INSERT INTO timetable (id, route_number, departure_time)
     VALUES
-        (1, 1, '4:50'),
-        (2, 1, '5:25'),
-        (3, 1, '5:55'),
-        (4, 1, '6:10'),
-        (5, 1, '6:25'),
-        (6, 1, '6:40'),
-        (7, 1, '6:55'),
-        (8, 1, '7:05'),
-        (9, 1, '7:25'),
-        (10, 1, '7:40'),
-        (11, 1, '7:55'),
-        (12, 1, '8:25'),
-        (13, 1, '8:55'),
-        (14, 1, '9:32'),
-        (15, 1, '10:12'),
-        (16, 1, '10:52'),
-        (17, 1, '11:33'),
-        (18, 1, '12:13'),
-        (19, 1, '12:55'),
-        (20, 1, '13:25'),
-        (21, 1, '14:02'),
-        (22, 1, '14:24'),
-        (23, 1, '14:54'),
-        (24, 1, '15:24'),
-        (25, 1, '15:55'),
-        (26, 1, '16:25'),
-        (27, 1, '16:55'),
-        (28, 1, '17:33'),
-        (29, 1, '18:13'),
-        (30, 1, '18:53'),
-        (31, 1, '19:34'),
-        (32, 1, '20:15'),
-        (33, 1, '20:55'),
-        (34, 1, '21:35'),
-        (35, 1, '22:02'),
-        (36, 2, '4:50'),
         (37, 22, '22:02'),
         (38, 23, '22:02'),
         (39, 94, '19:08'),
@@ -466,60 +477,88 @@ const insertExampleData = `
         (216, 6, '19:05'),
         (217, 6, '19:55'),
         (218, 6, '20:50'),
-        (219, 6, '22:02');
+        (219, 6, '22:02'),
+        (220, 7, '23:00'),
+        (221, 8, '23:00');
 
 `;
 
+const executeQuery = (query, callback) => {
+  console.log("Executing query:", query.split("\n")[1].trim()); // Log the first line of the query for identification
+  sql.query(connectionString, query, (err, result) => {
+    if (err) {
+      console.error("Error executing query:", err);
+    } else {
+      console.log("Query executed successfully.");
+    }
+    if (callback) callback(err, result);
+  });
+};
+
 const initializeTables = () => {
-    sql.query(connectionString, dropTables, (err) => {
-        if (err) {
-            console.error('Error dropping tables:', err);
-        } else {
-            console.log('Tables dropped successfully.');
-            sql.query(connectionString, createLineTypesTable, (err) => {
-                if (err) {
-                    console.error('Error creating line_types table:', err);
-                } else {
-                    console.log('line_types table created successfully.');
-                    sql.query(connectionString, createTransportStopsTable, (err) => {
-                        if (err) {
-                            console.error('Error creating transport_stops table:', err);
-                        } else {
-                            console.log('transport_stops table created successfully.');
-                            sql.query(connectionString, createTransportLinesTable, (err) => {
-                                if (err) {
-                                    console.error('Error creating transport_lines table:', err);
-                                } else {
-                                    console.log('transport_lines table created successfully.');
-                                    sql.query(connectionString, createRoutesTable, (err) => {
-                                        if (err) {
-                                            console.error('Error creating routes table:', err);
-                                        } else {
-                                            console.log('routes table created successfully.');
-                                            sql.query(connectionString, createTimetableTable, (err) => {
-                                                if (err) {
-                                                    console.error('Error creating timetable table:', err);
-                                                } else {
-                                                    console.log('timetable table created successfully.');
-                                                    sql.query(connectionString, insertExampleData, (err) => {
-                                                        if (err) {
-                                                            console.error('Error inserting data:', err);
-                                                        } else {
-                                                            console.log('Data inserted successfully.');
+  executeQuery(dropTables, (err) => {
+    if (!err) {
+      executeQuery(createLineTypesTable, (err) => {
+        if (!err) {
+          executeQuery(createTransportStopsTable, (err) => {
+            if (!err) {
+              executeQuery(createNewsTable, (err) => {
+                if (!err) {
+                  executeQuery(createTransportLinesTable, (err) => {
+                    if (!err) {
+                      executeQuery(createRoutesTable, (err) => {
+                        if (!err) {
+                          executeQuery(createTimetableTable, (err) => {
+                            if (!err) {
+                              executeQuery(insertLineTypesData, (err) => {
+                                if (!err) {
+                                  executeQuery(
+                                    insertTransportStopsData,
+                                    (err) => {
+                                      if (!err) {
+                                        executeQuery(
+                                          insertTransportLinesData,
+                                          (err) => {
+                                            if (!err) {
+                                              executeQuery(
+                                                insertRoutesData,
+                                                (err) => {
+                                                  if (!err) {
+                                                    executeQuery(
+                                                      insertTimetableData,
+                                                      (err) => {
+                                                        if (!err) {
+                                                          executeQuery(
+                                                            insertNewsData
+                                                          );
                                                         }
-                                                    });
+                                                      }
+                                                    );
+                                                  }
                                                 }
-                                            });
-                                        }
-                                    });
+                                              );
+                                            }
+                                          }
+                                        );
+                                      }
+                                    }
+                                  );
                                 }
-                            });
+                              });
+                            }
+                          });
                         }
-                    });
+                      });
+                    }
+                  });
                 }
-            });
+              });
+            }
+          });
         }
-    });
+      });
+    }
+  });
 };
 
 initializeTables();

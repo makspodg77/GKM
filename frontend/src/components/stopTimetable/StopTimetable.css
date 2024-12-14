@@ -1,0 +1,19 @@
+.StopTimetable {
+  div {
+    box-sizing: border-box;
+    display: flex;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  a {
+    display: block;
+    margin-bottom: 20px;
+    width: 30%;
+    color: #056b89;
+  }
+
+  a:hover {
+    color: #009788;
+  }
+}

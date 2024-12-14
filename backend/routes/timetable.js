@@ -188,7 +188,9 @@ router.get("/departure-times", (req, res) => {
       line_type_color: parsedResults[0].line_type_color,
       line_type_name: parsedResults[0].line_type_name,
       other_lines: parsedResults[0].other_lines,
-      stops: parsedResults[0].stops,
+      stops: parsedResults[0].stops.sort(
+        (a, b) => a.stop_number - b.stop_number
+      ),
       other_way_stop_id: parsedResults[0].other_way_stop_id,
     };
 

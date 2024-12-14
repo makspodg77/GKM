@@ -15,6 +15,13 @@ export interface Stop {
   route_number: number;
 }
 
+export interface Stops {
+  [firstLetter: string]: {
+    stop_name: string;
+    id: number;
+  }[];
+}
+
 export interface LineTimetableData {
   line_color: string;
   line_name: string;
@@ -88,6 +95,13 @@ export interface Timetable {
   departure_time: string;
 }
 
+export interface NewsInterface {
+  id: number;
+  title: string;
+  content: string;
+  created_at: Date;
+}
+
 export interface StopTimetable {
   departure_time: string;
   route_number: number;
@@ -145,6 +159,14 @@ const getTimetable = async (stopId: number): Promise<Timetable[]> => {
   return response.data;
 };
 
+const getNews = async (): Promise<NewsInterface[]> => {
+  const response = await axios.get<NewsInterface[]>(`${baseURL}/news`);
+  return response.data.map((item: any) => ({
+    ...item,
+    created_at: new Date(item.created_at),
+  }));
+};
+
 const getDepartureTimes = async (
   stopId: string,
   routeNumber: string
@@ -172,6 +194,11 @@ const getStopGroup = async (stopId: number): Promise<StopGroupIf> => {
   return response.data;
 };
 
+const getAllStops = async (): Promise<any> => {
+  const response = await axios.get<any>(`${baseURL}/transportStops`);
+  return response.data;
+};
+
 export default {
   getSpecificRoute,
   getTransportLines,
@@ -182,4 +209,6 @@ export default {
   getTimetable,
   getDepartureTimes,
   getStopTimetable,
+  getAllStops,
+  getNews,
 };

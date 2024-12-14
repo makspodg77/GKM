@@ -8,33 +8,51 @@ import LineStopTimetable from './components/lineStopTimetable/LineStopTimetable'
 import RealTimeDepartures from './components/realTimeDepartures/RealTimeDepartures';
 import StopGroup from './components/stopGroup/StopGroup';
 import LineRoute from './components/lineRoute/LineRoute';
+import { useState } from 'react';
+import StopTimetable from './components/stopTimetable/stopTimetable';
+import News from './components/news/News';
 
 const PageStructure = (props: any) => {
+  const [selected, setSelected] = useState<number>(3);
+
   return (
     <>
       <Header />
       <div className="container">
         <section className="menu">
           Rozklady jazdy
-          <ul>
-            <li>
-              <Link to="/rozklad-jazdy-wedlug-linii">
-                Rozkłady jazdy według linii
-              </Link>
-            </li>
-            <li>Rozkłady jazdy według przystanków</li>
-          </ul>
-          <Link to="/linie">Linie</Link>
-          <div>Informacje</div>
-          <div>Bilety i opłaty</div>
-          <ul>
-            <li>Bilety jednorazowe</li>
-            <li>Bilety okresowe</li>
-            <li>Ulgi i zwolnienia</li>
-            <li>Bezpłatne przejazdy dla uczniów</li>
-            <li>Opłaty dodatkowe</li>
-          </ul>
-          Szczeciński Bilet Metropolitalny
+          <div>
+            <Link
+              onClick={() => setSelected(0)}
+              style={selected == 0 ? { backgroundColor: '#FACF00' } : {}}
+              to="/rozklad-jazdy-wedlug-linii"
+            >
+              Rozkłady jazdy według linii
+            </Link>
+          </div>
+          <div>
+            <Link
+              onClick={() => setSelected(2)}
+              style={selected == 2 ? { backgroundColor: '#FACF00' } : {}}
+              to={`/rozklady-jazdy/wedlug-przystankow`}
+            >
+              Rozkłady jazdy według przystanków
+            </Link>
+          </div>
+          <Link
+            onClick={() => setSelected(1)}
+            style={selected == 1 ? { backgroundColor: '#FACF00' } : {}}
+            to="/linie"
+          >
+            Linie
+          </Link>
+          <Link
+            onClick={() => setSelected(3)}
+            style={selected == 3 ? { backgroundColor: '#FACF00' } : {}}
+            to="/informacje"
+          >
+            Informacje
+          </Link>
         </section>
         <section className="content">{props.children}</section>
       </div>
@@ -51,7 +69,7 @@ const App = () => {
           path="/"
           element={
             <PageStructure>
-              <TransportLines />
+              <News />
             </PageStructure>
           }
         />
@@ -101,6 +119,22 @@ const App = () => {
           element={
             <PageStructure>
               <LineRoute />
+            </PageStructure>
+          }
+        />
+        <Route
+          path="/rozklady-jazdy/wedlug-przystankow"
+          element={
+            <PageStructure>
+              <StopTimetable />
+            </PageStructure>
+          }
+        />
+        <Route
+          path="/informacje"
+          element={
+            <PageStructure>
+              <News />
             </PageStructure>
           }
         />
