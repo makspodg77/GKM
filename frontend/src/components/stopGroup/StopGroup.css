@@ -1,53 +1,52 @@
 .StopGroup {
-    .map {
-        width: calc(100% - 75px);
-        height: 300px;
-        background-color: #facf00;
-        position: relative;
-    
-    }
+  .map {
+    width: calc(100% - 75px);
+    height: 300px;
+    background-color: #facf00;
+    position: relative;
+  }
 
-    h1 {
-        margin-top: 0;
-    }
+  h1 {
+    margin-top: 0;
+  }
 
-    .map::after {
-        content: 'tu kiedys MOZE bedzie mapa';
-        font-size: 2rem;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%) rotate(45deg);
-    }
+  .map::after {
+    content: 'tu kiedys MOZE bedzie mapa';
+    font-size: 2rem;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(45deg);
+  }
 
-    .stop {
+  .stop {
+    width: 50%;
+    float: left;
+
+    .route {
+      display: flex;
+      flex-direction: row;
+      margin-bottom: 5px;
+
+      :first-child {
+        width: 10%;
+        font-weight: 700;
+      }
+
+      :nth-child(2) {
         width: 50%;
-        float: left;
-
-        .route {
-            display: flex;
-            flex-direction: row;
-            margin-bottom: 5px;
-
-            :first-child {
-                width: 10%;
-                font-weight: 700;
-            }
-
-            :nth-child(2) {
-                width: 50%;
-                > a {
-                    color: #056b89;
-                }
-
-                a:hover {
-                    color: #009788;
-                }
-            }
-
-            :last-child {
-                flex-grow: 1;
-            }
+        > a {
+          color: #056b89;
         }
+
+        a:hover {
+          color: #009788;
+        }
+      }
+
+      :last-child {
+        flex-grow: 1;
+      }
     }
+  }
 }
