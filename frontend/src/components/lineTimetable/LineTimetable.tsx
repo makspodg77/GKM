@@ -17,6 +17,7 @@ const LineTimetable = () => {
         .getRoute(lineId)
         .then((data) => {
           setLine(data);
+          console.log(data);
           setLoading(false);
         })
         .catch((error) => {
