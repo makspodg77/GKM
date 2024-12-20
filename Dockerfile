@@ -40,7 +40,7 @@ RUN npm rebuild msnodesqlv8
 RUN mkdir -p public && cp -r ../frontend/dist/* public/
 
 # Expose the port the app runs on
-EXPOSE 5000
+EXPOSE 3000
 
 # Start the Node.js server
 CMD ["node", "index.js"]
