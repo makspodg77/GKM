@@ -18,6 +18,10 @@ app.use("/api/news", newsRouter);
 
 app.use(express.static(path.join(__dirname, "public")));
 
+app.get("/health", (req, res) => {
+  res.status(200).send("OK");
+});
+
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
