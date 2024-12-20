@@ -1,5 +1,5 @@
 const express = require("express");
-const { Connection, Request } = require("tedious");
+const sql = require("mssql");
 const config = require("../utils/config");
 const router = express.Router();
 
@@ -18,44 +18,23 @@ const addMinutesToTime = (time, minutesToAdd) => {
   return `${newHours}:${newMinutes}`;
 };
 
-const executeQuery = (query, callback) => {
-  const connection = new Connection(config);
-
-  connection.on("connect", (err) => {
-    if (err) {
-      console.error("Connection error:", err);
-      callback(err, null);
-      return;
-    }
-
-    const request = new Request(query, (err, rowCount, rows) => {
-      if (err) {
-        console.error("Query error:", err);
-        callback(err, null);
-        return;
-      }
-
-      const results = rows.map((row) => {
-        const result = {};
-        row.forEach((column) => {
-          result[column.metadata.colName] = column.value;
-        });
-        return result;
-      });
-
-      callback(null, results);
-    });
-
-    connection.execSql(request);
-  });
-
-  connection.connect();
+const executeQuery = async (query) => {
+  try {
+    await sql.connect(config);
+    const result = await sql.query(query);
+    return result.recordset;
+  } catch (err) {
+    console.error("Query error:", err);
+    throw err;
+  } finally {
+    await sql.close();
+  }
 };
 
 // GET /api/timetable/route/:id
 // Returns the route for a specific route
 // The route is identified by its timetable id
-router.get("/route/:id", (req, res) => {
+router.get("/route/:id", async (req, res) => {
   const id = req.params.id;
 
   const query = `
@@ -67,12 +46,8 @@ router.get("/route/:id", (req, res) => {
     WHERE tt.id = ${id}
   `;
 
-  executeQuery(query, (err, results) => {
-    if (err) {
-      console.error("Error running query:", err);
-      return res.status(500).send("Error running query.");
-    }
-
+  try {
+    const results = await executeQuery(query);
     let time = results[0].departure_time;
 
     const modifiedResults = results.map((result) => {
@@ -83,13 +58,15 @@ router.get("/route/:id", (req, res) => {
     });
 
     res.json(modifiedResults);
-  });
+  } catch (err) {
+    res.status(500).send("Error running query.");
+  }
 });
 
 // GET /api/timetable/departure-times
 // Returns the departure times for a specific stop and route
 // The stop is identified by its stop id and the route by its route number
-router.get("/departure-times", (req, res) => {
+router.get("/departure-times", async (req, res) => {
   const { stop_id, route_number } = req.query;
 
   const query = `
@@ -191,11 +168,8 @@ router.get("/departure-times", (req, res) => {
     AND tt.route_number = ${route_number}
   `;
 
-  executeQuery(query, (err, results) => {
-    if (err) {
-      console.error("Error running query:", err);
-      return res.status(500).send("Error running query.");
-    }
+  try {
+    const results = await executeQuery(query);
 
     const parsedResults = results.map((result) => ({
       ...result,
@@ -233,7 +207,9 @@ router.get("/departure-times", (req, res) => {
 
     console.log(finalResult);
     res.json(finalResult);
-  });
+  } catch (err) {
+    res.status(500).send("Error running query.");
+  }
 });
 
 // /api/timetable/timetable?stopId=1
@@ -256,11 +232,8 @@ router.get("/timetable", async (req, res) => {
     JOIN transport_stops ts ON r.stop_id = ts.id
     WHERE ts.id = ${stopId}
   `;
-  executeQuery(query, (err, results) => {
-    if (err) {
-      console.error("Error running query:", err);
-      return res.status(500).send("Error running query.");
-    }
+  try {
+    const results = await executeQuery(query);
 
     const promises = results.map((result) => {
       return new Promise((resolve, reject) => {
@@ -298,19 +271,18 @@ router.get("/timetable", async (req, res) => {
         console.error("Error processing results:", error);
         res.status(500).send("Error processing results.");
       });
-  });
+  } catch (err) {
+    res.status(500).send("Error running query.");
+  }
 });
 
-router.get("/stop-group", (req, res) => {
+router.get("/stop-group", async (req, res) => {
   const { stopId } = req.query;
 
   const query2 = `SELECT id FROM transport_stops WHERE stop_name = (SELECT stop_name FROM transport_stops WHERE id = ${stopId})`;
 
-  executeQuery(query2, (err, results) => {
-    if (err) {
-      console.error("Error running query:", err);
-      return res.status(500).send("Error running query.");
-    }
+  try {
+    const results = await executeQuery(query2);
     if (results) {
       let finalObj = {};
       const promises = results.map((result) => {
@@ -366,7 +338,9 @@ router.get("/stop-group", (req, res) => {
           res.status(500).send("Error running query.");
         });
     }
-  });
+  } catch (err) {
+    res.status(500).send("Error running query.");
+  }
 });
 
 module.exports = router;
