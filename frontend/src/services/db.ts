@@ -1,13 +1,7 @@
 import axios from 'axios';
 
 const baseURL = 'https://gkm-summer-snowflake-9943.fly.dev/api';
-const baseURL3 = 'http://localhost:3000/api';
-
-const baseURL4 = import.meta.env.VITE_API_BASE_URL;
-console.log(import.meta.env);
-if (!baseURL) {
-  throw new Error('REACT_APP_API_BASE_URL is not defined');
-}
+const baseURL878 = 'http://localhost:3000/api';
 
 export interface TransportLine {
   line_name: string;
