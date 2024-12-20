@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 
 const timetableRouter = require("./routes/timetable");
 const routesRouter = require("./routes/routes");
@@ -18,6 +19,12 @@ app.use("/api/routes", routesRouter);
 app.use("/api/transportLines", transportLinesRouter);
 app.use("/api/transportStops", transportStopsRouter);
 app.use("/api/news", newsRouter);
+
+app.use(express.static(path.join(__dirname, "public")));
+
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
 
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);

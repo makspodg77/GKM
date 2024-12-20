@@ -1,0 +1,26 @@
+app = "GKM"
+
+[build]
+  dockerfile = "./Dockerfile"
+
+[env]
+  CONNECTION_STRING = "Driver={ODBC Driver 17 for SQL Server};Server=sql.bsite.net\MSSQL2016;Database=makspodg_;Uid=makspodg_;Pwd=ni25#ttS8!RwUiT;"
+  CONNECTION_STRING2 = "your_connection_string2"
+
+[[services]]
+  internal_port = 5000
+  protocol = "tcp"
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+  [[services.tcp_checks]]
+    grace_period = "1s"
+    interval = "15s"
+    restart_limit = 0
+    timeout = "2s"
