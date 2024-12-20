@@ -5,9 +5,9 @@ FROM node:14
 WORKDIR /app
 
 # Copy the package.json and package-lock.json files
-COPY package*.json ./
+COPY backend/package*.json ./
 
-# Install dependencies
+# Install backend dependencies
 RUN npm install
 
 # Copy the backend and frontend directories
@@ -19,9 +19,6 @@ RUN cd frontend && npm run build
 
 # Set the working directory to the backend
 WORKDIR /app/backend
-
-# Install backend dependencies
-RUN npm install
 
 # Copy the built React application to the backend's public directory
 RUN mkdir -p public && cp -r ../frontend/build/* public/
