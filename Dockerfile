@@ -1,11 +1,20 @@
 # Use an official Node.js runtime as a parent image
 FROM node:18
 
-# Install dependencies required by msnodesqlv8
+# Install dependencies required by msnodesqlv8 and ODBC Driver 17 for SQL Server
 RUN apt-get update && apt-get install -y \
     build-essential \
     python3 \
-    unixodbc-dev
+    unixodbc-dev \
+    curl \
+    apt-transport-https \
+    gnupg
+
+# Add the Microsoft repository for ODBC Driver 17 for SQL Server
+RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
+    curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
+    apt-get update && \
+    ACCEPT_EULA=Y apt-get install -y msodbcsql17
 
 # Set the working directory
 WORKDIR /app
