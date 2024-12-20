@@ -33,6 +33,9 @@ COPY frontend ./frontend
 # Set the working directory to the backend
 WORKDIR /app/backend
 
+# Rebuild the msnodesqlv8 module
+RUN npm rebuild msnodesqlv8
+
 # Copy the built React application to the backend's public directory
 RUN mkdir -p public && cp -r ../frontend/dist/* public/
 

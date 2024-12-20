@@ -1,5 +1,4 @@
 const express = require("express");
-const cors = require("cors");
 const path = require("path");
 
 const timetableRouter = require("./routes/timetable");
@@ -9,10 +8,7 @@ const transportStopsRouter = require("./routes/transportStops");
 const newsRouter = require("./routes/news");
 
 const app = express();
-const port = 3000;
-
-app.use(express.json());
-app.use(cors());
+const port = process.env.PORT || 5000;
 
 app.use("/api/timetable", timetableRouter);
 app.use("/api/routes", routesRouter);
