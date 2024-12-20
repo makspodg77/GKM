@@ -1,7 +1,6 @@
 import axios from 'axios';
 
-const baseURL2 = 'http://localhost:3000/api';
-const baseURL = 'https://gkm.fly.dev/api';
+const baseURL = process.env.REACT_APP_API_BASE_URL;
 
 export interface TransportLine {
   line_name: string;
