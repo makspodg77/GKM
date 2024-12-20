@@ -1,27 +1,22 @@
-app = "gkm"
+# fly.toml app configuration file generated for gkm-summer-snowflake-9943 on 2024-12-20T21:07:49+01:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'gkm-summer-snowflake-9943'
+primary_region = 'arn'
 
 [build]
-  dockerfile = "./Dockerfile"
 
-[env]
-  CONNECTION_STRING = "Driver={ODBC Driver 17 for SQL Server};Server=sql.bsite.net\\MSSQL2016;Database=makspodg_;Uid=makspodg_;Pwd=ni25#ttS8!RwUiT;"
-  VITE_API_BASE_URL = "https://gkm.fly.dev/api"
-
-[[services]]
+[http_service]
   internal_port = 3000
-  protocol = "tcp"
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
 
-  [[services.ports]]
-    handlers = ["http"]
-    port = 80
-
-  [[services.ports]]
-    handlers = ["tls", "http"]
-    port = 443
-
-  [[services.tcp_checks]]
-    grace_period = "1s"
-    interval = "15s"
-    restart_limit = 0
-    timeout = "2s"
-    path = "/health"
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
