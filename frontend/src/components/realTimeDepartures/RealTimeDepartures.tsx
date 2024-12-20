@@ -35,7 +35,7 @@ const RealTimeDepartures = () => {
       .then((data) => {
         if (data) {
           console.log(data);
-          setStopName(data[0].stop_name);
+          setStopName(data[data.length - 1].stop_name);
           data = data.slice(0, data.length - 1);
           const updateCountdown = () => {
             setDepartures(FormatDepartureTime(Sort(data)));
