@@ -7,14 +7,14 @@ app = "gkm"
   CONNECTION_STRING = "Driver={ODBC Driver 17 for SQL Server};Server=sql.bsite.net\\MSSQL2016;Database=makspodg_;Uid=makspodg_;Pwd=ni25#ttS8!RwUiT;"
   REACT_APP_API_BASE_URL = "https://gkm.fly.dev/api"
 
-
 [[services]]
   internal_port = 3000
   protocol = "tcp"
 
   [[services.ports]]
     handlers = ["http"]
-    port = 80
+    port = 3000
+    force_htts = true
 
   [[services.ports]]
     handlers = ["tls", "http"]
