@@ -5,7 +5,6 @@ app = "gkm"
 
 [env]
   CONNECTION_STRING = "Driver={ODBC Driver 17 for SQL Server};Server=sql.bsite.net\\MSSQL2016;Database=makspodg_;Uid=makspodg_;Pwd=ni25#ttS8!RwUiT;"
-  CONNECTION_STRING2 = "your_connection_string2"
   REACT_APP_API_BASE_URL = "https://gkm.fly.dev/api"
 
 
