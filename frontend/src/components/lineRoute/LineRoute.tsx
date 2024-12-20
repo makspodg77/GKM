@@ -25,6 +25,7 @@ const LineRoute = () => {
       setLineName(data[0].line_name);
       setLineType(data[0].line_type_name);
       setRoute(data);
+      console.log(data);
       setLoading(false);
     });
   }, [stopId, timetableId]);

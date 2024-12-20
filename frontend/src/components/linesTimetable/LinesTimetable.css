@@ -32,4 +32,11 @@
     gap: 10px;
     margin-bottom: 10px;
   }
+
+  @media only screen and (max-width: 1200px) {
+    .line-container {
+      flex-wrap: wrap;
+      margin: auto;
+    }
+  }
 }

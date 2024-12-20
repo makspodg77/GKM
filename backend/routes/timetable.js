@@ -89,7 +89,7 @@ router.get("/departure-times", (req, res) => {
                         WHERE  r3.route_number = r.route_number
                         AND    r3.stop_number BETWEEN 1 AND
                               (
-                                      SELECT r5.stop_number
+                                      SELECT TOP 1 r5.stop_number
                                       FROM   routes r5
                                       WHERE  r5.stop_id = ${stop_id}
                                       AND    r5.route_number = ${route_number})) AS total_travel_time,
