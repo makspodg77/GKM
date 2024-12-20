@@ -1,36 +1,15 @@
-require("dotenv").config();
-
-const connectionString =
-  "Driver={ODBC Driver 17 for SQL Server};Server=sql.bsite.net\\MSSQL2016;Database=makspodg_;Uid=makspodg_;Pwd=ni25#ttS8!RwUiT;";
-
-const parseConnectionString = (connectionString) => {
-  const params = connectionString.split(";");
-  const config = {};
-
-  params.forEach((param) => {
-    const [key, value] = param.split("=");
-    if (key && value) {
-      config[key.trim()] = value.trim();
-    }
-  });
-
-  return config;
-};
-
-const parsedConfig = parseConnectionString(connectionString);
-
 const config = {
-  server: parsedConfig.Server,
+  server: "sql.bsite.net\\MSSQL2016",
   authentication: {
     type: "default",
     options: {
-      userName: parsedConfig.Uid,
-      password: parsedConfig.Pwd,
+      userName: "makspodg_",
+      password: "ni25#ttS8!RwUiT",
     },
   },
   options: {
-    database: parsedConfig.Database,
-    encrypt: true,
+    database: "makspodg_",
+    trustServerCertificate: true,
   },
 };
 
