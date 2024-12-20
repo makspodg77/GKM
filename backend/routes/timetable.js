@@ -236,7 +236,7 @@ router.get("/timetable", async (req, res) => {
     const results = await executeQuery(query);
 
     const promises = results.map((result) => {
-      return new Promise((resolve, reject) => {
+      return new Promise(async (resolve, reject) => {
         const travelTimeQuery = `
           SELECT SUM(r.travel_time) AS total_travel_time
           FROM routes r
@@ -244,28 +244,32 @@ router.get("/timetable", async (req, res) => {
           AND r.stop_number BETWEEN 1 AND ${result.stop_number}
         `;
 
-        executeQuery(travelTimeQuery, (err, results2) => {
-          if (err) {
-            console.error("Error running query:", err);
-            return reject("Error running query.");
-          }
+        try {
+          const travelTimeResults = await executeQuery(travelTimeQuery);
           result.departure_time = addMinutesToTime(
             result.departure_time,
-            results2[0].total_travel_time
+            travelTimeResults[0].total_travel_time
           );
           resolve(result);
-        });
+        } catch (err) {
+          console.error("Error running query:", err);
+          reject("Error running query.");
+        }
       });
     });
 
     const doria = `SELECT ts.stop_name FROM transport_stops ts WHERE ts.id = ${stopId}`;
 
     Promise.all(promises)
-      .then((modifiedResults) => {
-        executeQuery(doria, (err, result) => {
-          modifiedResults.push(result);
+      .then(async (modifiedResults) => {
+        try {
+          const stopNameResults = await executeQuery(doria);
+          modifiedResults.push(stopNameResults[0]);
           res.json(modifiedResults);
-        });
+        } catch (err) {
+          console.error("Error running query:", err);
+          res.status(500).send("Error running query.");
+        }
       })
       .catch((error) => {
         console.error("Error processing results:", error);
