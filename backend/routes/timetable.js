@@ -1,5 +1,5 @@
 const express = require("express");
-const sql = require("msnodesqlv8");
+const { Connection, Request } = require("tedious");
 const config = require("../utils/config");
 const router = express.Router();
 
@@ -18,6 +18,40 @@ const addMinutesToTime = (time, minutesToAdd) => {
   return `${newHours}:${newMinutes}`;
 };
 
+const executeQuery = (query, callback) => {
+  const connection = new Connection(config);
+
+  connection.on("connect", (err) => {
+    if (err) {
+      console.error("Connection error:", err);
+      callback(err, null);
+      return;
+    }
+
+    const request = new Request(query, (err, rowCount, rows) => {
+      if (err) {
+        console.error("Query error:", err);
+        callback(err, null);
+        return;
+      }
+
+      const results = rows.map((row) => {
+        const result = {};
+        row.forEach((column) => {
+          result[column.metadata.colName] = column.value;
+        });
+        return result;
+      });
+
+      callback(null, results);
+    });
+
+    connection.execSql(request);
+  });
+
+  connection.connect();
+};
+
 // GET /api/timetable/route/:id
 // Returns the route for a specific route
 // The route is identified by its timetable id
@@ -25,15 +59,15 @@ router.get("/route/:id", (req, res) => {
   const id = req.params.id;
 
   const query = `
-            SELECT r.*, s.*, l.*, tt.*
-            FROM timetable tt
-            JOIN routes r ON tt.route_number = r.route_number
-            JOIN transport_stops s ON r.stop_id = s.id
-            JOIN transport_lines l ON r.line_id = l.id
-            WHERE tt.id = ${id}
-        `;
+    SELECT r.*, s.*, l.*, tt.*
+    FROM timetable tt
+    JOIN routes r ON tt.route_number = r.route_number
+    JOIN transport_stops s ON r.stop_id = s.id
+    JOIN transport_lines l ON r.line_id = l.id
+    WHERE tt.id = ${id}
+  `;
 
-  sql.query(config.CONNECTION_STRING, query, (err, results) => {
+  executeQuery(query, (err, results) => {
     if (err) {
       console.error("Error running query:", err);
       return res.status(500).send("Error running query.");
@@ -59,102 +93,105 @@ router.get("/departure-times", (req, res) => {
   const { stop_id, route_number } = req.query;
 
   const query = `
-        SELECT  r.id,
-                r.line_id,
-                r.stop_id,
-                r.stop_number,
-                r.route_number,
-                r.travel_time,
-                r.is_on_request,
-                ts.stop_name,
-                ts.stop_direction,
-                tl.line_name,
-                lt.line_type_name,
-                lt.line_type_color,
-                lt.line_type_image,
-                tt.route_number,
-                tt.departure_time,
-                tt.id AS departure_id,
+    SELECT  r.id,
+            r.line_id,
+            r.stop_id,
+            r.stop_number,
+            r.route_number,
+            r.travel_time,
+            r.is_on_request,
+            ts.stop_name,
+            ts.stop_direction,
+            tl.line_name,
+            lt.line_type_name,
+            lt.line_type_color,
+            lt.line_type_image,
+            tt.route_number,
+            tt.departure_time,
+            tt.id AS departure_id,
+            (
+              SELECT TOP 1
+                ts2.stop_name
+              FROM transport_stops ts2
+              JOIN routes r2 ON ts2.id = r2.stop_id
+              WHERE r2.route_number = r.route_number
+              ORDER BY r2.stop_number DESC
+            ) AS last_stop_name,
+            (
+              SELECT SUM(r3.travel_time)
+              FROM routes r3
+              WHERE r3.route_number = r.route_number
+              AND r3.stop_number BETWEEN 1 AND (
+                SELECT TOP 1 r5.stop_number
+                FROM routes r5
+                WHERE r5.stop_id = ${stop_id}
+                AND r5.route_number = ${route_number}
+              )
+            ) AS total_travel_time,
+            (
+              SELECT json_query(
                 (
-                          SELECT TOP 1
-                                  ts2.stop_name
-                          FROM     transport_stops ts2
-                          JOIN     routes r2
-                          ON       ts2.id = r2.stop_id
-                          WHERE    r2.route_number = r.route_number
-                          ORDER BY r2.stop_number DESC) AS last_stop_name,
+                  SELECT tl2.line_name,
+                    lt2.line_type_color,
+                    r4.route_number
+                  FROM transport_lines tl2
+                  JOIN routes r4 ON tl2.id = r4.line_id
+                  JOIN line_types lt2 ON tl2.line_type_id = lt2.id
+                  WHERE r4.stop_id = ${stop_id}
+                  AND tl2.id != r.line_id FOR json path
+                )
+              )
+            ) AS other_lines,
+            (
+              SELECT json_query(
                 (
-                        SELECT Sum(r3.travel_time)
-                        FROM   routes r3
-                        WHERE  r3.route_number = r.route_number
-                        AND    r3.stop_number BETWEEN 1 AND
-                              (
-                                      SELECT TOP 1 r5.stop_number
-                                      FROM   routes r5
-                                      WHERE  r5.stop_id = ${stop_id}
-                                      AND    r5.route_number = ${route_number})) AS total_travel_time,
+                  SELECT ts3.stop_name,
+                    r6.route_number,
+                    r6.stop_number,
+                    r6.travel_time,
+                    r6.is_on_request,
+                    r6.stop_id
+                  FROM routes r6
+                  JOIN transport_stops ts3 ON r6.stop_id = ts3.id
+                  WHERE r6.route_number = r.route_number FOR json path
+                )
+              )
+            ) AS stops,
+            (
+              SELECT json_query(
                 (
-                        SELECT json_query(
-                              (
-                                      SELECT tl2.line_name,
-                                            lt2.line_type_color,
-                                            r4.route_number
-                                      FROM   transport_lines tl2
-                                      JOIN   routes r4
-                                      ON     tl2.id = r4.line_id
-                                      JOIN   line_types lt2
-                                      ON     tl2.line_type_id = lt2.id
-                                      WHERE  r4.stop_id = ${stop_id}
-                                      AND    tl2.id != r.line_id FOR json path))) AS other_lines,
-                (
-                        SELECT json_query(
-                              (
-                                      SELECT ts3.stop_name,
-                                            r6.route_number,
-                                            r6.stop_number,
-                                            r6.travel_time,
-                                            r6.is_on_request,
-                                            r6.stop_id
-                                      FROM   routes r6
-                                      JOIN   transport_stops ts3
-                                      ON     r6.stop_id = ts3.id
-                                      WHERE  r6.route_number = r.route_number FOR json path))) AS stops,
-                (
-                        SELECT json_query(
-                              (
-                                      SELECT TOP 1
-                                            tsd.id,
-                                            rd.route_number
-                                      FROM   transport_stops tsd,
-                                            routes rd
-                                      WHERE  rd.route_number != ${route_number}
-                                      AND    tsd.id != ${stop_id}
-                                      AND    tsd.stop_name =
-                                            (
-                                                    SELECT TOP 1
-                                                          tsb.stop_name
-                                                    FROM   transport_stops tsb
-                                                    WHERE  tsb.id = ${stop_id} )
-                                      AND    rd.line_id =
-                                            (
-                                                    SELECT TOP 1
-                                                          line_id
-                                                    FROM   routes
-                                                    WHERE  route_number = ${route_number}) FOR json path))) AS other_way_stop_id
-          FROM   timetable tt
-          JOIN   routes r
-          ON     tt.route_number = r.route_number
-          JOIN   transport_lines tl
-          ON     r.line_id = tl.id
-          JOIN   transport_stops ts
-          ON     r.stop_id = ts.id
-          JOIN   line_types lt
-          ON     tl.line_type_id = lt.id
-          WHERE  ts.id = ${stop_id}
-          AND    tt.route_number = ${route_number}
-    `;
+                  SELECT TOP 1
+                    tsd.id,
+                    rd.route_number
+                  FROM transport_stops tsd,
+                    routes rd
+                  WHERE rd.route_number != ${route_number}
+                  AND tsd.id != ${stop_id}
+                  AND tsd.stop_name = (
+                    SELECT TOP 1
+                      tsb.stop_name
+                    FROM transport_stops tsb
+                    WHERE tsb.id = ${stop_id}
+                  )
+                  AND rd.line_id = (
+                    SELECT TOP 1
+                      line_id
+                    FROM routes
+                    WHERE route_number = ${route_number}
+                  ) FOR json path
+                )
+              )
+            ) AS other_way_stop_id
+    FROM timetable tt
+    JOIN routes r ON tt.route_number = r.route_number
+    JOIN transport_lines tl ON r.line_id = tl.id
+    JOIN transport_stops ts ON r.stop_id = ts.id
+    JOIN line_types lt ON tl.line_type_id = lt.id
+    WHERE ts.id = ${stop_id}
+    AND tt.route_number = ${route_number}
+  `;
 
-  sql.query(config.CONNECTION_STRING, query, (err, results) => {
+  executeQuery(query, (err, results) => {
     if (err) {
       console.error("Error running query:", err);
       return res.status(500).send("Error running query.");
@@ -205,20 +242,21 @@ router.get("/departure-times", (req, res) => {
 router.get("/timetable", async (req, res) => {
   const { stopId } = req.query;
   const query = `
-        SELECT tt.departure_time, r.route_number, tl.line_name, ts.stop_name, r.stop_number,
-               (SELECT TOP 1 ts2.stop_name
-                FROM transport_stops ts2
-                JOIN routes r2 ON ts2.id = r2.stop_id
-                WHERE r2.route_number = r.route_number
-                ORDER BY r2.stop_number DESC) AS last_stop_name
-
-        FROM timetable tt
-        JOIN routes r ON tt.route_number = r.route_number
-        JOIN transport_lines tl ON r.line_id = tl.id
-        JOIN transport_stops ts ON r.stop_id = ts.id
-        WHERE ts.id = ${stopId}
-    `;
-  sql.query(config.CONNECTION_STRING, query, (err, results) => {
+    SELECT tt.departure_time, r.route_number, tl.line_name, ts.stop_name, r.stop_number,
+      (
+        SELECT TOP 1 ts2.stop_name
+        FROM transport_stops ts2
+        JOIN routes r2 ON ts2.id = r2.stop_id
+        WHERE r2.route_number = r.route_number
+        ORDER BY r2.stop_number DESC
+      ) AS last_stop_name
+    FROM timetable tt
+    JOIN routes r ON tt.route_number = r.route_number
+    JOIN transport_lines tl ON r.line_id = tl.id
+    JOIN transport_stops ts ON r.stop_id = ts.id
+    WHERE ts.id = ${stopId}
+  `;
+  executeQuery(query, (err, results) => {
     if (err) {
       console.error("Error running query:", err);
       return res.status(500).send("Error running query.");
@@ -227,27 +265,23 @@ router.get("/timetable", async (req, res) => {
     const promises = results.map((result) => {
       return new Promise((resolve, reject) => {
         const travelTimeQuery = `
-                    SELECT SUM(r.travel_time) AS total_travel_time
-                    FROM routes r
-                    WHERE r.route_number = ${result.route_number}
-                    AND r.stop_number BETWEEN 1 AND ${result.stop_number}
-                `;
+          SELECT SUM(r.travel_time) AS total_travel_time
+          FROM routes r
+          WHERE r.route_number = ${result.route_number}
+          AND r.stop_number BETWEEN 1 AND ${result.stop_number}
+        `;
 
-        sql.query(
-          config.CONNECTION_STRING,
-          travelTimeQuery,
-          (err, results2) => {
-            if (err) {
-              console.error("Error running query:", err);
-              return reject("Error running query.");
-            }
-            result.departure_time = addMinutesToTime(
-              result.departure_time,
-              results2[0].total_travel_time
-            );
-            resolve(result);
+        executeQuery(travelTimeQuery, (err, results2) => {
+          if (err) {
+            console.error("Error running query:", err);
+            return reject("Error running query.");
           }
-        );
+          result.departure_time = addMinutesToTime(
+            result.departure_time,
+            results2[0].total_travel_time
+          );
+          resolve(result);
+        });
       });
     });
 
@@ -255,7 +289,7 @@ router.get("/timetable", async (req, res) => {
 
     Promise.all(promises)
       .then((modifiedResults) => {
-        sql.query(config.CONNECTION_STRING, doria, (err, result) => {
+        executeQuery(doria, (err, result) => {
           modifiedResults.push(result);
           res.json(modifiedResults);
         });
@@ -272,7 +306,7 @@ router.get("/stop-group", (req, res) => {
 
   const query2 = `SELECT id FROM transport_stops WHERE stop_name = (SELECT stop_name FROM transport_stops WHERE id = ${stopId})`;
 
-  sql.query(config.CONNECTION_STRING, query2, (err, results) => {
+  executeQuery(query2, (err, results) => {
     if (err) {
       console.error("Error running query:", err);
       return res.status(500).send("Error running query.");
@@ -282,24 +316,29 @@ router.get("/stop-group", (req, res) => {
       const promises = results.map((result) => {
         const id = result.id;
         const query = `
-                SELECT r.stop_id, ts.stop_name, t.departure_time, tl.line_name, r.route_number, t.id AS departure_id, 
-                       (SELECT TOP 1 ts2.stop_name
-                        FROM transport_stops ts2
-                        JOIN routes r2 ON ts2.id = r2.stop_id
-                        WHERE r2.route_number = r.route_number
-                        ORDER BY r2.stop_number DESC) AS last_stop_name,
-                       (SELECT SUM(r3.travel_time) 
-                        FROM routes r3 
-                        WHERE r3.stop_number BETWEEN 1 AND r.stop_number 
-                        AND r.route_number = r3.route_number) AS total_travel_time
-                FROM timetable t
-                JOIN routes r ON t.route_number = r.route_number
-                JOIN transport_stops ts ON ts.id = ${id}
-                JOIN transport_lines tl ON tl.id = r.line_id
-                WHERE r.stop_id = ${id}`;
+          SELECT r.stop_id, ts.stop_name, t.departure_time, tl.line_name, r.route_number, t.id AS departure_id, 
+            (
+              SELECT TOP 1 ts2.stop_name
+              FROM transport_stops ts2
+              JOIN routes r2 ON ts2.id = r2.stop_id
+              WHERE r2.route_number = r.route_number
+              ORDER BY r2.stop_number DESC
+            ) AS last_stop_name,
+            (
+              SELECT SUM(r3.travel_time) 
+              FROM routes r3 
+              WHERE r3.stop_number BETWEEN 1 AND r.stop_number 
+              AND r.route_number = r3.route_number
+            ) AS total_travel_time
+          FROM timetable t
+          JOIN routes r ON t.route_number = r.route_number
+          JOIN transport_stops ts ON ts.id = ${id}
+          JOIN transport_lines tl ON tl.id = r.line_id
+          WHERE r.stop_id = ${id}
+        `;
 
         return new Promise((resolve, reject) => {
-          sql.query(config.CONNECTION_STRING, query, (err, results2) => {
+          executeQuery(query, (err, results2) => {
             if (err) {
               return reject(err);
             }

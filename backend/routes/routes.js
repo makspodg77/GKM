@@ -1,5 +1,5 @@
 const express = require("express");
-const sql = require("msnodesqlv8");
+const { Connection, Request } = require("tedious");
 const config = require("../utils/config");
 const router = express.Router();
 
@@ -18,30 +18,62 @@ const addMinutesToTime = (time, minutesToAdd) => {
   return `${newHours}:${newMinutes}`;
 };
 
+const executeQuery = (query, callback) => {
+  const connection = new Connection(config);
+
+  connection.on("connect", (err) => {
+    if (err) {
+      console.error("Connection error:", err);
+      callback(err, null);
+      return;
+    }
+
+    const request = new Request(query, (err, rowCount, rows) => {
+      if (err) {
+        console.error("Query error:", err);
+        callback(err, null);
+        return;
+      }
+
+      const results = rows.map((row) => {
+        const result = {};
+        row.forEach((column) => {
+          result[column.metadata.colName] = column.value;
+        });
+        return result;
+      });
+
+      callback(null, results);
+    });
+
+    connection.execSql(request);
+  });
+
+  connection.connect();
+};
+
 // GET /api/routes/route
-// Returns one lines schedule identified by its line id
+// Returns one line's schedule identified by its line id
 router.get("/route", (req, res) => {
   const { lineNr, direction } = req.query;
   const query = `
-                SELECT r.*, l.*, s.*
-                FROM routes r
-                LEFT JOIN transport_lines l ON r.line_id = l.id
-                LEFT JOIN transport_stops s ON r.stop_id = s.id
-                WHERE r.line_id = ${lineNr}
-                AND s.stop_direction = ${direction}`;
-  sql.query(config.CONNECTION_STRING, query, (err, results) => {
+    SELECT r.*, l.*, s.*
+    FROM routes r
+    LEFT JOIN transport_lines l ON r.line_id = l.id
+    LEFT JOIN transport_stops s ON r.stop_id = s.id
+    WHERE r.line_id = ${lineNr}
+    AND s.stop_direction = ${direction}`;
+
+  executeQuery(query, (err, results) => {
     if (err) {
-      console.error("Error running query:", err);
       return res.status(500).send("Error running query.");
     }
 
-    let modifiedResults = results.map((result) => {
-      return {
-        travel_time: result.travel_time,
-        is_on_request: result.is_on_request,
-        stop_name: result.stop_name,
-      };
-    });
+    const modifiedResults = results.map((result) => ({
+      travel_time: result.travel_time,
+      is_on_request: result.is_on_request,
+      stop_name: result.stop_name,
+    }));
 
     res.json(modifiedResults);
   });
@@ -58,38 +90,36 @@ router.get("/specificRouteTimetable/:departure_id", (req, res) => {
     JOIN line_types lt ON lt.id = tl.line_type_id
     WHERE tt.id = ${departure_id}`;
 
-  sql.query(config.CONNECTION_STRING, query, (err, results) => {
+  executeQuery(query, (err, results) => {
     if (err) {
-      console.error("Error running query:", err);
       return res.status(500).send("Error running query.");
     }
+
     let departure_sum = results[0].departure_time;
     for (let result of results) {
       departure_sum = addMinutesToTime(departure_sum, result.travel_time);
       result.departure_time = departure_sum;
     }
+
     res.json(results.sort((a, b) => a.stop_number - b.stop_number));
   });
 });
 
-// GET /api/routes/route/:id
+// GET /api/routes/lineRoute/:id
 // Returns the route for a specific route
 // The route is identified by its route id
 router.get("/lineRoute/:id", (req, res) => {
   const id = req.params.id;
-
   const query = `
-            SELECT r.*, s.*, l.*, lt.*
-            FROM routes r
-            LEFT JOIN transport_stops s ON r.stop_id = s.id
-            LEFT JOIN transport_lines l ON r.line_id = l.id
-            LEFT JOIN line_types lt ON l.line_type_id = lt.id
-            WHERE l.line_name = '${id}'
-        `;
+    SELECT r.*, s.*, l.*, lt.*
+    FROM routes r
+    LEFT JOIN transport_stops s ON r.stop_id = s.id
+    LEFT JOIN transport_lines l ON r.line_id = l.id
+    LEFT JOIN line_types lt ON l.line_type_id = lt.id
+    WHERE l.line_name = '${id}'`;
 
-  sql.query(config.CONNECTION_STRING, query, (err, results) => {
+  executeQuery(query, (err, results) => {
     if (err) {
-      console.error("Error running query:", err);
       return res.status(500).send("Error running query.");
     }
 
@@ -116,6 +146,7 @@ router.get("/lineRoute/:id", (req, res) => {
       });
       return acc;
     }, {});
+
     groupedResults.line_name = results[0].line_name;
     groupedResults.line_type = results[0].line_type_name;
     groupedResults.line_color = results[0].line_type_color;
@@ -125,6 +156,7 @@ router.get("/lineRoute/:id", (req, res) => {
     groupedResults[false] = groupedResults[false].sort(
       (a, b) => a.stop_number - b.stop_number
     );
+
     res.json(groupedResults);
   });
 });
