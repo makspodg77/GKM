@@ -34,7 +34,7 @@ RUN cd frontend && npm run build
 COPY backend/ ./backend/
 
 # Move built frontend files to backend's public directory
-RUN mkdir -p backend/public && cp -r frontend/build/* backend/public/
+RUN mkdir -p backend/public && cp -r frontend/dist/* backend/public/
 
 # Set the working directory to backend
 WORKDIR /app/backend
