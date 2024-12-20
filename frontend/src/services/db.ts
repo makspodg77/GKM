@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-const baseURL2 = 'https://gkm.fly.dev/api';
+const baseURL = 'https://gkm.fly.dev/api';
 const baseURL3 = 'http://localhost:3000/api';
 
-const baseURL = import.meta.env.VITE_API_BASE_URL;
+const baseURL2 = import.meta.env.VITE_API_BASE_URL;
 console.log(import.meta.env);
 if (!baseURL) {
   throw new Error('REACT_APP_API_BASE_URL is not defined');
