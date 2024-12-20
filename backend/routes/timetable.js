@@ -3,6 +3,25 @@ const sql = require("mssql");
 const config = require("../utils/config");
 const router = express.Router();
 
+let poolPromise;
+
+const getPool = () => {
+  if (!poolPromise) {
+    poolPromise = new sql.ConnectionPool(config)
+      .connect()
+      .then((pool) => {
+        console.log("Connected to SQL Server");
+        return pool;
+      })
+      .catch((err) => {
+        console.error("Database Connection Failed! Bad Config: ", err);
+        poolPromise = null; // Reset poolPromise to allow retrying connection
+        throw err;
+      });
+  }
+  return poolPromise;
+};
+
 const addMinutesToTime = (time, minutesToAdd) => {
   let [hours, minutes] = time.split(":").map(Number);
   let date = new Date();
@@ -17,17 +36,14 @@ const addMinutesToTime = (time, minutesToAdd) => {
 
   return `${newHours}:${newMinutes}`;
 };
-
 const executeQuery = async (query) => {
   try {
-    await sql.connect(config);
-    const result = await sql.query(query);
+    const pool = await getPool();
+    const result = await pool.request().query(query);
     return result.recordset;
   } catch (err) {
     console.error("Query error:", err);
     throw err;
-  } finally {
-    await sql.close();
   }
 };
 
@@ -216,7 +232,10 @@ router.get("/departure-times", async (req, res) => {
 // Returns the timetable for a specific stop
 // The stop is identified by its stop id
 router.get("/timetable", async (req, res) => {
+  console.log("Received request for /timetable");
   const { stopId } = req.query;
+  console.log("stopId:", stopId);
+
   const query = `
     SELECT tt.departure_time, r.route_number, tl.line_name, ts.stop_name, r.stop_number,
       (
@@ -232,8 +251,10 @@ router.get("/timetable", async (req, res) => {
     JOIN transport_stops ts ON r.stop_id = ts.id
     WHERE ts.id = ${stopId}
   `;
+
   try {
     const results = await executeQuery(query);
+    console.log("Initial query results:", results);
 
     const promises = results.map((result) => {
       return new Promise(async (resolve, reject) => {
@@ -246,14 +267,15 @@ router.get("/timetable", async (req, res) => {
 
         try {
           const travelTimeResults = await executeQuery(travelTimeQuery);
+          console.log("Travel time query results:", travelTimeResults);
           result.departure_time = addMinutesToTime(
             result.departure_time,
             travelTimeResults[0].total_travel_time
           );
           resolve(result);
         } catch (err) {
-          console.error("Error running query:", err);
-          reject("Error running query.");
+          console.error("Error running travel time query:", err);
+          reject("Error running travel time query.");
         }
       });
     });
@@ -264,11 +286,12 @@ router.get("/timetable", async (req, res) => {
       .then(async (modifiedResults) => {
         try {
           const stopNameResults = await executeQuery(doria);
+          console.log("Stop name query results:", stopNameResults);
           modifiedResults.push(stopNameResults[0]);
           res.json(modifiedResults);
         } catch (err) {
-          console.error("Error running query:", err);
-          res.status(500).send("Error running query.");
+          console.error("Error running stop name query:", err);
+          res.status(500).send("Error running stop name query.");
         }
       })
       .catch((error) => {
@@ -276,7 +299,8 @@ router.get("/timetable", async (req, res) => {
         res.status(500).send("Error processing results.");
       });
   } catch (err) {
-    res.status(500).send("Error running query.");
+    console.error("Error running initial query:", err);
+    res.status(500).send("Error running initial query.");
   }
 });
 
