@@ -13,8 +13,8 @@ app = "gkm"
 
   [[services.ports]]
     handlers = ["http"]
-    port = 3000
-    force_htts = true
+    port = 80
+    force_https = true
 
   [[services.ports]]
     handlers = ["tls", "http"]
