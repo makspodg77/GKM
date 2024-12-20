@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const baseURL = process.env.REACT_APP_API_BASE_URL;
+const baseURL = 'https://gkm.fly.dev/api';
+const baseURL2 = 'http://localhost:3000/api';
 
 export interface TransportLine {
   line_name: string;
@@ -161,7 +162,7 @@ const getTimetable = async (stopId: number): Promise<Timetable[]> => {
 
 const getNews = async (): Promise<NewsInterface[]> => {
   const response = await axios.get<NewsInterface[]>(`${baseURL}/news`);
-  console.log(response);
+  console.log(baseURL);
   return response.data.map((item: any) => ({
     ...item,
     created_at: new Date(item.created_at),
