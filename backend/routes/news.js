@@ -2,7 +2,6 @@ const express = require("express");
 const sql = require("msnodesqlv8");
 const config = require("../utils/config");
 const router = express.Router();
-sql.setLogging(true);
 router.get("/", (req, res) => {
   const query = `
     SELECT * FROM news`;
