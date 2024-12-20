@@ -161,6 +161,7 @@ const getTimetable = async (stopId: number): Promise<Timetable[]> => {
 
 const getNews = async (): Promise<NewsInterface[]> => {
   const response = await axios.get<NewsInterface[]>(`${baseURL}/news`);
+  console.log(response);
   return response.data.map((item: any) => ({
     ...item,
     created_at: new Date(item.created_at),
