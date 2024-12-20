@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const baseURL = 'https://gkm.fly.dev/api';
+const baseURL = 'https://gkm-summer-snowflake-9943.fly.dev/api';
 const baseURL3 = 'http://localhost:3000/api';
 
 const baseURL4 = import.meta.env.VITE_API_BASE_URL;
