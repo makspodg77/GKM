@@ -4,7 +4,7 @@ header {
   margin-bottom: 15px;
 
   img {
-    height: 50px;
+    height: 80%;
   }
 
   .container2 {
@@ -15,5 +15,9 @@ header {
     gap: 10px;
     justify-content: flex-start;
     align-items: center;
+  }
+
+  @media only screen and (max-width: 1200px) {
+    height: 50px;
   }
 }

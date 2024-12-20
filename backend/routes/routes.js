@@ -50,7 +50,7 @@ router.get("/route", (req, res) => {
 router.get("/specificRouteTimetable/:departure_id", (req, res) => {
   const { departure_id } = req.params;
   const query = `
-    SELECT ts.stop_name, r.stop_id, tt.departure_time, r.travel_time, tl.line_name, lt.line_type_name, r.route_number
+    SELECT ts.stop_name, r.stop_id, tt.departure_time, r.travel_time, tl.line_name, lt.line_type_name, r.route_number, r.stop_number
     FROM timetable tt
     JOIN routes r ON tt.route_number = r.route_number
     JOIN transport_lines tl ON tl.id = r.line_id
@@ -68,7 +68,7 @@ router.get("/specificRouteTimetable/:departure_id", (req, res) => {
       departure_sum = addMinutesToTime(departure_sum, result.travel_time);
       result.departure_time = departure_sum;
     }
-    res.json(results);
+    res.json(results.sort((a, b) => a.stop_number - b.stop_number));
   });
 });
 

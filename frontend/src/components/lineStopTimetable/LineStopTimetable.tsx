@@ -104,10 +104,10 @@ const LineStopTimetable = () => {
   };
 
   useEffect(() => {
+    setLoading(true);
     if (!lineId || !stopId || !routeId) {
       return;
     }
-    console.log('DORIS');
     service
       .getDepartureTimes(stopId, routeId)
       .then((data) => {

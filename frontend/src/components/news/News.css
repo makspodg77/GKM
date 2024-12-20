@@ -8,13 +8,11 @@
 
     h2 + span {
       display: block;
-      position: absolute;
-      top: 1rem;
-      right: 1rem;
+      margin-bottom: 20px;
     }
   }
 
   h2 {
-    margin: 1rem 0 20px 0;
+    margin: 1rem 0 0 0;
   }
 }

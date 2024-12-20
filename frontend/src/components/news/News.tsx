@@ -22,6 +22,7 @@ const News = () => {
         <div>
           <h2>{_news.title}</h2>
           <span>
+            Dodano:{' '}
             {_news.created_at.toISOString().slice(0, 19).replace('T', ' ')}
           </span>
           <div dangerouslySetInnerHTML={{ __html: _news.content }} />
