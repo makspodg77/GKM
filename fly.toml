@@ -6,9 +6,10 @@ app = "gkm"
 [env]
   CONNECTION_STRING = "Driver={ODBC Driver 17 for SQL Server};Server=sql.bsite.net\\MSSQL2016;Database=makspodg_;Uid=makspodg_;Pwd=ni25#ttS8!RwUiT;"
   CONNECTION_STRING2 = "your_connection_string2"
+  REACT_APP_API_HOST = "https://gkm.fly.dev"
 
 [[services]]
-  internal_port = 5000
+  internal_port = 3000
   protocol = "tcp"
 
   [[services.ports]]
@@ -24,3 +25,4 @@ app = "gkm"
     interval = "15s"
     restart_limit = 0
     timeout = "2s"
+    path = "/health"
