@@ -30,4 +30,4 @@ RUN mkdir -p public && cp -r ../frontend/build/* public/
 EXPOSE 5000
 
 # Start the Node.js server
-CMD ["node", "backend/server.js"]
+CMD ["node", "index.js"]
