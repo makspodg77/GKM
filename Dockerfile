@@ -1,7 +1,7 @@
 # Use an official Node.js runtime as a parent image
 FROM node:18
 
-# Install dependencies required by msnodesqlv8 and ODBC Driver 17 for SQL Server
+# Install system dependencies for msnodesqlv8 and ODBC Driver 17 for SQL Server
 RUN apt-get update && apt-get install -y \
     build-essential \
     python3 \
@@ -9,48 +9,41 @@ RUN apt-get update && apt-get install -y \
     curl \
     apt-transport-https \
     gnupg \
-    software-properties-common
-
-# Add the Microsoft repository for ODBC Driver 17 for SQL Server
-RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
+    software-properties-common && \
+    curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
     curl https://packages.microsoft.com/config/ubuntu/18.04/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
-    apt-get update && \
-    ACCEPT_EULA=Y apt-get install -y msodbcsql17
+    apt-get update && ACCEPT_EULA=Y apt-get install -y msodbcsql17 && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
 WORKDIR /app
 
-# Copy the backend package.json and package-lock.json files
+# Copy and install backend dependencies
 COPY backend/package*.json ./backend/
-
-# Copy the frontend package.json, package-lock.json, tsconfig.json, and source files
-COPY frontend/package*.json ./frontend/
-COPY frontend/tsconfig.json ./frontend/
-COPY frontend/src ./frontend/src
-COPY frontend/public ./frontend/public
-COPY frontend/index.html ./frontend/
-
-# Install backend dependencies
 RUN cd backend && npm install
 
-# Install frontend dependencies and build the React application
-RUN cd frontend && npm install && npm run build
+# Copy and install frontend dependencies
+COPY frontend/package*.json ./frontend/
+RUN cd frontend && npm install
 
-# Copy the backend and frontend directories
-COPY backend ./backend
-COPY frontend ./frontend
+# Build the React frontend
+COPY frontend/ ./frontend/
+RUN cd frontend && npm run build
 
-# Set the working directory to the backend
+# Copy backend source code
+COPY backend/ ./backend/
+
+# Move built frontend files to backend's public directory
+RUN mkdir -p backend/public && cp -r frontend/build/* backend/public/
+
+# Set the working directory to backend
 WORKDIR /app/backend
 
-# Rebuild the msnodesqlv8 module
+# Rebuild msnodesqlv8 if necessary
 RUN npm rebuild msnodesqlv8
 
-# Copy the built React application to the backend's public directory
-RUN mkdir -p public && cp -r ../frontend/dist/* public/
-
-# Expose the port the app runs on
+# Expose the application port
 EXPOSE 3000
 
 # Start the Node.js server
-CMD ["node", "index.js"]
+CMD ["npm", "start"]
