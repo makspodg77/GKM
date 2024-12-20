@@ -12,6 +12,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(cors());
+app.use(express.json());
 
 app.use("/api/timetable", timetableRouter);
 app.use("/api/routes", routesRouter);
@@ -21,6 +22,7 @@ app.use("/api/news", newsRouter);
 
 app.use(express.static(path.join(__dirname, "public")));
 
+// Health check endpoint
 app.get("/health", (req, res) => {
   console.log("Health check endpoint hit");
   res.status(200).send("OK");
