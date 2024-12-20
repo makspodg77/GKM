@@ -8,7 +8,7 @@ const transportStopsRouter = require("./routes/transportStops");
 const newsRouter = require("./routes/news");
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 3000;
 
 app.use("/api/timetable", timetableRouter);
 app.use("/api/routes", routesRouter);
