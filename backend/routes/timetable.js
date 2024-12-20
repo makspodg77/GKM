@@ -283,7 +283,7 @@ router.get("/stop-group", async (req, res) => {
 
   try {
     const results = await executeQuery(query2);
-    if (results) {
+    if (results.length > 0) {
       let finalObj = {};
       const promises = results.map((result) => {
         const id = result.id;
@@ -309,23 +309,16 @@ router.get("/stop-group", async (req, res) => {
           WHERE r.stop_id = ${id}
         `;
 
-        return new Promise((resolve, reject) => {
-          executeQuery(query, (err, results2) => {
-            if (err) {
-              return reject(err);
-            }
+        return executeQuery(query).then((results2) => {
+          const responseArray = results2.map((doris) => ({
+            ...doris,
+            departure_time: addMinutesToTime(
+              doris.departure_time,
+              doris.total_travel_time
+            ),
+          }));
 
-            const responseArray = results2.map((doris) => ({
-              ...doris,
-              departure_time: addMinutesToTime(
-                doris.departure_time,
-                doris.total_travel_time
-              ),
-            }));
-
-            finalObj[id] = responseArray;
-            resolve();
-          });
+          finalObj[id] = responseArray;
         });
       });
 
@@ -337,8 +330,11 @@ router.get("/stop-group", async (req, res) => {
           console.error("Error running query:", err);
           res.status(500).send("Error running query.");
         });
+    } else {
+      res.status(404).send("No results found.");
     }
   } catch (err) {
+    console.error("Error running query:", err);
     res.status(500).send("Error running query.");
   }
 });
