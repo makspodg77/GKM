@@ -1,4 +1,4 @@
-app = "GKM"
+app = "gkm"
 
 [build]
   dockerfile = "./Dockerfile"
