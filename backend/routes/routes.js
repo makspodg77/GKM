@@ -1,5 +1,5 @@
 const express = require("express");
-const { Connection, Request } = require("tedious");
+const sql = require("mssql");
 const config = require("../utils/config");
 const router = express.Router();
 
@@ -18,43 +18,22 @@ const addMinutesToTime = (time, minutesToAdd) => {
   return `${newHours}:${newMinutes}`;
 };
 
-const executeQuery = (query, callback) => {
-  const connection = new Connection(config);
-
-  connection.on("connect", (err) => {
-    if (err) {
-      console.error("Connection error:", err);
-      callback(err, null);
-      return;
-    }
-
-    const request = new Request(query, (err, rowCount, rows) => {
-      if (err) {
-        console.error("Query error:", err);
-        callback(err, null);
-        return;
-      }
-
-      const results = rows.map((row) => {
-        const result = {};
-        row.forEach((column) => {
-          result[column.metadata.colName] = column.value;
-        });
-        return result;
-      });
-
-      callback(null, results);
-    });
-
-    connection.execSql(request);
-  });
-
-  connection.connect();
+const executeQuery = async (query) => {
+  try {
+    await sql.connect(config);
+    const result = await sql.query(query);
+    return result.recordset;
+  } catch (err) {
+    console.error("Query error:", err);
+    throw err;
+  } finally {
+    await sql.close();
+  }
 };
 
 // GET /api/routes/route
 // Returns one line's schedule identified by its line id
-router.get("/route", (req, res) => {
+router.get("/route", async (req, res) => {
   const { lineNr, direction } = req.query;
   const query = `
     SELECT r.*, l.*, s.*
@@ -64,22 +43,20 @@ router.get("/route", (req, res) => {
     WHERE r.line_id = ${lineNr}
     AND s.stop_direction = ${direction}`;
 
-  executeQuery(query, (err, results) => {
-    if (err) {
-      return res.status(500).send("Error running query.");
-    }
-
+  try {
+    const results = await executeQuery(query);
     const modifiedResults = results.map((result) => ({
       travel_time: result.travel_time,
       is_on_request: result.is_on_request,
       stop_name: result.stop_name,
     }));
-
     res.json(modifiedResults);
-  });
+  } catch (err) {
+    res.status(500).send("Error running query.");
+  }
 });
 
-router.get("/specificRouteTimetable/:departure_id", (req, res) => {
+router.get("/specificRouteTimetable/:departure_id", async (req, res) => {
   const { departure_id } = req.params;
   const query = `
     SELECT ts.stop_name, r.stop_id, tt.departure_time, r.travel_time, tl.line_name, lt.line_type_name, r.route_number, r.stop_number
@@ -90,25 +67,23 @@ router.get("/specificRouteTimetable/:departure_id", (req, res) => {
     JOIN line_types lt ON lt.id = tl.line_type_id
     WHERE tt.id = ${departure_id}`;
 
-  executeQuery(query, (err, results) => {
-    if (err) {
-      return res.status(500).send("Error running query.");
-    }
-
+  try {
+    const results = await executeQuery(query);
     let departure_sum = results[0].departure_time;
     for (let result of results) {
       departure_sum = addMinutesToTime(departure_sum, result.travel_time);
       result.departure_time = departure_sum;
     }
-
     res.json(results.sort((a, b) => a.stop_number - b.stop_number));
-  });
+  } catch (err) {
+    res.status(500).send("Error running query.");
+  }
 });
 
 // GET /api/routes/lineRoute/:id
 // Returns the route for a specific route
 // The route is identified by its route id
-router.get("/lineRoute/:id", (req, res) => {
+router.get("/lineRoute/:id", async (req, res) => {
   const id = req.params.id;
   const query = `
     SELECT r.*, s.*, l.*, lt.*
@@ -118,11 +93,8 @@ router.get("/lineRoute/:id", (req, res) => {
     LEFT JOIN line_types lt ON l.line_type_id = lt.id
     WHERE l.line_name = '${id}'`;
 
-  executeQuery(query, (err, results) => {
-    if (err) {
-      return res.status(500).send("Error running query.");
-    }
-
+  try {
+    const results = await executeQuery(query);
     const groupedResults = results.reduce((acc, result) => {
       const {
         stop_name,
@@ -158,7 +130,9 @@ router.get("/lineRoute/:id", (req, res) => {
     );
 
     res.json(groupedResults);
-  });
+  } catch (err) {
+    res.status(500).send("Error running query.");
+  }
 });
 
 module.exports = router;
