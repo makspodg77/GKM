@@ -1,6 +1,7 @@
 import './News.css';
 import service, { NewsInterface } from '../../services/db';
 import { useEffect, useState } from 'react';
+import LoadingScreen from '../common/loadingScreen/LoadingScreen';
 
 const News = () => {
   const [loading, setLoading] = useState<boolean>(false);
@@ -14,7 +15,7 @@ const News = () => {
   }, []);
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <LoadingScreen />;
   }
   return (
     <div className="News">

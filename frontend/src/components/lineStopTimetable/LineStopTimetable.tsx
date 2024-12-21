@@ -6,6 +6,7 @@ import displayIcon from '../../assets/tablica.png';
 import MiniRealTimeDepartures from '../miniRealTimeDepartures/MiniRealTimeDepartures';
 import returnIcon from '../../assets/przeciwny_kierunek.png';
 import allIcon from '../../assets/wszystkie_trasy.png';
+import LoadingScreen from '../common/loadingScreen/LoadingScreen';
 
 const LineStopTimetable = () => {
   const { lineId, stopId, routeId } = useParams<{
@@ -138,7 +139,7 @@ const LineStopTimetable = () => {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <LoadingScreen />;
   }
 
   let condition = Number(

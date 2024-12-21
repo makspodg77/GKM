@@ -3,7 +3,6 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: #fbfbfe;
 
   .header {
     display: flex;
@@ -18,11 +17,13 @@
     border-bottom: 2px solid #d0d0d0;
 
     h1 {
-      font-size: 90px;
+      font-size: 4rem;
+      margin-bottom: 0;
     }
 
     h2 {
-      font-size: 70px;
+      font-size: 4rem;
+      margin-bottom: 0;
     }
   }
 
@@ -41,13 +42,45 @@
     }
 
     :nth-child(2) {
-      width: 60%;
+      width: 50%;
     }
 
     :last-child {
-      width: 20%;
+      width: 30%;
       display: flex;
       justify-content: flex-end;
+    }
+  }
+
+  @media only screen and (max-width: 1200px) {
+    display: block;
+    .header {
+      height: auto;
+      h1 {
+        font-size: 1.2rem;
+      }
+
+      h2 {
+        font-size: 1.2rem;
+      }
+    }
+    .content {
+      width: 100%;
+      margin: 0;
+      font-size: 1rem;
+      :first-child {
+        width: 10%;
+      }
+
+      :nth-child(2) {
+        width: 60%;
+      }
+
+      :last-child {
+        width: 30%;
+        display: flex;
+        justify-content: flex-end;
+      }
     }
   }
 }

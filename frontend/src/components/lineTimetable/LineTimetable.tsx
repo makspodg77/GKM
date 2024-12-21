@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import service, { LineTimetableData, Stop } from '../../services/db';
 import displayIcon from '../../assets/tablica.png';
+import LoadingScreen from '../common/loadingScreen/LoadingScreen';
 
 const LineTimetable = () => {
   const { lineId } = useParams<{ lineId: string }>();
@@ -28,7 +29,7 @@ const LineTimetable = () => {
   }, [lineId]);
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <LoadingScreen />;
   }
   return (
     <div className="LineTimetable">

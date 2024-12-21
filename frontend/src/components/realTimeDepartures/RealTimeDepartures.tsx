@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { StopTimetable } from '../../services/db';
 import service from '../../services/db';
 import { useParams } from 'react-router-dom';
+import LoadingScreen from '../common/loadingScreen/LoadingScreen';
 
 const RealTimeDepartures = () => {
   const { stopId } = useParams<{ stopId: string }>();
@@ -87,7 +88,7 @@ const RealTimeDepartures = () => {
   return (
     <div className="RealTimeDepartures">
       {loading ? (
-        <div>Loading...</div>
+        <LoadingScreen />
       ) : (
         <>
           <div className="header">

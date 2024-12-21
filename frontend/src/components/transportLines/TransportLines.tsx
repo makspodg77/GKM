@@ -2,6 +2,7 @@ import './TransportLines.css';
 import { useEffect, useState } from 'react';
 import service from '../../services/db';
 import { TransportLinesGrouped } from '../../services/db';
+import LoadingScreen from '../common/loadingScreen/LoadingScreen';
 
 const TransportLines = () => {
   const [loading, setLoading] = useState<boolean>(true);
@@ -17,7 +18,7 @@ const TransportLines = () => {
     });
   }, []);
 
-  if (loading) return 'Loading...';
+  if (loading) return <LoadingScreen />;
 
   return (
     <div className="TransportLines">

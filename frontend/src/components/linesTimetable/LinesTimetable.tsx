@@ -3,6 +3,7 @@ import service from '../../services/db';
 import { Link } from 'react-router-dom';
 import { TransportLinesGrouped } from '../../services/db';
 import './LinesTimetable.css';
+import LoadingScreen from '../common/loadingScreen/LoadingScreen';
 
 const LinesTimeTable = () => {
   const [loading, setLoading] = useState<boolean>(false);
@@ -16,7 +17,7 @@ const LinesTimeTable = () => {
     });
   }, []);
 
-  if (loading) return 'Loading...';
+  if (loading) return <LoadingScreen />;
 
   return (
     <div className="LineTimetable">
