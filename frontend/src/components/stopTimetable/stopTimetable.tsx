@@ -2,6 +2,7 @@ import './StopTimetable.css';
 import service, { Stops } from '../../services/db';
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import LoadingScreen from '../common/loadingScreen/LoadingScreen';
 const StopTimetable = () => {
   const [stops, setStops] = useState<Stops>({});
   const [loading, setLoading] = useState<boolean>(false);
@@ -14,7 +15,7 @@ const StopTimetable = () => {
   }, []);
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <LoadingScreen />;
   }
 
   return (

@@ -3,6 +3,7 @@ import service from '../../services/db';
 import { useEffect, useState } from 'react';
 import arrowFart from '../../assets/tablica.png';
 import { useParams, Link } from 'react-router-dom';
+import LoadingScreen from '../common/loadingScreen/LoadingScreen';
 
 const LineRoute = () => {
   const { timetableId, stopId } = useParams<{
@@ -76,7 +77,7 @@ const LineRoute = () => {
           </div>
         </div>
       ) : (
-        'Loading...'
+        <LoadingScreen />
       )}
     </>
   );

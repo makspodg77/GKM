@@ -1,0 +1,64 @@
+.LoadingScreen {
+  width: inherit;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 500px;
+
+  > div {
+    position: relative;
+    width: 120px;
+    transform: translate(-50%, -50%);
+    > div {
+      width: 20px;
+      position: absolute;
+      left: 0;
+      transform: translate(-50%, -50%);
+      background-color: #0a3f89;
+      height: 20px;
+      bottom: 0;
+      -webkit-animation: jump 1500ms infinite;
+      animation: jump 2s infinite;
+      border-radius: 50%;
+    }
+  }
+
+  :first-child {
+    -webkit-animation-delay: 200ms;
+    animation-delay: 200ms;
+  }
+  :nth-child(2) {
+    left: 40px;
+    -webkit-animation-delay: 400ms;
+    animation-delay: 400ms;
+  }
+  :last-child {
+    left: 80px;
+    -webkit-animation-delay: 600ms;
+    animation-delay: 600ms;
+  }
+}
+
+@-webkit-keyframes jump {
+  0% {
+    bottom: 0px;
+  }
+  20% {
+    bottom: 20px;
+  }
+  40% {
+    bottom: 0px;
+  }
+}
+
+@keyframes jump {
+  0% {
+    bottom: 0px;
+  }
+  20% {
+    bottom: 20px;
+  }
+  40% {
+    bottom: 0px;
+  }
+}

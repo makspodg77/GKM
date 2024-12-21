@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import service, { StopGroupIf } from '../../services/db';
 import MiniRealTimeDepartures from '../miniRealTimeDepartures/MiniRealTimeDepartures';
 import './StopGroup.css';
+import LoadingScreen from '../common/loadingScreen/LoadingScreen';
 
 const StopGroup = () => {
   const { stopId } = useParams<{ stopId: string }>();
@@ -77,10 +78,6 @@ const StopGroup = () => {
     return () => clearInterval(interval);
   }, [stopGroupF]);
 
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-
   return (
     <>
       {!isLoading ? (
@@ -122,7 +119,7 @@ const StopGroup = () => {
           ))}
         </div>
       ) : (
-        'Loading...'
+        <LoadingScreen />
       )}
     </>
   );
