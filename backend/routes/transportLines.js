@@ -29,8 +29,8 @@ router.get("/", async (req, res) => {
   `;
 
   try {
-    console.log(results);
     const results = await executeQuery(query);
+    console.log(results);
     const groupedResults = results.reduce((acc, result) => {
       const { line_type_name, line_name, stop_name } = result;
       if (!acc[line_type_name]) {
