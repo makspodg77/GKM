@@ -20,7 +20,7 @@ const executeQuery = async (query) => {
 // Returns the lines grouped by their type
 router.get("/", async (req, res) => {
   const query = `
-    SELECT lt.line_type_name, tl.line_name, ts.stop_name
+    SELECT lt.line_type_name, tl.line_name, ts.stop_name, r.stop_number
     FROM transport_lines tl
     JOIN line_types lt ON tl.line_type_id = lt.id
     JOIN routes r ON tl.id = r.line_id
@@ -29,6 +29,7 @@ router.get("/", async (req, res) => {
   `;
 
   try {
+    console.log(results);
     const results = await executeQuery(query);
     const groupedResults = results.reduce((acc, result) => {
       const { line_type_name, line_name, stop_name } = result;
