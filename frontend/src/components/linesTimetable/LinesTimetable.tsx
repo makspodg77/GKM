@@ -5,11 +5,18 @@ import { TransportLinesGrouped } from '../../services/db';
 import './LinesTimetable.css';
 
 const LinesTimeTable = () => {
+  const [loading, setLoading] = useState<boolean>(false);
   const [lines, setLines] = useState<TransportLinesGrouped>({});
 
   useEffect(() => {
-    service.getTransportLines().then((data) => setLines(data));
+    setLoading(true);
+    service.getTransportLines().then((data) => {
+      setLines(data);
+      setLoading(false);
+    });
   }, []);
+
+  if (loading) return 'Loading...';
 
   return (
     <div className="LineTimetable">

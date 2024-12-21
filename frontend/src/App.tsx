@@ -56,6 +56,9 @@ const PageStructure = (props: any) => {
         </section>
         <section className="content">{props.children}</section>
       </div>
+      <footer>
+        <div>© 2024 Maksymilian Podgórski</div>
+      </footer>
     </>
   );
 };

@@ -4,13 +4,20 @@ import service from '../../services/db';
 import { TransportLinesGrouped } from '../../services/db';
 
 const TransportLines = () => {
+  const [loading, setLoading] = useState<boolean>(true);
   const [transportLines, setTransportLines] = useState<TransportLinesGrouped>(
     {}
   );
 
   useEffect(() => {
-    service.getTransportLines().then((data) => setTransportLines(data));
+    setLoading(true);
+    service.getTransportLines().then((data) => {
+      setTransportLines(data);
+      setLoading(false);
+    });
   }, []);
+
+  if (loading) return 'Loading...';
 
   return (
     <div className="TransportLines">

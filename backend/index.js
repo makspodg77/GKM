@@ -22,7 +22,6 @@ app.use("/api/news", newsRouter);
 
 app.use(express.static(path.join(__dirname, "public")));
 
-// Health check endpoint
 app.get("/health", (req, res) => {
   console.log("Health check endpoint hit");
   res.status(200).send("OK");
