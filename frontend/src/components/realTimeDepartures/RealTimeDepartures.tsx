@@ -113,7 +113,11 @@ const RealTimeDepartures = () => {
                 <div className="content" key={index}>
                   <div>{departure.line_name}</div>
                   <div>{departure.last_stop_name}</div>
-                  <div>
+                  <div
+                    className={
+                      departure.departure_text == '>>>' ? 'departing' : ''
+                    }
+                  >
                     {departure.departure_text
                       ? departure.departure_text
                       : departure.departure_time}
