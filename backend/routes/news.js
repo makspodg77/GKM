@@ -7,7 +7,7 @@ router.get("/", async (req, res) => {
   try {
     await sql.connect(config);
 
-    const query = "SELECT * FROM news ORDER BY created_by DESC";
+    const query = "SELECT * FROM news ORDER BY created_at DESC";
 
     const result = await sql.query(query);
 
