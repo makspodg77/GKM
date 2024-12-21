@@ -13,6 +13,7 @@ const TransportLines = () => {
   useEffect(() => {
     setLoading(true);
     service.getTransportLines().then((data) => {
+      console.log(data);
       setTransportLines(data);
       setLoading(false);
     });
