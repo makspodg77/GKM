@@ -70,7 +70,7 @@ router.get("/specificRouteTimetable/:departure_id", async (req, res) => {
   try {
     const results = await executeQuery(query);
     let departure_sum = results[0].departure_time;
-    for (let result of results) {
+    for (let result of results.sort((a, b) => a.stop_number - b.stop_number)) {
       departure_sum = addMinutesToTime(departure_sum, result.travel_time);
       result.departure_time = departure_sum;
     }
