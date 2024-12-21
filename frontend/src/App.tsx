@@ -13,8 +13,13 @@ import StopTimetable from './components/stopTimetable/stopTimetable';
 import News from './components/news/News';
 
 const PageStructure = (props: any) => {
-  const [selected, setSelected] = useState<number>(3);
+  const getPathAfterHost = () => {
+    const url = window.location.href;
+    const path = new URL(url).pathname;
+    return path;
+  };
 
+  const location = '/' + getPathAfterHost().split('/')[1];
   return (
     <>
       <Header />
@@ -23,8 +28,11 @@ const PageStructure = (props: any) => {
           Rozklady jazdy
           <div>
             <Link
-              onClick={() => setSelected(0)}
-              style={selected == 0 ? { backgroundColor: '#FACF00' } : {}}
+              style={
+                location == '/rozklad-jazdy-wedlug-linii'
+                  ? { backgroundColor: '#FACF00' }
+                  : {}
+              }
               to="/rozklad-jazdy-wedlug-linii"
             >
               Rozkłady jazdy według linii
@@ -32,23 +40,26 @@ const PageStructure = (props: any) => {
           </div>
           <div>
             <Link
-              onClick={() => setSelected(2)}
-              style={selected == 2 ? { backgroundColor: '#FACF00' } : {}}
+              style={
+                location == `/rozklady-jazdy`
+                  ? { backgroundColor: '#FACF00' }
+                  : {}
+              }
               to={`/rozklady-jazdy/wedlug-przystankow`}
             >
               Rozkłady jazdy według przystanków
             </Link>
           </div>
           <Link
-            onClick={() => setSelected(1)}
-            style={selected == 1 ? { backgroundColor: '#FACF00' } : {}}
+            style={location == '/linie' ? { backgroundColor: '#FACF00' } : {}}
             to="/linie"
           >
             Linie
           </Link>
           <Link
-            onClick={() => setSelected(3)}
-            style={selected == 3 ? { backgroundColor: '#FACF00' } : {}}
+            style={
+              location == '/informacje' ? { backgroundColor: '#FACF00' } : {}
+            }
             to="/informacje"
           >
             Informacje
