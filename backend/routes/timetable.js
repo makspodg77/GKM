@@ -15,7 +15,7 @@ const getPool = () => {
       })
       .catch((err) => {
         console.error("Database Connection Failed! Bad Config: ", err);
-        poolPromise = null; // Reset poolPromise to allow retrying connection
+        poolPromise = null;
         throw err;
       });
   }
