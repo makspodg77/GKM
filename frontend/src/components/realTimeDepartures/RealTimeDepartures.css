@@ -61,17 +61,17 @@
     .header {
       height: auto;
       h1 {
-        font-size: 1.2rem;
+        font-size: 1.5rem;
       }
 
       h2 {
-        font-size: 1.2rem;
+        font-size: 1.5rem;
       }
     }
     .content {
       width: 100%;
       margin: 0;
-      font-size: 1rem;
+      font-size: 1.3rem;
       :first-child {
         width: 10%;
       }

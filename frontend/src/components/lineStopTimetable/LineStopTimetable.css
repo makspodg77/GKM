@@ -185,6 +185,7 @@
     }
 
     .right {
+      margin-top: 10px;
       width: 100%;
     }
     .stopName {
@@ -194,6 +195,7 @@
       width: 100%;
       display: flex;
       flex-direction: row;
+      margin-bottom: 10px;
     }
     tr {
       display: flex;
