@@ -96,12 +96,14 @@ footer {
 
   .menu {
     height: auto;
+    padding: 10px;
     width: 100%;
     border-bottom: 2px solid #d0d0d0;
   }
 
   .content {
     width: 100%;
-    padding: 1rem 5px 5px 5px;
+    padding: 10px 10px 10px 10px;
+    margin-bottom: 0;
   }
 }
