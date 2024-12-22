@@ -33,12 +33,12 @@ const TransportLines = () => {
                 <div>{lineName}</div>
                 <div>
                   <span className="finalStops">
-                    {transportLines[lineType][lineName].at(0)} ↔{' '}
-                    {transportLines[lineType][lineName].at(-1)}
+                    {transportLines[lineType][lineName].at(0)?.stop_name} ↔{' '}
+                    {transportLines[lineType][lineName].at(-1)?.stop_name}
                   </span>
                   {transportLines[lineType][lineName].map((stopName) => (
-                    <span key={stopName}>
-                      {stopName}
+                    <span key={stopName.stop_name}>
+                      {stopName.stop_name}
                       {transportLines[lineType][lineName].at(-1) != stopName
                         ? ' - '
                         : ''}{' '}

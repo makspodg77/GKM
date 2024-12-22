@@ -63,7 +63,7 @@ interface TimetableStops {
 
 export interface TransportLinesGrouped {
   [lineType: string]: {
-    [lineName: string]: string[];
+    [lineName: string]: { stop_name: string; stop_number: number }[];
   };
 }
 export interface StopGroupIf {

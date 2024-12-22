@@ -41,7 +41,8 @@ const PageStructure = (props: any) => {
           <div>
             <Link
               style={
-                location == `/rozklady-jazdy`
+                location == `/rozklady-jazdy` ||
+                location == '/zespol-przystankowy'
                   ? { backgroundColor: '#FACF00' }
                   : {}
               }
@@ -58,7 +59,9 @@ const PageStructure = (props: any) => {
           </Link>
           <Link
             style={
-              location == '/informacje' ? { backgroundColor: '#FACF00' } : {}
+              location == '/informacje' || location == '/'
+                ? { backgroundColor: '#FACF00' }
+                : {}
             }
             to="/informacje"
           >

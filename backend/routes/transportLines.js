@@ -30,18 +30,25 @@ router.get("/", async (req, res) => {
 
   try {
     const results = await executeQuery(query);
-    console.log(results);
     const groupedResults = results.reduce((acc, result) => {
-      const { line_type_name, line_name, stop_name } = result;
+      const { line_type_name, line_name, stop_name, stop_number } = result;
       if (!acc[line_type_name]) {
         acc[line_type_name] = {};
       }
       if (!acc[line_type_name][line_name]) {
         acc[line_type_name][line_name] = [];
       }
-      acc[line_type_name][line_name].push(stop_name);
+      acc[line_type_name][line_name].push({ stop_name, stop_number });
       return acc;
     }, {});
+    Object.keys(groupedResults).forEach((type) => {
+      Object.keys(groupedResults[type]).forEach((line) => {
+        groupedResults[type][line] = groupedResults[type][line].sort(
+          (a, b) => a.stop_number - b.stop_number
+        );
+      });
+    });
+    console.log(groupedResults);
     res.json(groupedResults);
   } catch (err) {
     console.error("Error running query:", err);
