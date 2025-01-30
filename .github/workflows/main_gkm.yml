@@ -19,7 +19,20 @@ jobs:
       - name: Set up Node.js version
         uses: actions/setup-node@v3
         with:
-          node-version: '20.x'
+          node-version: "20.x"
+
+      # Sprawdzenie plików package.json
+      - name: Check frontend package.json
+        run: |
+          cd frontend
+          ls -la
+          cat package.json
+
+      - name: Check backend package.json
+        run: |
+          cd backend
+          ls -la
+          cat package.json
 
       # Instalacja zależności frontendu
       - name: Install frontend dependencies
@@ -69,7 +82,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     environment:
-      name: 'Production'
+      name: "Production"
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     permissions:
       id-token: write # This is required for requesting the JWT
@@ -86,6 +99,11 @@ jobs:
       - name: Unzip artifact for deployment
         run: unzip release.zip
 
+      # Sprawdzenie plików po rozpakowaniu
+      - name: Check files after unzipping
+        run: |
+          ls -R release
+
       # Logowanie do Azure
       - name: Login to Azure
         uses: azure/login@v2
@@ -95,10 +113,10 @@ jobs:
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_7997B80151FC40D4A5802EDCF15DA769 }}
 
       # Wdrożenie na Azure Web App
-      - name: 'Deploy to Azure Web App'
+      - name: "Deploy to Azure Web App"
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'GKM'  # Zmień na nazwę swojej aplikacji na Azure
-          slot-name: 'Production'
-          package: './release'  # Używamy paczki z frontendem i backendem
+          app-name: "GKM" # Zmień na nazwę swojej aplikacji na Azure
+          slot-name: "Production"
+          package: "./release" # Używamy paczki z frontendem i backendem
