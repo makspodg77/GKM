@@ -57,19 +57,21 @@ jobs:
         run: ls -R backend
 
       # Tworzenie paczki dla wdrożenia
-      - name: Zip artifact for deployment
-        run: |
-          mkdir release
-          # Sprawdzenie, czy są pliki wynikowe w folderze frontend
-          if [ -d "frontend/dist" ]; then
-            cp -r frontend/dist release/frontend
-          fi
-          # Sprawdzenie, czy są pliki wynikowe w folderze backend
-          if [ -d "backend/dist" ]; then
-            cp -r backend/dist release/backend
-          fi
-          # Zarchiwizowanie paczki
-          zip -r release.zip release
+       name: Zip artifact for deployment
+  run: |
+    mkdir release
+    # Przenieś pliki frontendu
+    if [ -d "frontend/dist" ]; then
+      cp -r frontend/dist/* release/
+    fi
+    # Przenieś pliki backendu
+    if [ -d "backend/dist" ]; then
+      cp -r backend/dist/* release/
+    fi
+    # Przenieś plik ecosystem.config.js
+    cp ecosystem.config.js release/
+    # Zarchiwizowanie paczki
+    zip -r release.zip release
 
       # Przekazanie paczki dla zadania wdrożenia
       - name: Upload artifact for deployment job
