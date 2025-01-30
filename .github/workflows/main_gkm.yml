@@ -39,13 +39,18 @@ jobs:
       - name: List files in frontend directory
         run: ls -R frontend
 
+      # Lista plików w folderze backend przed kopiowaniem
+      - name: List files in backend directory
+        run: ls -R backend
+
       # Tworzenie paczki dla wdrożenia
       - name: Zip artifact for deployment
         run: |
           mkdir release
-          # Sprawdzamy, jaki folder jest tworzony, np. dist zamiast build
-          cp -r frontend/dist release/frontend   # Zmieniłem build na dist
-          cp -r backend/dist release/backend
+          # Zmieniamy ścieżkę na odpowiednią dla folderu generowanego przez frontend
+          cp -r frontend/build release/frontend || cp -r frontend/dist release/frontend
+          # Zmieniamy ścieżkę na odpowiednią dla folderu generowanego przez backend
+          cp -r backend/build release/backend || cp -r backend/dist release/backend || cp -r backend/out release/backend
           zip -r release.zip release
 
       # Przekazanie paczki dla zadania wdrożenia
