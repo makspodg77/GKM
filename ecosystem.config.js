@@ -4,7 +4,7 @@ module.exports = {
       name: "frontend",
       cwd: "./frontend",
       script: "npm",
-      args: "run dev",
+      args: "start",
       env: {
         PORT: 3000, // Port dla frontendu
       },

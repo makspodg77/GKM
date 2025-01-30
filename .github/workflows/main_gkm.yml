@@ -62,15 +62,14 @@ jobs:
           mkdir release
           # Przenieś pliki frontendu
           if [ -d "frontend/dist" ]; then
-            cp -r frontend/dist release/frontend
+            cp -r frontend/dist/* release/
           fi
           # Przenieś pliki backendu
           if [ -d "backend/dist" ]; then
-            cp -r backend/dist release/backend
+            cp -r backend/dist/* release/
           fi
-          # Przenieś plik ecosystem.config.js i package.json
-          cp ecosystem.config.js release/
-          cp package.json release/
+          # Przenieś plik start.sh
+          cp start.sh release/
           # Zarchiwizowanie paczki
           zip -r release.zip release
 
