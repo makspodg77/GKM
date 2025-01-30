@@ -8,7 +8,7 @@ npm start &
 # Uruchom frontend (statyczny serwer)
 echo "Starting frontend..."
 cd /frontend
-npx serve -p 8080 -s dist &
+npm run dev &  # Run the Vite dev server in the background
 
 # Utrzymuj kontener przy życiu
 tail -f /dev/null
