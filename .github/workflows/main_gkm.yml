@@ -10,36 +10,45 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read 
+      contents: read # This is required for actions/checkout
 
     steps:
       - uses: actions/checkout@v4
 
+      # Instalacja Node.js
       - name: Set up Node.js version
         uses: actions/setup-node@v3
         with:
           node-version: '20.x'
 
+      # Instalacja zależności frontendu
       - name: Install frontend dependencies
         run: |
           cd frontend
           npm install
           npm run build --if-present
 
+      # Instalacja zależności backendu
       - name: Install backend dependencies
         run: |
           cd backend
           npm install
           npm run build --if-present
 
+      # Lista plików w folderze frontend przed kopiowaniem
+      - name: List files in frontend directory
+        run: ls -R frontend
+
+      # Tworzenie paczki dla wdrożenia
       - name: Zip artifact for deployment
         run: |
           mkdir release
-          # Zmieniamy komendę zip, aby uwzględniała zarówno frontend, jak i backend
-          cp -r frontend/build release/frontend
+          # Sprawdzamy, jaki folder jest tworzony, np. dist zamiast build
+          cp -r frontend/dist release/frontend   # Zmieniłem build na dist
           cp -r backend/dist release/backend
           zip -r release.zip release
 
+      # Przekazanie paczki dla zadania wdrożenia
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
@@ -53,18 +62,21 @@ jobs:
       name: 'Production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     permissions:
-      id-token: write
-      contents: read 
+      id-token: write # This is required for requesting the JWT
+      contents: read # This is required for actions/checkout
 
     steps:
+      # Pobranie artefaktu z zadania build
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
           name: node-app
 
+      # Rozpakowanie artefaktu przed wdrożeniem
       - name: Unzip artifact for deployment
         run: unzip release.zip
 
+      # Logowanie do Azure
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -72,10 +84,11 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_3F72622A46E54F59BF3AD025D669D014 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_7997B80151FC40D4A5802EDCF15DA769 }}
 
+      # Wdrożenie na Azure Web App
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'GKM' 
+          app-name: 'GKM'  # Zmień na nazwę swojej aplikacji na Azure
           slot-name: 'Production'
-          package: './release' 
+          package: './release'  # Używamy paczki z frontendem i backendem
