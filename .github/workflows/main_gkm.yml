@@ -47,10 +47,15 @@ jobs:
       - name: Zip artifact for deployment
         run: |
           mkdir release
-          # Zmieniamy ścieżkę na odpowiednią dla folderu generowanego przez frontend
-          cp -r frontend/build release/frontend || cp -r frontend/dist release/frontend
-          # Zmieniamy ścieżkę na odpowiednią dla folderu generowanego przez backend
-          cp -r backend/build release/backend || cp -r backend/dist release/backend || cp -r backend/out release/backend
+          # Sprawdzenie, czy są pliki wynikowe w folderze frontend
+          if [ -d "frontend/dist" ]; then
+            cp -r frontend/dist release/frontend
+          fi
+          # Sprawdzenie, czy są pliki wynikowe w folderze backend
+          if [ -d "backend/dist" ]; then
+            cp -r backend/dist release/backend
+          fi
+          # Zarchiwizowanie paczki
           zip -r release.zip release
 
       # Przekazanie paczki dla zadania wdrożenia
