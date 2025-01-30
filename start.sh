@@ -1,8 +1,14 @@
 #!/bin/bash
 
-# Uruchom aplikacje za pomocą PM2
-echo "Starting applications with PM2..."
-pm2 start ecosystem.config.js
+# Uruchom backend
+echo "Starting backend..."
+cd /app/backend
+npm start &
+
+# Uruchom frontend (statyczny serwer)
+echo "Starting frontend..."
+cd /app/frontend
+npx serve -p 8080 -s dist &
 
 # Utrzymuj kontener przy życiu
-pm2 logs
+tail -f /dev/null

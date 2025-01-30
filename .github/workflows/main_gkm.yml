@@ -10,7 +10,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read # This is required for actions/checkout
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -21,52 +21,35 @@ jobs:
         with:
           node-version: "20.x"
 
-      # Sprawdzenie plików package.json
-      - name: Check frontend package.json
-        run: |
-          cd frontend
-          ls -la
-          cat package.json
-
-      - name: Check backend package.json
-        run: |
-          cd backend
-          ls -la
-          cat package.json
-
       # Instalacja zależności frontendu
       - name: Install frontend dependencies
         run: |
           cd frontend
           npm install
-          npm run build --if-present
+
+      # Budowanie frontendu
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
 
       # Instalacja zależności backendu
       - name: Install backend dependencies
         run: |
           cd backend
           npm install
-          npm run build --if-present
 
-      # Lista plików w folderze frontend przed kopiowaniem
-      - name: List files in frontend directory
-        run: ls -R frontend
-
-      # Lista plików w folderze backend przed kopiowaniem
-      - name: List files in backend directory
-        run: ls -R backend
-
-      # Tworzenie paczki dla wdrożenia
-      - name: Zip artifact for deployment
+      # Przygotowanie plików do wdrożenia
+      - name: Prepare files for deployment
         run: |
           mkdir release
           # Przenieś pliki frontendu
           if [ -d "frontend/dist" ]; then
-            cp -r frontend/dist/* release/
+            cp -r frontend/dist release/frontend
           fi
           # Przenieś pliki backendu
           if [ -d "backend/dist" ]; then
-            cp -r backend/dist/* release/
+            cp -r backend/dist release/backend
           fi
           # Przenieś plik start.sh
           cp start.sh release/
@@ -87,8 +70,8 @@ jobs:
       name: "Production"
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     permissions:
-      id-token: write # This is required for requesting the JWT
-      contents: read # This is required for actions/checkout
+      id-token: write
+      contents: read
 
     steps:
       # Pobranie artefaktu z zadania build
@@ -101,24 +84,19 @@ jobs:
       - name: Unzip artifact for deployment
         run: unzip release.zip
 
-      # Sprawdzenie plików po rozpakowaniu
-      - name: Check files after unzipping
-        run: |
-          ls -R release
-
       # Logowanie do Azure
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_92E1CF6DB3E9420E8E88E5EFC9F2D6F4 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_3F72622A46E54F59BF3AD025D669D014 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_7997B80151FC40D4A5802EDCF15DA769 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID }}
 
       # Wdrożenie na Azure Web App
       - name: "Deploy to Azure Web App"
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: "GKM" # Zmień na nazwę swojej aplikacji na Azure
+          app-name: "GKM"
           slot-name: "Production"
-          package: "./release" # Używamy paczki z frontendem i backendem
+          package: "./release"
