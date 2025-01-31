@@ -7,4 +7,8 @@ export default defineConfig({
   build: {
     outDir: 'dist',
   },
+  server: {
+    port: 8080,
+    host: true, // To allow external access, necessary in some cases
+  },
 });
