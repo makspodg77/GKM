@@ -21,7 +21,7 @@ app.use("/api/transportStops", transportStopsRouter);
 app.use("/api/news", newsRouter);
 
 const frontendPath = path.join(__dirname, "..", "..", "frontend", "dist");
-
+console.log(frontendPath);
 app.use(express.static(frontendPath));
 app.get("*", (req, res) => {
   res.sendFile(path.join(frontendPath, "index.html"));
