@@ -1,4 +1,4 @@
-name: Build and deploy Node.js app to Azure Web App - GKM
+name: Build and Deploy Node.js App to Azure Web App - GKM
 
 on:
   push:
@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Set up Node.js version
+      # Install Node.js
       - name: Set up Node.js version
         uses: actions/setup-node@v3
         with:
@@ -24,44 +24,58 @@ jobs:
       # Install frontend dependencies
       - name: Install frontend dependencies
         run: |
-          cd /home/site/wwwroot/frontend
+          cd ./frontend
           npm install
 
       # Build frontend
       - name: Build frontend
         run: |
-          cd /home/site/wwwroot/frontend
+          cd ./frontend
           npm run build
 
       # Install backend dependencies
       - name: Install backend dependencies
         run: |
-          cd /home/site/wwwroot/backend
+          cd ./backend
           npm install
+
+      # Build backend
+      - name: Build backend
+        run: |
+          cd ./backend
+          npm run build
 
       # Prepare files for deployment
       - name: Prepare files for deployment
         run: |
-          mkdir /home/site/wwwroot/release
-          # Move frontend build files
-          if [ -d "/home/site/wwwroot/frontend/dist" ]; then
-            cp -r /home/site/wwwroot/frontend/dist /home/site/wwwroot/release/frontend
+          mkdir -p release
+          # Copy frontend files if they exist
+          if [ -d "frontend/dist" ]; then
+            cp -r frontend/dist release/frontend
+          else
+            echo "Frontend build directory not found!"
           fi
-          # Move backend build files (assuming backend uses dist as well)
-          if [ -d "/home/site/wwwroot/backend/dist" ]; then
-            cp -r /home/site/wwwroot/backend/dist /home/site/wwwroot/release/backend
+          # Copy backend files if they exist
+          if [ -d "backend/dist" ]; then
+            cp -r backend/dist release/backend
+          else
+            echo "Backend build directory not found!"
           fi
-          # Copy start.sh script
-          cp /home/site/wwwroot/start.sh /home/site/wwwroot/release/
-          # Archive the release folder
-          zip -r /home/site/wwwroot/release.zip /home/site/wwwroot/release
+          # Copy the start.sh file
+          if [ -f "start.sh" ]; then
+            cp start.sh release/
+          else
+            echo "start.sh not found!"
+          fi
+          # Archive the files into a zip
+          zip -r release.zip release
 
       # Upload artifact for deployment job
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
-          name: node-app
-          path: /home/site/wwwroot/release.zip
+          name: node-app-artifact
+          path: release.zip
 
   deploy:
     runs-on: ubuntu-latest
@@ -78,19 +92,19 @@ jobs:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
-          name: node-app
+          name: node-app-artifact
 
-      # Unzip artifact before deployment
+      # Unzip the artifact
       - name: Unzip artifact for deployment
-        run: unzip /home/site/wwwroot/release.zip -d /home/site/wwwroot/
+        run: unzip release.zip
 
       # Log in to Azure
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_92E1CF6DB3E9420E8E88E5EFC9F2D6F4 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_3F72622A46E54F59BF3AD025D669D014 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_7997B80151FC40D4A5802EDCF15DA769 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID }}
 
       # Deploy to Azure Web App
       - name: Deploy to Azure Web App
@@ -99,4 +113,4 @@ jobs:
         with:
           app-name: "GKM"
           slot-name: "Production"
-          package: "/home/site/wwwroot/release"
+          package: "./release"
