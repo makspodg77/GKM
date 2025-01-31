@@ -24,48 +24,49 @@ jobs:
       # Install frontend dependencies
       - name: Install frontend dependencies
         run: |
-          cd ./frontend
+          cd frontend
           npm install
 
       # Build frontend
       - name: Build frontend
         run: |
-          cd ./frontend
+          cd frontend
           npm run build
 
       # Install backend dependencies (no build)
       - name: Install backend dependencies
         run: |
-          cd ./backend
+          cd backend
           npm install
 
-      # ✅ Prepare files for deployment (Add this section)
+      # Prepare files for deployment
       - name: Prepare files for deployment
         run: |
           mkdir -p release/frontend
           mkdir -p release/backend
-          # ✅ Copy frontend build output
+          # Copy frontend build output
           if [ -d "frontend/dist" ]; then
             cp -r frontend/dist release/frontend
           else
             echo "⚠️ Frontend build directory not found!"
             exit 1
           fi
-          # ✅ Copy backend files
+          # Copy backend files
           if [ -d "backend" ]; then
-            cp -r backend release/backend
+            cp -r backend/* release/backend
           else
             echo "⚠️ Backend directory not found!"
             exit 1
           fi
-          # ✅ Copy start script if it exists
+          # Copy start script if it exists
           if [ -f "start.sh" ]; then
             cp start.sh release/
           else
             echo "⚠️ start.sh not found!"
           fi
-          # ✅ Archive for deployment
-          zip -r release.zip release
+          # Archive for deployment
+          cd release
+          zip -r ../release.zip .
 
       # Upload artifact for deployment job
       - name: Upload artifact for deployment job
