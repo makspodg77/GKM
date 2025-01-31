@@ -33,35 +33,29 @@ jobs:
           cd ./frontend
           npm run build
 
-      # Install backend dependencies
+      # Install backend dependencies (no build)
       - name: Install backend dependencies
         run: |
           cd ./backend
           npm install
 
-      # Build backend
-      - name: Build backend
-        run: |
-          cd ./backend
-          npm run build
-
       # Prepare files for deployment
       - name: Prepare files for deployment
         run: |
           mkdir -p release
-          # Copy frontend files if they exist
+          # Copy frontend build files if they exist
           if [ -d "frontend/dist" ]; then
             cp -r frontend/dist release/frontend
           else
             echo "Frontend build directory not found!"
           fi
-          # Copy backend files if they exist
-          if [ -d "backend/dist" ]; then
-            cp -r backend/dist release/backend
+          # Copy backend files directly (no build)
+          if [ -d "backend" ]; then
+            cp -r backend release/backend
           else
-            echo "Backend build directory not found!"
+            echo "Backend directory not found!"
           fi
-          # Copy the start.sh file
+          # Copy the start.sh file if it exists
           if [ -f "start.sh" ]; then
             cp start.sh release/
           else
