@@ -111,4 +111,4 @@ jobs:
         with:
           app-name: "GKM"
           slot-name: "Production"
-          package: "./release"
+          package: release.zip
