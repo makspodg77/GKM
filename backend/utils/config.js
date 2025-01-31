@@ -1,14 +1,14 @@
 const config = {
-  server: "sql.bsite.net\\MSSQL2016",
+  server: "pmdevelopment.database.windows.net",
   authentication: {
     type: "default",
     options: {
-      userName: "makspodg_",
-      password: "ni25#ttS8!RwUiT",
+      userName: "twojanaha",
+      password: "Maksiukupa123",
     },
   },
   options: {
-    database: "makspodg_",
+    database: "GKM",
     trustServerCertificate: true,
   },
 };
