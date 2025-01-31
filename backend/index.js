@@ -20,16 +20,11 @@ app.use("/api/transportLines", transportLinesRouter);
 app.use("/api/transportStops", transportStopsRouter);
 app.use("/api/news", newsRouter);
 
-const frontendPath = path.join(__dirname, "..", "frontend", "dist");
+const frontendPath = path.join(__dirname, "..", "..", "frontend", "dist");
 
 app.use(express.static(frontendPath));
 app.get("*", (req, res) => {
   res.sendFile(path.join(frontendPath, "index.html"));
-});
-
-app.get("/health", (req, res) => {
-  console.log("Health check endpoint hit");
-  res.status(200).send("OK");
 });
 
 app.listen(port, () => {
