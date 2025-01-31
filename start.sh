@@ -2,12 +2,12 @@
 
 # Uruchom backend
 echo "Starting backend..."
-cd /backend
+cd ./backend
 npm start &
 
 # Uruchom frontend (statyczny serwer)
 echo "Starting frontend..."
-cd /frontend
+cd ./frontend
 npm run dev &
 
 # Utrzymuj kontener przy życiu
