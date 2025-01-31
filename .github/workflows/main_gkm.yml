@@ -39,29 +39,32 @@ jobs:
           cd ./backend
           npm install
 
-      # Prepare files for deployment
+      # ✅ Prepare files for deployment (Add this section)
       - name: Prepare files for deployment
         run: |
-          mkdir -p release
-          # Copy frontend build files if they exist
+          mkdir -p release/frontend
+          mkdir -p release/backend
+          # ✅ Copy frontend build output
           if [ -d "frontend/dist" ]; then
             cp -r frontend/dist release/frontend
           else
-            echo "Frontend build directory not found!"
+            echo "⚠️ Frontend build directory not found!"
+            exit 1
           fi
-          # Copy backend files directly (no build)
+          # ✅ Copy backend files
           if [ -d "backend" ]; then
             cp -r backend release/backend
           else
-            echo "Backend directory not found!"
+            echo "⚠️ Backend directory not found!"
+            exit 1
           fi
-          # Copy the start.sh file if it exists
+          # ✅ Copy start script if it exists
           if [ -f "start.sh" ]; then
             cp start.sh release/
           else
-            echo "start.sh not found!"
+            echo "⚠️ start.sh not found!"
           fi
-          # Archive the files into a zip
+          # ✅ Archive for deployment
           zip -r release.zip release
 
       # Upload artifact for deployment job
