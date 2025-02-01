@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const baseURL = 'https://gkm-summer-snowflake-9943.fly.dev/api';
+const baseURL = 'https://goleniowkm.pl/api';
 const baseURL878 = 'http://localhost:3000/api';
 
 export interface TransportLine {
