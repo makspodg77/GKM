@@ -19,6 +19,7 @@ const News = () => {
   }
   return (
     <div className="News">
+      <h1>Aktualności</h1>
       {news.map((_news: NewsInterface) => (
         <div>
           <h2>{_news.title}</h2>

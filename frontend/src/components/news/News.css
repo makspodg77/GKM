@@ -1,4 +1,8 @@
 .News {
+  h1 {
+    margin-top: 0;
+  }
+
   > div {
     width: 100%;
     border: 2px solid #d0d0d0;

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const baseURL = 'https://goleniowkm.pl/api';
-const baseURL878 = 'http://localhost:3000/api';
+const baseURL88 = 'http://localhost:8080/api';
 
 export interface TransportLine {
   line_name: string;

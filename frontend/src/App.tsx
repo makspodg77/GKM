@@ -59,13 +59,13 @@ const PageStructure = (props: any) => {
           </Link>
           <Link
             style={
-              location == '/informacje' || location == '/'
+              location == '/aktualnosci' || location == '/'
                 ? { backgroundColor: '#FACF00' }
                 : {}
             }
-            to="/informacje"
+            to="/aktualnosci"
           >
-            Informacje
+            Aktualności
           </Link>
         </section>
         <section className="content">{props.children}</section>
@@ -148,7 +148,7 @@ const App = () => {
           }
         />
         <Route
-          path="/informacje"
+          path="/aktualnosci"
           element={
             <PageStructure>
               <News />
