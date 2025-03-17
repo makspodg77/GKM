@@ -1,7 +1,11 @@
 const express = require("express");
-const sql = require("mssql");
-const config = require("../utils/config");
 const router = express.Router();
+const { executeQuery } = require("../utils/sqlHelper");
+const {
+  asyncHandler,
+  NotFoundError,
+  ValidationError,
+} = require("../utils/errorHandler");
 
 const addMinutesToTime = (time, minutesToAdd) => {
   let [hours, minutes] = time.split(":").map(Number);
@@ -18,67 +22,215 @@ const addMinutesToTime = (time, minutesToAdd) => {
   return `${newHours}:${newMinutes}`;
 };
 
-const executeQuery = async (query) => {
-  try {
-    await sql.connect(config);
-    const result = await sql.query(query);
-    return result.recordset;
-  } catch (err) {
-    console.error("Query error:", err);
-    throw err;
-  } finally {
-    await sql.close();
-  }
-};
+/**
+ * @swagger
+ * /api/routes:
+ *   get:
+ *     tags: [Routes]
+ *     summary: Get all routes for a line
+ *     description: Returns all the routes depending on the route type
+ *     parameters:
+ *       - in: query
+ *         name: lineId
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: ID of the line that routes should be returned for
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved routes for a line
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               additionalProperties:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     name:
+ *                       type: string
+ *                     id:
+ *                       type: integer
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  "/",
+  asyncHandler(async (req, res) => {
+    const { lineId } = req.query;
 
-// GET /api/routes/route
-// Returns one line's schedule identified by its line id
-router.get("/route", async (req, res) => {
-  const { lineNr, direction } = req.query;
-  const query = `
-    SELECT r.*, l.*, s.*
-    FROM routes r
-    LEFT JOIN transport_lines l ON r.line_id = l.id
-    LEFT JOIN transport_stops s ON r.stop_id = s.id
-    WHERE r.line_id = ${lineNr}
-    AND s.stop_direction = ${direction}`;
-
-  try {
-    const results = await executeQuery(query);
-    const modifiedResults = results.map((result) => ({
-      travel_time: result.travel_time,
-      is_on_request: result.is_on_request,
-      stop_name: result.stop_name,
-    }));
-    res.json(modifiedResults);
-  } catch (err) {
-    res.status(500).send("Error running query.");
-  }
-});
-
-router.get("/specificRouteTimetable/:departure_id", async (req, res) => {
-  const { departure_id } = req.params;
-  const query = `
-    SELECT ts.stop_name, r.stop_id, tt.departure_time, r.travel_time, tl.line_name, lt.line_type_name, r.route_number, r.stop_number
-    FROM timetable tt
-    JOIN routes r ON tt.route_number = r.route_number
-    JOIN transport_lines tl ON tl.id = r.line_id
-    JOIN transport_stops ts ON ts.id = r.stop_id
-    JOIN line_types lt ON lt.id = tl.line_type_id
-    WHERE tt.id = ${departure_id}`;
-
-  try {
-    const results = await executeQuery(query);
-    let departure_sum = results[0].departure_time;
-    for (let result of results.sort((a, b) => a.stop_number - b.stop_number)) {
-      departure_sum = addMinutesToTime(departure_sum, result.travel_time);
-      result.departure_time = departure_sum;
+    if (!lineId || isNaN(parseInt(lineId))) {
+      throw new ValidationError("line ID parameter is required");
     }
-    res.json(results.sort((a, b) => a.stop_number - b.stop_number));
-  } catch (err) {
-    res.status(500).send("Error running query.");
-  }
-});
+
+    const query = `
+    SELECT fr.stop_id, fr.travel_time, fr.is_on_request, fr.route_number, fr.stop_number, fr.stop_type, fr.route_type_id, l.name, lt.nameSingular, lt.namePlural, lt.color, sg.name AS stop_name
+    FROM full_routes fr
+    JOIN lines l ON fr.line_id = l.id
+    JOIN stops s ON fr.stop_id = s.id
+    JOIN stop_groups sg ON fr.stop_group_id = sg.id
+    JOIN line_types lt ON l.line_type_id = lt.id
+    WHERE fr.line_id = @lineId
+    `;
+
+    const results = await executeQuery(query, { lineId });
+    const modifiedResults = results.reduce((acc, result) => {
+      const {
+        stop_id,
+        stop_number,
+        travel_time,
+        is_on_request,
+        stop_type,
+        route_id,
+        route_type_id,
+        name,
+        nameSingular,
+        namePlural,
+        stop_name,
+      } = result;
+      if (!acc[route_id]) {
+        acc[route_id] = [];
+      }
+      acc[route_id].push({
+        stop_id,
+        stop_number,
+        travel_time,
+        is_on_request,
+        stop_type,
+        route_id,
+        route_type_id,
+        name,
+        nameSingular,
+        namePlural,
+        stop_name,
+      });
+      return acc;
+    }, {});
+    res.json(modifiedResults);
+  })
+);
+/**
+ * @swagger
+ * /api/routes/route:
+ *   get:
+ *     tags: [Routes]
+ *     summary: Get a specific route
+ *     description: Return the full route of a specific departure ID
+ *     parameters:
+ *       - in: query
+ *         name: departureId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the departure to get the route for
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved route for the departure ID
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               additionalProperties:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     name:
+ *                       type: string
+ *                     id:
+ *                       type: integer
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  "/route",
+  asyncHandler(async (req, res) => {
+    const { departureId } = req.query;
+
+    if (!departureId) {
+      throw new ValidationError("departure ID parameter is required");
+    }
+
+    const basicDataQuery = `
+    SELECT tt.departure_time, l.name, lt.nameSingular AS line_type_name, lt.color, tt.route_id
+    FROM timetable tt 
+    JOIN routes r ON r.route_number = tt.route_id 
+    JOIN full_routes fr ON fr.route_number = r.full_route_id
+    JOIN lines l ON l.id = fr.line_id 
+    JOIN line_types lt ON lt.id = l.line_type_id 
+    WHERE tt.id = @departureId`;
+
+    const results1 = await executeQuery(basicDataQuery, { departureId });
+
+    if (!results1 || results1.length === 0) {
+      throw new NotFoundError(`No departure found with ID ${departureId}`);
+    }
+
+    const routeQuery = `
+    SELECT full_route_id, additional_stop_id FROM routes WHERE route_id = @routeNumber`;
+
+    const results2 = await executeQuery(routeQuery, {
+      routeNumber: results1[0].route_id,
+    });
+
+    if (!results2 || results2.length === 0) {
+      throw new NotFoundError(
+        `No route found for route number ${results1[0].route_id}`
+      );
+    }
+
+    // Collect all additional stop IDs from all rows in results2
+    let additionalStopIds = "";
+    if (results2.length > 0) {
+      additionalStopIds = results2
+        .map((row) => row.additional_stop_id)
+        .filter((id) => id)
+        .join(",");
+    }
+
+    const fullRouteQuery = `
+    SELECT fr.travel_time, fr.is_on_request, fr.stop_number, fr.stop_type, sg.name, sg.id AS stop_group_id, s.id AS stop_id
+    FROM full_routes fr 
+    JOIN stop_groups sg ON sg.id = fr.stop_group_id 
+    JOIN stops s ON s.id = fr.stop_id 
+    WHERE fr.route_number = @routeNumber
+    AND (
+        fr.stop_type <= 3
+        OR (
+            @additionalStopIds <> '' 
+            AND fr.stop_id IN (SELECT value FROM STRING_SPLIT(@additionalStopIds, ','))
+        )
+    );
+    `;
+
+    const results3 = await executeQuery(fullRouteQuery, {
+      routeNumber: results2[0].full_route_id,
+      additionalStopIds: additionalStopIds,
+    });
+
+    if (!results3 || results3.length === 0) {
+      throw new NotFoundError(
+        `No stops found for route ${results2[0].full_route_id}`
+      );
+    }
+
+    // Calculate arrival times
+    let departure_time = results1[0].departure_time;
+    for (let result of results3.sort((a, b) => a.stop_number - b.stop_number)) {
+      departure_time = addMinutesToTime(departure_time, result.travel_time);
+      result.arrival_time = departure_time;
+    }
+
+    res.json({
+      line_name: results1[0].name,
+      line_type: results1[0].line_type_name,
+      color: results1[0].color,
+      departure_time: results1[0].departure_time,
+      stops: results3,
+    });
+  })
+);
 
 // GET /api/routes/lineRoute/:id
 // Returns the route for a specific route
@@ -101,7 +253,7 @@ router.get("/lineRoute/:id", async (req, res) => {
         travel_time,
         is_on_request,
         stop_direction,
-        route_number,
+        route_id,
         stop_id,
         stop_number,
       } = result;
@@ -112,7 +264,7 @@ router.get("/lineRoute/:id", async (req, res) => {
         stop_name,
         travel_time,
         is_on_request,
-        route_number,
+        route_id,
         stop_id,
         stop_number,
       });

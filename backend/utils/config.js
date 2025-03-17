@@ -1,15 +1,24 @@
+require("dotenv").config();
+
 const config = {
-  server: "sql.bsite.net\\MSSQL2016",
-  authentication: {
-    type: "default",
-    options: {
-      userName: "dorismalpa_makspodg_",
-      password: "123456qwert",
+  database: {
+    server: process.env.DB_SERVER,
+    authentication: {
+      type: "default",
+      options: {
+        userName: process.env.DB_USERNAME,
+        password: process.env.DB_PASSWORD,
+      },
     },
-  },
-  options: {
-    database: "dorismalpa_makspodg_",
-    trustServerCertificate: true,
+    options: {
+      database: process.env.DB_NAME,
+      encrypt: true,
+      trustServerCertificate: true,
+      pool: {
+        max: parseInt(process.env.DB_POOL_MAX) || 10,
+        min: parseInt(process.env.DB_POOL_MIN) || 0,
+      },
+    },
   },
 };
 

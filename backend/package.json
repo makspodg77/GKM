@@ -17,6 +17,11 @@
     "msnodesqlv8": "^4.4.0",
     "mssql": "^11.0.1",
     "pm2": "^5.4.3",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "tedious": "^18.6.1"
+  },
+  "devDependencies": {
+    "swagger-autogen": "^2.23.7"
   }
 }
