@@ -3,20 +3,22 @@ const config = require("./utils/config");
 
 const dropTables = `
     DROP TABLE IF EXISTS timetable;
-    DROP TABLE IF EXISTS routes;
-    DROP TABLE IF EXISTS full_routes;
-    DROP TABLE IF EXISTS stops;
-    DROP TABLE IF EXISTS stop_groups;
-    DROP TABLE IF EXISTS lines;
-    DROP TABLE IF EXISTS line_types;
-    DROP TABLE IF EXISTS route_types;
-    DROP TABLE IF EXISTS stop_types;
+    DROP TABLE IF EXISTS additional_stop;
+    DROP TABLE IF EXISTS departure_route;
+    DROP TABLE IF EXISTS full_route;
+    DROP TABLE IF EXISTS route;
+    DROP TABLE IF EXISTS stop;
+    DROP TABLE IF EXISTS stop_group;
+    DROP TABLE IF EXISTS line;
+    DROP TABLE IF EXISTS line_type;
+    DROP TABLE IF EXISTS route_type;
+    DROP TABLE IF EXISTS stop_type;
     DROP TABLE IF EXISTS news;
     DROP TABLE IF EXISTS users;
 `;
 
-const createLineTypesTable = `
-    CREATE TABLE line_types (
+const createLineTypeTable = `
+    CREATE TABLE line_type (
         id INT IDENTITY(1,1) PRIMARY KEY,
         nameSingular NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL,
         namePlural NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL,
@@ -24,87 +26,102 @@ const createLineTypesTable = `
     );
 `;
 
-const createStopGroupsTable = `
-    CREATE TABLE stop_groups (
+const createStopGroupTable = `
+    CREATE TABLE stop_group (
         id BIGINT IDENTITY(1,1) PRIMARY KEY,
         name NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL
     );
 `;
 
-const createStopTypesTable = `
-    CREATE TABLE stop_types (
+const createStopTypeTable = `
+    CREATE TABLE stop_type (
         id BIGINT IDENTITY(1,1) PRIMARY KEY,
-        name NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL
+        name NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL,
+        is_first BIT NOT NULL DEFAULT 0,
+        is_last BIT NOT NULL DEFAULT 0,
+        is_optional BIT NOT NULL DEFAULT 0
     );
 `;
 
-const createRouteTypesTable = `
-    CREATE TABLE route_types (
-        id BIGINT IDENTITY(1,1) PRIMARY KEY,
-        name NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL
-    );
-`;
-
-const createLinesTable = `
-    CREATE TABLE lines (
+const createLineTable = `
+    CREATE TABLE line (
         id INT IDENTITY(1,1) PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         line_type_id INT NOT NULL,
-        FOREIGN KEY (line_type_id) REFERENCES line_types(id)
+        FOREIGN KEY (line_type_id) REFERENCES line_type(id)
     );
-    CREATE INDEX lines_line_type_id_index ON lines(line_type_id);
+    CREATE INDEX line_line_type_id_index ON line(line_type_id);
 `;
 
-const createStopsTable = `
-    CREATE TABLE stops (
+const createStopTable = `
+    CREATE TABLE stop (
         id BIGINT IDENTITY(1,1) PRIMARY KEY,
         stop_group_id BIGINT NOT NULL,
         map NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL,
         street NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL,
-        FOREIGN KEY (stop_group_id) REFERENCES stop_groups(id)
+        FOREIGN KEY (stop_group_id) REFERENCES stop_group(id)
     );
-    CREATE INDEX stops_stop_group_id_index ON stops(stop_group_id);
+    CREATE INDEX stop_stop_group_id_index ON stop(stop_group_id);
 `;
 
-const createFullRoutesTable = `
-    CREATE TABLE full_routes (
+const createRouteTable = `
+    CREATE TABLE route (
         id BIGINT IDENTITY(1,1) PRIMARY KEY,
         line_id INT NOT NULL,
-        stop_group_id BIGINT NOT NULL,
+        is_circular BIT NOT NULL DEFAULT 0,
+        is_night BIT NOT NULL DEFAULT 0,
+        FOREIGN KEY (line_id) REFERENCES line(id)
+    );
+    CREATE INDEX route_line_id_index ON route(line_id);
+`;
+
+const createFullRouteTable = `
+    CREATE TABLE full_route (
+        id BIGINT IDENTITY(1,1) PRIMARY KEY,
+        route_id BIGINT NOT NULL,
         stop_id BIGINT NOT NULL,
-        route_number BIGINT NOT NULL,
+        stop_type BIGINT NOT NULL,
         travel_time INT NOT NULL,
         is_on_request BIT NOT NULL,
         stop_number BIGINT NOT NULL,
-        route_type_id BIGINT NOT NULL,
-        stop_type BIGINT NOT NULL,
-        FOREIGN KEY (line_id) REFERENCES lines(id),
-        FOREIGN KEY (stop_group_id) REFERENCES stop_groups(id),
-        FOREIGN KEY (stop_id) REFERENCES stops(id),
-        FOREIGN KEY (route_type_id) REFERENCES route_types(id),
-        FOREIGN KEY (stop_type) REFERENCES stop_types(id)
+        FOREIGN KEY (route_id) REFERENCES route(id),
+        FOREIGN KEY (stop_id) REFERENCES stop(id),
+        FOREIGN KEY (stop_type) REFERENCES stop_type(id)
     );
-    CREATE INDEX full_routes_stop_group_id_index ON full_routes(stop_group_id);
-    CREATE INDEX full_routes_stop_id_index ON full_routes(stop_id);
-    CREATE INDEX full_routes_route_type_id_index ON full_routes(route_type_id);
-    CREATE INDEX full_routes_stop_type_index ON full_routes(stop_type);
+    CREATE INDEX full_route_route_id_index ON full_route(route_id);
+    CREATE INDEX full_route_stop_id_index ON full_route(stop_id);
+    CREATE INDEX full_route_stop_type_index ON full_route(stop_type);
 `;
 
-const createRoutesTable = `
-    CREATE TABLE routes (
+const createDepartureRouteTable = `
+    CREATE TABLE departure_route (
         id BIGINT IDENTITY(1,1) PRIMARY KEY,
-        full_route_number BIGINT NOT NULL,
-        additional_stop_id BIGINT NOT NULL,
-        FOREIGN KEY (full_route_number) REFERENCES full_routes(route_number)
+        route_id BIGINT NOT NULL,
+        signature NVARCHAR(255) COLLATE Polish_100_CI_AS NULL,
+        color NVARCHAR(255) COLLATE Polish_100_CI_AS NULL,
+        FOREIGN KEY (route_id) REFERENCES route(id)
     );
+    CREATE INDEX departure_route_route_id_index ON departure_route(route_id);
+`;
+
+const createAdditionalStopTable = `
+    CREATE TABLE additional_stop (
+        id BIGINT IDENTITY(1,1) PRIMARY KEY,
+        route_id BIGINT NOT NULL,
+        stop_id BIGINT NOT NULL,
+        FOREIGN KEY (route_id) REFERENCES departure_route(id),
+        FOREIGN KEY (stop_id) REFERENCES stop(id)
+    );
+    CREATE INDEX additional_stop_route_id_index ON additional_stop(route_id);
+    CREATE INDEX additional_stop_stop_id_index ON additional_stop(stop_id);
 `;
 
 const createTimetableTable = `
     CREATE TABLE timetable (
         id BIGINT IDENTITY(1,1) PRIMARY KEY,
-        route_number BIGINT NOT NULL,
-        departure_time NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL,
-        FOREIGN KEY (route_number) REFERENCES routes(route_number)
+        route_id BIGINT NOT NULL,
+        departure_time TIME NOT NULL,
+        FOREIGN KEY (route_id) REFERENCES departure_route(id)
     );
     CREATE INDEX timetable_route_id_index ON timetable(route_id);
 `;
@@ -165,18 +182,30 @@ const initializeTables = async () => {
     console.log("🔹 Dropping existing tables...");
     await executeQuery(dropTables);
 
-    console.log("🔹 Creating tables...");
-    await executeQuery(createLineTypesTable);
-    await executeQuery(createStopGroupsTable);
-    await executeQuery(createStopTypesTable);
-    await executeQuery(createRouteTypesTable);
-    await executeQuery(createLinesTable);
-    await executeQuery(createStopsTable);
-    await executeQuery(createFullRoutesTable);
-    await executeQuery(createRoutesTable);
+    await executeQuery(createLineTypeTable);
+    console.log("🔹 Finished createLineTypeTable...");
+    await executeQuery(createStopGroupTable);
+    console.log("🔹 Finished createStopGroupTable...");
+    await executeQuery(createStopTypeTable);
+    console.log("🔹 Finished createStopTypeTable...");
+    await executeQuery(createLineTable);
+    console.log("🔹 Finished createLineTable...");
+    await executeQuery(createStopTable);
+    console.log("🔹 Finished createStopTable...");
+    await executeQuery(createRouteTable);
+    console.log("🔹 Finished createRouteTable...");
+    await executeQuery(createFullRouteTable);
+    console.log("🔹 Finished createFullRouteTable...");
+    await executeQuery(createDepartureRouteTable);
+    console.log("🔹 Finished createDepartureRouteTable...");
+    await executeQuery(createAdditionalStopTable);
+    console.log("🔹 Finished createAdditionalStopTable...");
     await executeQuery(createTimetableTable);
+    console.log("🔹 Finished createTimetableTable...");
     await executeQuery(createNewsTable);
+    console.log("🔹 Finished createNewsTable...");
     await executeQuery(createUsersTable);
+    console.log("🔹 Finished createUsersTable...");
 
     console.log("🔹 Database initialization completed successfully.");
   } catch (err) {

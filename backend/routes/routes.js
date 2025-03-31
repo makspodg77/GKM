@@ -1,6 +1,11 @@
 const express = require("express");
 const router = express.Router();
-const { executeQuery } = require("../utils/sqlHelper");
+const {
+  executeQuery,
+  beginTransaction,
+  commitTransaction,
+  rollbackTransaction,
+} = require("../utils/sqlHelper");
 const {
   asyncHandler,
   NotFoundError,
@@ -26,7 +31,7 @@ const addMinutesToTime = (time, minutesToAdd) => {
  * @swagger
  * /api/routes:
  *   get:
- *     tags: [Routes]
+ *     tags: [Transport Routes]
  *     summary: Get all routes for a line
  *     description: Returns all the routes depending on the route type
  *     parameters:
@@ -66,11 +71,11 @@ router.get(
 
     const query = `
     SELECT fr.stop_id, fr.travel_time, fr.is_on_request, fr.route_number, fr.stop_number, fr.stop_type, fr.route_type_id, l.name, lt.nameSingular, lt.namePlural, lt.color, sg.name AS stop_name
-    FROM full_routes fr
-    JOIN lines l ON fr.line_id = l.id
-    JOIN stops s ON fr.stop_id = s.id
-    JOIN stop_groups sg ON fr.stop_group_id = sg.id
-    JOIN line_types lt ON l.line_type_id = lt.id
+    FROM full_route fr
+    JOIN line l ON fr.line_id = l.id
+    JOIN stop s ON fr.stop_id = s.id
+    JOIN stop_group sg ON fr.stop_group_id = sg.id
+    JOIN line_type lt ON l.line_type_id = lt.id
     WHERE fr.line_id = @lineId
     `;
 
@@ -114,7 +119,7 @@ router.get(
  * @swagger
  * /api/routes/route:
  *   get:
- *     tags: [Routes]
+ *     tags: [Transport Routes]
  *     summary: Get a specific route
  *     description: Return the full route of a specific departure ID
  *     parameters:
@@ -155,10 +160,10 @@ router.get(
     const basicDataQuery = `
     SELECT tt.departure_time, l.name, lt.nameSingular AS line_type_name, lt.color, tt.route_id
     FROM timetable tt 
-    JOIN routes r ON r.route_number = tt.route_id 
-    JOIN full_routes fr ON fr.route_number = r.full_route_id
-    JOIN lines l ON l.id = fr.line_id 
-    JOIN line_types lt ON lt.id = l.line_type_id 
+    JOIN route r ON r.route_number = tt.route_id 
+    JOIN full_route fr ON fr.route_number = r.full_route_id
+    JOIN line l ON l.id = fr.line_id 
+    JOIN line_type lt ON lt.id = l.line_type_id 
     WHERE tt.id = @departureId`;
 
     const results1 = await executeQuery(basicDataQuery, { departureId });
@@ -168,7 +173,7 @@ router.get(
     }
 
     const routeQuery = `
-    SELECT full_route_id, additional_stop_id FROM routes WHERE route_id = @routeNumber`;
+    SELECT full_route_id, additional_stop_id FROM route WHERE route_id = @routeNumber`;
 
     const results2 = await executeQuery(routeQuery, {
       routeNumber: results1[0].route_id,
@@ -180,7 +185,6 @@ router.get(
       );
     }
 
-    // Collect all additional stop IDs from all rows in results2
     let additionalStopIds = "";
     if (results2.length > 0) {
       additionalStopIds = results2
@@ -191,9 +195,9 @@ router.get(
 
     const fullRouteQuery = `
     SELECT fr.travel_time, fr.is_on_request, fr.stop_number, fr.stop_type, sg.name, sg.id AS stop_group_id, s.id AS stop_id
-    FROM full_routes fr 
-    JOIN stop_groups sg ON sg.id = fr.stop_group_id 
-    JOIN stops s ON s.id = fr.stop_id 
+    FROM full_route fr 
+    JOIN stop_group sg ON sg.id = fr.stop_group_id 
+    JOIN stop s ON s.id = fr.stop_id 
     WHERE fr.route_number = @routeNumber
     AND (
         fr.stop_type <= 3
@@ -239,10 +243,10 @@ router.get("/lineRoute/:id", async (req, res) => {
   const id = req.params.id;
   const query = `
     SELECT r.*, s.*, l.*, lt.*
-    FROM routes r
-    LEFT JOIN transport_stops s ON r.stop_id = s.id
-    LEFT JOIN transport_lines l ON r.line_id = l.id
-    LEFT JOIN line_types lt ON l.line_type_id = lt.id
+    FROM route r
+    LEFT JOIN transport_stop s ON r.stop_id = s.id
+    LEFT JOIN transport_line l ON r.line_id = l.id
+    LEFT JOIN line_type lt ON l.line_type_id = lt.id
     WHERE l.line_name = '${id}'`;
 
   try {

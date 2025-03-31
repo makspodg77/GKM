@@ -38,7 +38,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const query = `
     SELECT MIN(id) as id, name
-    FROM stop_groups
+    FROM stop_group
     GROUP BY name;
   `;
 
@@ -57,13 +57,13 @@ router.get(
 
 /**
  * @swagger
- * /api/stops/group-stop:
+ * /api/stops/stop-groups/{id}:
  *   get:
  *     tags: [Transport Stops]
  *     summary: Get all stops in a group
  *     description: Returns all stops in a group with the departures are happening in the nearest 24 hours
  *     parameters:
- *       - in: query
+ *       - in: path
  *         name: id
  *         schema:
  *           type: integer
@@ -89,9 +89,9 @@ router.get(
  *         description: Server error
  */
 router.get(
-  "/group-stop",
+  "/stop-groups/:id",
   asyncHandler(async (req, res) => {
-    const { id } = req.query;
+    const { id } = req.params;
 
     if (!id || isNaN(parseInt(id))) {
       throw new ValidationError("ID parameter is required");
@@ -101,12 +101,13 @@ router.get(
       SELECT 
         sg.name, 
         s.map, 
+        s.street,
         sg.id AS group_id, 
         s.id AS stop_id 
       FROM 
-        stop_groups sg 
+        stop_group sg 
       JOIN 
-        stops s ON s.stop_group_id = sg.id 
+        stop s ON s.stop_group_id = sg.id 
       WHERE 
         sg.id = @id
     `;
