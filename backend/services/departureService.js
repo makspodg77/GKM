@@ -1,6 +1,18 @@
-const { getStopWithGroupData } = require("./stopService");
-const { getFullRoutesByStopId, getStopsForRoute } = require("./routeService");
-const { getTimetableDataForRoutes } = require("./timetableService");
+const { executeQuery } = require("../utils/sqlHelper");
+const { NotFoundError } = require("../utils/errorHandler"); // Added this import
+const {
+  getFullRoutesByStopId,
+  processRouteStops,
+  calculateDepartureTimes,
+} = require("./routeService");
+const {
+  getTimetableDataForRoutes,
+  getStopWithGroupData,
+  getDepartureRoutesByFullRouteIds,
+  getLineDataByRouteId,
+  getStopsForRoute,
+  getAdditionalStops,
+} = require("./timetableService");
 
 /**
  * Gets departure route data by ID
@@ -8,9 +20,18 @@ const { getTimetableDataForRoutes } = require("./timetableService");
  * @returns {Promise<Object>} Departure route data
  */
 const getDepartureRouteById = async (id) => {
-  return executeQuery(`SELECT * FROM departure_route WHERE id = @id;`, {
-    id,
-  }).then((results) => results[0]);
+  const result = await executeQuery(
+    `SELECT * FROM departure_route WHERE id = @id;`,
+    {
+      id,
+    }
+  );
+
+  if (!result || result.length === 0) {
+    throw new NotFoundError(`Departure route with ID ${id} not found`);
+  }
+
+  return result[0];
 };
 
 /**
@@ -19,18 +40,21 @@ const getDepartureRouteById = async (id) => {
  * @returns {Promise<Array>} Departure routes
  */
 const getDepartureRoutesByFullRouteId = async (full_route_id) => {
-  return executeQuery(
+  const routes = await executeQuery(
     `SELECT id, route_id, color, signature FROM departure_route WHERE route_id = @full_route_id`,
     { full_route_id }
   );
+
+  return routes || [];
 };
 
 /**
  * Gets departures for a specific stop aggregated by route
  * @param {number} stopId - ID of the stop
- * @returns {Promise<Array>} Departure data with line and destination info
+ * @returns {Promise<Object>} Object with baseData and departures
+ * @throws {NotFoundError} If stop doesn't exist
  */
-const getDeparturesForStop = async (stopId) => {
+const getDeparturesForStop = async (stopId, get_base_data = true) => {
   const stopExists = await executeQuery(
     `SELECT 1 FROM stop WHERE id = @stopId`,
     { stopId }
@@ -40,14 +64,14 @@ const getDeparturesForStop = async (stopId) => {
     throw new NotFoundError(`Stop with ID = ${stopId} does not exist.`);
   }
 
-  const baseData = await getStopWithGroupData(stopId);
-
   const fullRouteIds = await getFullRoutesByStopId(stopId);
-
   const departureRoutes = await getDepartureRoutesByFullRouteIds(fullRouteIds);
 
   const departurePromises = departureRoutes.map(async (route) => {
     const line = (await getLineDataByRouteId(route.route_id))[0];
+    if (!line) {
+      return [];
+    }
 
     const allStops = (await getStopsForRoute(route.route_id))
       .map((result) => ({ ...result, stop_number: Number(result.stop_number) }))
@@ -56,19 +80,31 @@ const getDeparturesForStop = async (stopId) => {
     const additionalStops = await getAdditionalStops(route.id);
 
     const processedStops = processRouteStops(allStops, additionalStops);
+    if (processedStops.length === 0) {
+      return [];
+    }
+
     const lastStop = processedStops[processedStops.length - 1];
 
     const timetableEntries = await getTimetableDataForRoutes([route.id]);
 
     return timetableEntries.flatMap((entry) => {
-      return calculateDepartureTimes(processedStops, entry.departure_time)
-        .filter((item) => Number(item.stop_id) === Number(stopId))
-        .map((stop) => ({
-          line,
-          departure_time: stop.departure_time,
-          is_on_request: stop.is_on_request,
-          lastStop: lastStop.name,
-        }));
+      try {
+        return calculateDepartureTimes(processedStops, entry.departure_time)
+          .filter((item) => Number(item.stop_id) === Number(stopId))
+          .map((stop) => ({
+            line,
+            departure_time: stop.departure_time,
+            is_on_request: stop.is_on_request,
+            last_stop: lastStop.name,
+            route_id: entry.route_id,
+            timetable_id: entry.id,
+            stop_number: stop.stop_number,
+          }));
+      } catch (error) {
+        console.error(`Error calculating times for entry ${entry.id}:`, error);
+        return [];
+      }
     });
   });
 
@@ -78,5 +114,16 @@ const getDeparturesForStop = async (stopId) => {
     .flat()
     .sort((a, b) => a.departure_time.localeCompare(b.departure_time));
 
-  return { baseData, departures };
+  if (get_base_data) {
+    const baseData = await getStopWithGroupData(stopId);
+    return { baseData, departures };
+  } else {
+    return departures;
+  }
+};
+
+module.exports = {
+  getDeparturesForStop,
+  getDepartureRouteById,
+  getDepartureRoutesByFullRouteId,
 };

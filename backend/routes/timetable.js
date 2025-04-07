@@ -1,28 +1,29 @@
 const express = require("express");
 const router = express.Router();
-const { asyncHandler } = require("../utils/errorHandler");
-const {
-  processRouteStops,
-  calculateDepartureTimes,
-} = require("../utils/routeUtils");
+
 const {
   getTimetableById,
-  getDepartureRouteById,
   getStopsForRoute,
   getAdditionalStops,
-  getDeparturesForStop,
   getTimetableDataForRoutes,
-  getStopGroupWithDepartures,
-  getAdditionalStopsForRoutes,
-  getDepartureRoutesByFullRouteId,
+  getDepartureRoutesByFullRouteIds,
+  formatDeparturesByHour,
+  extractUniqueSignatures,
+  generateSignatureExplanation,
 } = require("../services/timetableService");
+
 const {
-  executeQuery,
-  beginTransaction,
-  commitTransaction,
-  rollbackTransaction,
-} = require("../utils/sqlHelper");
-const { NotFoundError, ValidationError } = require("../utils/errorHandler");
+  getDepartureRouteById,
+  getDeparturesForStop,
+} = require("../services/departureService");
+
+const { calculateDepartureTimes } = require("../services/routeService");
+
+const { getLine, getOtherLinesAtStop } = require("../services/lineService");
+const { executeQuery } = require("../utils/sqlHelper");
+const { processRouteStops } = require("../utils/routeUtils");
+const { asyncHandler, NotFoundError } = require("../utils/errorHandler");
+const { getStopGroupWithDepartures } = require("../services/stopService");
 
 /**
  * @swagger
@@ -37,27 +38,67 @@ const { NotFoundError, ValidationError } = require("../utils/errorHandler");
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID of the departure to show route to
+ *         description: ID of the departure to show route for
  *     responses:
  *       200:
  *         description: Successfully retrieved route
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               additionalProperties:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     name:
- *                       type: string
- *                     id:
- *                       type: integer
- *       500:
- *         description: Server error
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   stop_id:
+ *                     type: integer
+ *                     description: ID of the stop
+ *                   stop_group_id:
+ *                     type: integer
+ *                     description: ID of the stop group
+ *                   name:
+ *                     type: string
+ *                     description: Name of the stop
+ *                   stop_number:
+ *                     type: integer
+ *                     description: Position of this stop in the route
+ *                   stop_type:
+ *                     type: integer
+ *                     description: Type of the stop
+ *                   is_on_request:
+ *                     type: boolean
+ *                     description: Indicates if the stop is on request
+ *                   is_optional:
+ *                     type: boolean
+ *                     description: Indicates if the stop is optional
+ *                   is_first:
+ *                     type: boolean
+ *                     description: Indicates if this is the first stop
+ *                   is_last:
+ *                     type: boolean
+ *                     description: Indicates if this is the last stop
+ *                   travel_time:
+ *                     type: integer
+ *                     description: Travel time to this stop from previous stop
+ *                   departure_time:
+ *                     type: string
+ *                     description: Time of departure from this stop
+ *                     example: "14:35"
+ *                   color:
+ *                     type: string
+ *                     description: Color code for this route
+ *                     example: "#FF5733"
+ *                   signature:
+ *                     type: string
+ *                     description: Signature/identifier of the route
+ *                     example: "A"
+ *                   signatureExplanation:
+ *                     type: string
+ *                     description: Explanation of the route signature
+ *                     example: "Kurs od przystanku 'X' do przystanku 'Y' przez 'Z'"
  *       404:
  *         description: Departure not found
+ *       500:
+ *         description: Server error
  */
 router.get(
   "/route/:id",
@@ -164,6 +205,10 @@ router.get(
  *                     type: string
  *                     description: Signature/identifier of the route
  *                     example: "A"
+ *                   signatureExplanation:
+ *                     type: string
+ *                     description: Explanation of the route signature
+ *                     example: "Kurs od przystanku 'X' do przystanku 'Y' przez 'Z'"
  *       404:
  *         description: Departure not found
  *       500:
@@ -174,14 +219,13 @@ router.get(
   asyncHandler(async (req, res) => {
     const { stop_number, full_route_id } = req.params;
 
-    const departureRoutes = await getDepartureRoutesByFullRouteId(
-      full_route_id
-    );
-
-    if (!departureRoutes.length) {
-      return res.status(404).json({
-        message: `No departure routes found for route ${full_route_id}`,
-      });
+    const departureRoutes = await getDepartureRoutesByFullRouteIds([
+      full_route_id,
+    ]);
+    if (!departureRoutes || departureRoutes.length === 0) {
+      throw new NotFoundError(
+        `No departure routes found for route ${full_route_id}`
+      );
     }
 
     const allStops = (await getStopsForRoute(full_route_id))
@@ -189,20 +233,29 @@ router.get(
       .sort((a, b) => a.stop_number - b.stop_number);
 
     const routeIds = departureRoutes.map((route) => route.id);
-    const allAdditionalStops = await getAdditionalStopsForRoutes(routeIds);
     const allTimetableData = await getTimetableDataForRoutes(routeIds);
+    const route = await executeQuery(
+      `SELECT * FROM route WHERE id = @full_route_id`,
+      { full_route_id }
+    );
+    if (!route || route.length === 0) {
+      throw new NotFoundError(`Route with ID ${full_route_id} not found`);
+    }
 
     const departuresFlat = [];
-
     for (const route of departureRoutes) {
       const { color, signature } = route;
+      const additionalStops = await getAdditionalStops(route.id);
 
-      const additionalStops = allAdditionalStops.filter(
-        (stop) => stop.route_id === route.id
-      );
+      let signatureExplanation = null;
+      if (signature && additionalStops.length > 0) {
+        signatureExplanation = generateSignatureExplanation(
+          additionalStops,
+          allStops
+        );
+      }
 
       const processedStops = processRouteStops(allStops, additionalStops);
-
       const routeTimetable = allTimetableData.filter(
         (entry) => entry.route_id === route.id
       );
@@ -210,13 +263,15 @@ router.get(
       for (const departure of routeTimetable) {
         const relevantStops = calculateDepartureTimes(
           processedStops,
-          departure.departure_time
+          departure.departure_time,
+          { timetable_id: departure.id, route_id: departure.route_id }
         )
           .filter((item) => Number(item.stop_number) === Number(stop_number))
           .map((stop) => ({
             ...stop,
             color,
             signature,
+            signatureExplanation,
           }));
 
         departuresFlat.push(...relevantStops);
@@ -227,13 +282,26 @@ router.get(
       return a.departure_time.localeCompare(b.departure_time);
     });
 
-    res.json(departuresFlat);
+    const stop = allStops.find(
+      (stop) => Number(stop.stop_number) === Number(stop_number)
+    );
+
+    const other_lines = getOtherLinesAtStop(stop.stop_id, route[0].line_id);
+
+    res.json({
+      line: await getLine(route[0].line_id),
+      departures: formatDeparturesByHour(departuresFlat),
+      signatures: extractUniqueSignatures(departuresFlat),
+      stops: allStops,
+      stop,
+      other_lines,
+      last_stops: allStops
+        .filter((stop) => stop.is_last)
+        .map((stop) => stop.name),
+    });
   })
 );
 
-// /api/timetable/timetable?stopId=1
-// Returns the timetable for a specific stop
-// The stop is identified by its stop id
 /**
  * @swagger
  * /api/timetable/{stop_id}:
@@ -260,10 +328,11 @@ router.get(
   "/:stop_id",
   asyncHandler(async (req, res) => {
     const { stop_id } = req.params;
-    const result = await getDeparturesForStop(stop_id);
-    res.json(result);
+
+    res.json(await getDeparturesForStop(stop_id));
   })
 );
+
 /**
  * @swagger
  * /api/timetable/stop-group/{groupId}:
@@ -290,8 +359,8 @@ router.get(
   "/stop-group/:groupId",
   asyncHandler(async (req, res) => {
     const { groupId } = req.params;
-    const result = await getStopGroupWithDepartures(groupId);
-    res.json(result);
+
+    res.json(await getStopGroupWithDepartures(groupId));
   })
 );
 

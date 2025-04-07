@@ -3,6 +3,11 @@ const path = require("path");
 const cors = require("cors");
 const swaggerJsDoc = require("swagger-jsdoc");
 const swaggerUi = require("swagger-ui-express");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const compression = require("compression");
+const winston = require("winston");
+const expressWinston = require("express-winston");
 
 const timetableRouter = require("./routes/timetable");
 const routesRouter = require("./routes/routes");
@@ -13,6 +18,8 @@ const errorMiddleware = require("./middleware/errorMiddleware");
 
 const app = express();
 const port = process.env.PORT || 8080;
+
+app.disable("x-powered-by");
 
 const swaggerOptions = {
   swaggerDefinition: {
@@ -75,11 +82,11 @@ const swaggerOptions = {
     },
     tags: [
       {
-        name: "Transport Lines",
+        name: "Lines",
         description: "API endpoints for transport lines",
       },
       {
-        name: "Transport Stops",
+        name: "Stops",
         description: "API endpoints for transport stops",
       },
       {
@@ -110,8 +117,61 @@ app.use(
   })
 );
 
-app.use(cors());
+const corsOptions = {
+  origin: [
+    "https://goleniowkm.pl",
+    "http://localhost:5173",
+    "https://*.azurewebsites.net",
+  ],
+  methods: ["GET"],
+  maxAge: 86400,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+  })
+);
+app.use(compression());
+
+app.use((req, res, next) => {
+  res.set("X-Content-Type-Options", "nosniff");
+  res.set("X-Frame-Options", "DENY");
+  res.set("X-XSS-Protection", "1; mode=block");
+  next();
+});
+
+app.use((req, res, next) => {
+  if (req.method === "GET") {
+    res.set("Cache-Control", "public, max-age=300");
+  }
+  next();
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 300,
+  message: "Too many requests, please try again after 5 minutes",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use("/api", apiLimiter);
+
+app.use(
+  expressWinston.logger({
+    transports: [new winston.transports.File({ filename: "access.log" })],
+    format: winston.format.combine(
+      winston.format.timestamp(),
+      winston.format.json()
+    ),
+    meta: true,
+    msg: "HTTP {{req.method}} {{req.url}}",
+    expressFormat: true,
+  })
+);
 
 app.use("/api/timetable", timetableRouter);
 app.use("/api/routes", routesRouter);

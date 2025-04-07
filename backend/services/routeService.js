@@ -1,10 +1,22 @@
+const { NotFoundError, ValidationError } = require("../utils/errorHandler");
 const { executeQuery } = require("../utils/sqlHelper");
-const { NotFoundError } = require("../utils/errorHandler");
-const { getStopsForRoutes } = require("./timetableService");
+const { getLine } = require("./lineService");
+const {
+  getStopsForRoute,
+  getAdditionalStops,
+  getDepartureRoutesByFullRouteIds,
+  getLineDataByRouteId,
+} = require("./timetableService");
+const { addMinutesToTime } = require("../utils/timeUtils");
+const { processRouteStops } = require("../utils/routeUtils");
+
+let lineRoutesCache = {};
+let lineRoutesCacheTime = {};
+const CACHE_TIMEOUT_MS = 300000;
 
 /**
  * Gets all departure routes
- * @returns {Promise<Array>} Deaprture route data
+ * @returns {Promise<Array>} Departure route data
  */
 const getDepartureRoutes = async () => {
   return executeQuery(`SELECT * FROM departure_route`);
@@ -18,7 +30,6 @@ const getDepartureRoutes = async () => {
 const getStopsForRoutes = async (fullRouteIds) => {
   if (!fullRouteIds.length) return [];
 
-  // Create distinct IDs to avoid duplicating queries
   const distinctIds = [...new Set(fullRouteIds)];
 
   const params = distinctIds.reduce(
@@ -27,13 +38,11 @@ const getStopsForRoutes = async (fullRouteIds) => {
   );
   const placeholders = distinctIds.map((_, i) => `@id${i}`).join(",");
 
-  // Get results for distinct IDs only
   const results = await executeQuery(
     `SELECT * FROM full_route WHERE route_id IN (${placeholders})`,
     params
   );
 
-  // Create a map for quick lookup
   const resultsByRouteId = {};
   results.forEach((result) => {
     if (!resultsByRouteId[result.route_id]) {
@@ -42,10 +51,120 @@ const getStopsForRoutes = async (fullRouteIds) => {
     resultsByRouteId[result.route_id].push(result);
   });
 
-  // Reconstruct full result set with duplicates
   return fullRouteIds.flatMap((id) =>
     resultsByRouteId[id] ? [...resultsByRouteId[id]] : []
   );
+};
+
+/**
+ * Gets all routes for a specific line
+ * @param {number} line_id - ID of the line
+ * @param {boolean} [useCache=true] - Whether to use cached results
+ * @returns {Promise<Array>} Route data organized by route
+ */
+const getLineRoutes = async (line_id, useCache = true) => {
+  if (!line_id || isNaN(parseInt(line_id))) {
+    throw new ValidationError("Line ID parameter is required");
+  }
+
+  if (
+    useCache &&
+    lineRoutesCache[line_id] &&
+    Date.now() - lineRoutesCacheTime[line_id] < CACHE_TIMEOUT_MS
+  ) {
+    return lineRoutesCache[line_id];
+  }
+
+  const lineExists = await executeQuery(
+    `SELECT 1 FROM line WHERE id = @line_id`,
+    { line_id }
+  );
+
+  if (!lineExists.length) {
+    throw new NotFoundError(`Line with ID = ${line_id} does not exist`);
+  }
+
+  const query = `
+    SELECT 
+      sg.name, 
+      fr.travel_time, 
+      fr.is_on_request, 
+      r.is_circular, 
+      st.is_optional, 
+      st.is_first, 
+      st.is_last, 
+      sg.id AS group_id, 
+      r.id AS route_id, 
+      fr.stop_number,
+      s.street,
+      s.id AS stop_id
+    FROM route r 
+    JOIN full_route fr ON fr.route_id = r.id
+    JOIN stop s ON s.id = fr.stop_id
+    JOIN stop_group sg ON sg.id = s.stop_group_id
+    JOIN stop_type st ON st.id = fr.stop_type
+    WHERE r.line_id = @line_id`;
+
+  const results = await executeQuery(query, { line_id });
+
+  if (!results.length) {
+    throw new NotFoundError(`No routes found for line with ID = ${line_id}`);
+  }
+  const basicData = await getLine(line_id);
+
+  const routeGroups = results.reduce((acc, result) => {
+    const { route_id } = result;
+    if (!acc[route_id]) {
+      acc[route_id] = [];
+    }
+    acc[route_id].push({
+      ...result,
+      stop_number: Number(result.stop_number),
+    });
+    return acc;
+  }, {});
+
+  const sortedRoutes = Object.keys(routeGroups).map((routeId) =>
+    routeGroups[routeId].sort((a, b) => a.stop_number - b.stop_number)
+  );
+  const departureRoutes = await getDepartureRoutesByFullRouteIds(
+    Object.keys(routeGroups)
+  );
+
+  const departurePromises = departureRoutes.map(async (route) => {
+    const line = (await getLineDataByRouteId(route.route_id))[0];
+    const allStops = (await getStopsForRoute(route.route_id))
+      .map((result) => ({ ...result, stop_number: Number(result.stop_number) }))
+      .sort((a, b) => a.stop_number - b.stop_number);
+
+    const additionalStops = await getAdditionalStops(route.id);
+
+    const processedStops = processRouteStops(allStops, additionalStops);
+
+    return { line, stops: processedStops };
+  });
+  const departureResults = await Promise.all(departurePromises);
+  console.log(departureResults);
+  const enrichedRoutes = sortedRoutes.map((route) => {
+    return {
+      route_id: route[0].route_id,
+      is_circular: route[0].is_circular,
+      line: basicData,
+
+      linePath: departureResults.map((result) => ({
+        first_stop: result.stops[0].name,
+        last_stop: result.stops[result.stops.length - 1].name,
+        streets: [...new Set(result.stops.map((stop) => stop.street))],
+      })),
+
+      stops: route,
+    };
+  });
+
+  lineRoutesCache[line_id] = enrichedRoutes;
+  lineRoutesCacheTime[line_id] = Date.now();
+
+  return enrichedRoutes;
 };
 
 /**
@@ -82,38 +201,100 @@ const getAdditionalStopsForRoutes = async (routeIds) => {
 };
 
 /**
- * Processes stop data to prepare a route timetable
- * @param {Array} results - Raw stop data from database
- * @param {Array} additionalStops - Optional stops that should be included
- * @returns {Array} Filtered and processed stops
+ * Gets one whole route with all the data
+ * @param {number} departureId ID of the departure
+ * @returns {object} Whole route
  */
-const processRouteStops = (results, additionalStops = []) => {
-  let processedResults = results
-    .map((result) => ({ ...result, stop_number: Number(result.stop_number) }))
-    .sort((a, b) => a.stop_number - b.stop_number);
+const getRoute = async (departure_id, line_id) => {
+  if (!departure_id || isNaN(parseInt(departure_id))) {
+    throw new ValidationError(
+      "departure ID parameter is required and must be a number"
+    );
+  }
 
-  processedResults = processedResults.filter(
-    (result) =>
-      !result.is_optional ||
-      additionalStops.some(
-        (stop) => Number(stop.stop_number) === Number(result.stop_number)
-      )
+  const departureExists = await executeQuery(
+    `SELECT * FROM timetable WHERE id = @departure_id`,
+    { departure_id }
   );
 
-  const firstStops = processedResults.filter((stop) => stop.is_first);
-  const firstStopNumber = firstStops.length > 0 ? firstStops[0].stop_number : 0;
-  processedResults = processedResults.filter(
-    (result) => result.stop_number >= firstStopNumber
-  );
+  if (!departureExists.length) {
+    throw new NotFoundError(
+      `Departure with ID = ${departure_id} does not exist`
+    );
+  }
 
-  const lastStops = processedResults.filter((stop) => stop.is_last);
-  const lastStopNumber =
-    lastStops.length > 0 ? lastStops[0].stop_number : Number.MAX_VALUE;
-  processedResults = processedResults.filter(
-    (result) => result.stop_number <= lastStopNumber
-  );
+  const departureRoute = (
+    await executeQuery(
+      `SELECT t.id AS timetable_id, dr.route_id AS full_route_id, dr.id AS departure_id, dr.signature, dr.color, t.departure_time FROM departure_route dr JOIN timetable t ON t.route_id = dr.id WHERE t.id = @departure_id`,
+      { departure_id }
+    )
+  )[0];
 
-  return processedResults;
+  const basicData = await getLine(line_id);
+
+  const stops = await getStopsForRoute(departureRoute.full_route_id);
+
+  const additionalStops = await getAdditionalStops(departureRoute.departure_id);
+
+  const processedStops = processRouteStops(stops, additionalStops);
+
+  return {
+    departureInfo: departureExists[0],
+    routeInfo: departureRoute,
+    lineInfo: basicData,
+    stops: calculateDepartureTimes(
+      processedStops,
+      departureRoute.departure_time
+    ),
+  };
+};
+
+/**
+ * Calculates departure times for each stop in a route
+ * @param {Array} stops - Processed stops
+ * @param {string|Date} initialDeparture - Initial departure time
+ * @param {Object} departureData - Additional departure data
+ * @returns {Array} Stops with calculated departure times
+ */
+const calculateDepartureTimes = (
+  stops,
+  initialDeparture,
+  departureData = {}
+) => {
+  let departureTime = initialDeparture;
+  let previousTravelTime = 0;
+
+  return stops.map((stop, index) => {
+    departureTime = addMinutesToTime(departureTime, previousTravelTime);
+    previousTravelTime = stop.travel_time;
+
+    return {
+      ...stop,
+      departure_time: departureTime,
+      timetable_id: departureData?.timetable_id ?? stop?.timetable_id ?? null,
+      route_id: departureData?.route_id ?? stop?.route_id ?? null,
+    };
+  });
+};
+
+/**
+ * Clears the route cache for a specific line or all lines
+ * @param {number} [lineId] - Optional specific line ID to clear cache for
+ * @returns {Object} Status of the operation
+ */
+const clearRouteCache = (lineId = null) => {
+  if (lineId) {
+    delete lineRoutesCache[lineId];
+    delete lineRoutesCacheTime[lineId];
+    return {
+      success: true,
+      message: `Cache cleared for line ID ${lineId}`,
+    };
+  }
+
+  lineRoutesCache = {};
+  lineRoutesCacheTime = {};
+  return { success: true, message: "All route cache cleared" };
 };
 
 module.exports = {
@@ -122,4 +303,8 @@ module.exports = {
   getFullRoutesByStopId,
   getAdditionalStopsForRoutes,
   processRouteStops,
+  getLineRoutes,
+  getRoute,
+  calculateDepartureTimes,
+  clearRouteCache,
 };

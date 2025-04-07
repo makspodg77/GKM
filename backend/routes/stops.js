@@ -6,12 +6,14 @@ const {
   NotFoundError,
   ValidationError,
 } = require("../utils/errorHandler");
+const { getDeparturesForStop } = require("../services/departureService");
+const { getStopGroupWithDepartures } = require("../services/stopService");
 
 /**
  * @swagger
  * /api/stops:
  *   get:
- *     tags: [Transport Stops]
+ *     tags: [Stops]
  *     summary: Get all transport stops
  *     description: Returns all transport stops grouped alphabetically by first letter
  *     responses:
@@ -28,19 +30,24 @@ const {
  *                   properties:
  *                     name:
  *                       type: string
+ *                       description: Stop name
  *                     id:
  *                       type: integer
+ *                       description: Stop group ID
  *       500:
  *         description: Server error
  */
 router.get(
   "/",
   asyncHandler(async (req, res) => {
+    res.set("Cache-Control", "public, max-age=3600");
+
     const query = `
     SELECT MIN(id) as id, name
     FROM stop_group
-    GROUP BY name;
-  `;
+    GROUP BY name
+    ORDER BY name;
+    `;
 
     const results = await executeQuery(query);
     const groupedResults = results.reduce((acc, result) => {
@@ -51,6 +58,11 @@ router.get(
       acc[name[0]].push({ name, id });
       return acc;
     }, {});
+
+    Object.keys(groupedResults).forEach((key) => {
+      groupedResults[key].sort((a, b) => a.name.localeCompare(b.name));
+    });
+
     res.json(groupedResults);
   })
 );
@@ -59,9 +71,9 @@ router.get(
  * @swagger
  * /api/stops/stop-groups/{id}:
  *   get:
- *     tags: [Transport Stops]
+ *     tags: [Stops]
  *     summary: Get all stops in a group
- *     description: Returns all stops in a group with the departures are happening in the nearest 24 hours
+ *     description: Returns all stops in a group with their location information
  *     parameters:
  *       - in: path
  *         name: id
@@ -75,16 +87,29 @@ router.get(
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               additionalProperties:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     name:
- *                       type: string
- *                     id:
- *                       type: integer
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   name:
+ *                     type: string
+ *                     description: Name of the stop group
+ *                   map:
+ *                     type: string
+ *                     description: Map reference for the stop
+ *                   street:
+ *                     type: string
+ *                     description: Street name where the stop is located
+ *                   group_id:
+ *                     type: integer
+ *                     description: ID of the stop group
+ *                   stop_id:
+ *                     type: integer
+ *                     description: ID of the specific stop
+ *       404:
+ *         description: Stop group not found
+ *       400:
+ *         description: Invalid ID parameter
  *       500:
  *         description: Server error
  */
@@ -93,32 +118,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const { id } = req.params;
 
-    if (!id || isNaN(parseInt(id))) {
-      throw new ValidationError("ID parameter is required");
-    }
-
-    const query = `
-      SELECT 
-        sg.name, 
-        s.map, 
-        s.street,
-        sg.id AS group_id, 
-        s.id AS stop_id 
-      FROM 
-        stop_group sg 
-      JOIN 
-        stop s ON s.stop_group_id = sg.id 
-      WHERE 
-        sg.id = @id
-    `;
-
-    const result = await executeQuery(query, { id });
-
-    if (!result || result.length === 0) {
-      throw new NotFoundError(`No stops found for group with id ${id}`);
-    }
-
-    res.json(result);
+    res.json(await getStopGroupWithDepartures(id));
   })
 );
 
