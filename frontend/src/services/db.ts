@@ -1,7 +1,8 @@
 import axios from 'axios';
+import { ROUTES } from './config';
 
 const baseURL = 'https://goleniowkm.pl/api';
-const baseURL88 = 'http://localhost:8080/api';
+const baseURL5 = 'http://localhost:3000/api';
 
 export interface TransportLine {
   line_name: string;
@@ -16,9 +17,9 @@ export interface Stop {
   route_number: number;
 }
 
-export interface Stops {
+export interface StopsCategorized {
   [firstLetter: string]: {
-    stop_name: string;
+    name: string;
     id: number;
   }[];
 }
@@ -112,105 +113,70 @@ export interface StopTimetable {
   departure_text?: string;
 }
 
-const getTransportLines = async (): Promise<TransportLinesGrouped> => {
+const getLines = async (): Promise<TransportLinesGrouped> => {
+  const response = await axios.get<TransportLinesGrouped>(ROUTES.HOME);
+  return response.data;
+};
+
+const getLinesRoutes = async (): Promise<TransportLinesGrouped> => {
+  const response = await axios.get<TransportLinesGrouped>(ROUTES.LINES);
+  return response.data;
+};
+
+const getLineRoutes = async (id: any): Promise<TransportLinesGrouped> => {
   const response = await axios.get<TransportLinesGrouped>(
-    `${baseURL}/transportLines`
+    ROUTES.LINE_ROUTES(id)
   );
   return response.data;
 };
 
-const getTransportLinesForStop = async (
-  stopId: number,
-  lineId: number
-): Promise<TransportLine[]> => {
-  const response = await axios.get<TransportLine[]>(
-    `${baseURL}/transportLines/transportStop?stopId=${stopId}&lineId=${lineId}`
-  );
-  return response.data;
-};
-
-const getRoutes = async (
-  lineNr: number,
-  direction: number
-): Promise<Route[]> => {
-  const response = await axios.get<Route[]>(
-    `${baseURL}/routes/route?lineNr=${lineNr}&direction=${direction}`
-  );
-  return response.data;
-};
-
-const getRoute = async (id: string): Promise<LineTimetableData> => {
-  const response = await axios.get<LineTimetableData>(
-    `${baseURL}/routes/lineRoute/${id}`
-  );
-  return response.data;
-};
-
-const getSpecificRoute = async (departure_id: string): Promise<any> => {
-  const response = await axios.get<any>(
-    `${baseURL}/routes/specificRouteTimetable/${departure_id}`
-  );
-  return response.data;
-};
-
-const getTimetable = async (stopId: number): Promise<Timetable[]> => {
-  const response = await axios.get<Timetable[]>(
-    `${baseURL}/timetable/timetable?stopId=${stopId}`
+const getLineStop = async (
+  routeId: any,
+  stopNumber: any
+): Promise<TransportLinesGrouped> => {
+  const response = await axios.get<TransportLinesGrouped>(
+    ROUTES.LINE_STOP_DEPARTURES(routeId, stopNumber)
   );
   return response.data;
 };
 
 const getNews = async (): Promise<NewsInterface[]> => {
-  const response = await axios.get<NewsInterface[]>(`${baseURL}/news`);
-  console.log(baseURL);
-  return response.data.map((item: any) => ({
-    ...item,
-    created_at: new Date(item.created_at),
-  }));
-};
-
-const getDepartureTimes = async (
-  stopId: string,
-  routeNumber: string
-): Promise<DepartureTime> => {
-  const response = await axios.get<DepartureTime>(
-    `${baseURL}/timetable/departure-times?stop_id=${stopId}&route_number=${routeNumber}`
-  );
-  console.log(response.data);
+  const response = await axios.get<TransportLinesGrouped>(ROUTES.NEWS);
   return response.data;
 };
 
-const getStopTimetable = async (
-  stopId: number
-): Promise<StopTimetable[] | any[]> => {
-  const response = await axios.get<StopTimetable[]>(
-    `${baseURL}/timetable/timetable?stopId=${stopId}`
-  );
+const getStopGroup = async (groupId: number): Promise<StopGroupIf> => {
+  const response = await axios.get<StopGroupIf>(ROUTES.STOP_GROUP(groupId));
   return response.data;
 };
 
-const getStopGroup = async (stopId: number): Promise<StopGroupIf> => {
+const getStopDepartures = async (stopId) => {
   const response = await axios.get<StopGroupIf>(
-    `${baseURL}/timetable/stop-group?stopId=${stopId}`
+    ROUTES.STOP_ALL_DEPARTURES(stopId)
   );
   return response.data;
 };
 
-const getAllStops = async (): Promise<any> => {
-  const response = await axios.get<any>(`${baseURL}/transportStops`);
+const getRoute = async (lineId: number, departureId): Promise<StopGroupIf> => {
+  const response = await axios.get<StopGroupIf>(
+    ROUTES.ROUTE(lineId, departureId)
+  );
+  return response.data;
+};
+
+const getStops = async (): Promise<any> => {
+  const response = await axios.get<any>(ROUTES.STOPS);
   return response.data;
 };
 
 export default {
-  getSpecificRoute,
-  getTransportLines,
+  getLines,
   getStopGroup,
-  getTransportLinesForStop,
-  getRoutes,
-  getRoute,
-  getTimetable,
-  getDepartureTimes,
-  getStopTimetable,
-  getAllStops,
+  getLineStop,
+  getStops,
   getNews,
+  getLineRoutes,
+  getLinesRoutes,
+  getRoute,
+  getStopDepartures,
 };

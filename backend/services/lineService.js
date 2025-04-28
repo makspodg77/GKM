@@ -18,7 +18,8 @@ let linesFullRoutesCacheTime = 0;
  * @returns {Promise<Array>} Departure route data
  */
 const getDepartureRoutesDirectly = async () => {
-  return await executeQuery(`SELECT * FROM departure_route`);
+  const result = await executeQuery(`SELECT * FROM departure_route`);
+  return result;
 };
 
 /**
@@ -32,7 +33,7 @@ const getAllLines = async (useCache = true) => {
   }
 
   const query = `
-      SELECT lt.namePlural, l.name, lt.color, l.id
+      SELECT lt.name_plural, l.name, lt.color, l.id
       FROM line l
       JOIN line_type lt ON l.line_type_id = lt.id;
     `;
@@ -57,17 +58,35 @@ const getLinesCategorized = async (useCache = true) => {
   const lines = await getAllLines(useCache);
 
   const groupedLines = lines.reduce((acc, line) => {
-    const { namePlural, name, color, id } = line;
-    if (!acc[namePlural]) {
-      acc[namePlural] = [];
+    const { name_plural, name, color, id } = line;
+    if (!acc[name_plural]) {
+      acc[name_plural] = [];
     }
 
-    acc[namePlural].push({ name, color, id });
+    acc[name_plural].push({ name, color, id });
 
     return acc;
   }, {});
 
   return groupedLines;
+};
+
+const removeDuplicates = (stops) => {
+  let result = [];
+  let previousStreet = null;
+
+  for (const stop of stops) {
+    // Skip stops with no street name
+    if (!stop.street) continue;
+
+    // If this street is different from previous one, add it
+    if (stop.street !== previousStreet) {
+      result.push(stop.street);
+      previousStreet = stop.street;
+    }
+  }
+
+  return result;
 };
 
 /**
@@ -149,15 +168,15 @@ const getLinesFullRoutes = async (useCache = true) => {
       return acc;
     }
 
-    if (!acc[line.namePlural]) acc[line.namePlural] = { color: line.color };
-    if (!acc[line.namePlural][line.name]) {
-      acc[line.namePlural][line.name] = [];
+    if (!acc[line.name_plural]) acc[line.name_plural] = { color: line.color };
+    if (!acc[line.name_plural][line.name]) {
+      acc[line.name_plural][line.name] = [];
     }
 
-    acc[line.namePlural][line.name].push({
+    acc[line.name_plural][line.name].push({
       first_stop: firstStop.name,
       last_stop: lastStop.name,
-      streets: [...new Set(stops.map((stop) => stop.street).filter(Boolean))],
+      streets: removeDuplicates(stops),
     });
 
     usedRoutes.add(routeKey);
@@ -196,16 +215,24 @@ const getOtherLinesAtStop = async (stopId, lineId) => {
     throw new ValidationError("line ID parameter is required");
   }
 
+  // Fix 1: Check if your SQL Helper expects exact casing
   const query = `
-  SELECT lt.color, l.name, fr.stop_number, fr.id AS full_route_id FROM line l 
-  JOIN full_route fr ON fr.stop_id = @stopId
-  JOIN route r ON r.id = fr.route_id
+  SELECT DISTINCT lt.color, l.name, fr.stop_number, r.id AS route_id 
+  FROM line l 
+  JOIN route r ON l.id = r.line_id
+  JOIN full_route fr ON r.id = fr.route_id AND fr.stop_id = @stopId
   JOIN line_type lt ON lt.id = l.line_type_id
-  WHERE l.id = r.line_id AND l.id != @lineId
-`;
+  WHERE l.id != @lineId AND fr.is_last != 1
+  `;
 
-  const results = await executeQuery(query, { stopId, lineId });
+  // Fix 2: Check that the parameterized values match your SQL helper's expectations
+  const results = await executeQuery(query, {
+    stopId: parseInt(stopId),
+    lineId: parseInt(lineId),
+  });
 
+  // Fix 3: Add more detail to your log for debugging
+  console.log("Other lines at stop query results:", results);
   return results;
 };
 
@@ -230,7 +257,7 @@ const getLine = async (lineId) => {
   }
 
   const query = `
-      SELECT l.name, lt.nameSingular, lt.color, lt.namePlural, l.id
+      SELECT l.name, lt.name_singular, lt.color, lt.name_plural, l.id
       FROM line l 
       JOIN line_type lt ON lt.id = l.line_type_id 
       WHERE l.id = @lineId`;
@@ -244,6 +271,7 @@ module.exports = {
   getAllLines,
   getLinesFullRoutes,
   getOtherLinesAtStop,
+  removeDuplicates,
   getLine,
   refreshCache,
 };

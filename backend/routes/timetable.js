@@ -286,7 +286,10 @@ router.get(
       (stop) => Number(stop.stop_number) === Number(stop_number)
     );
 
-    const other_lines = getOtherLinesAtStop(stop.stop_id, route[0].line_id);
+    const other_lines = await getOtherLinesAtStop(
+      stop.stop_id,
+      route[0].line_id
+    );
 
     res.json({
       line: await getLine(route[0].line_id),
@@ -295,9 +298,11 @@ router.get(
       stops: allStops,
       stop,
       other_lines,
-      last_stops: allStops
-        .filter((stop) => stop.is_last)
-        .map((stop) => stop.name),
+      last_stops: Array.from(
+        new Set(
+          allStops.filter((stop) => stop.is_last).map((stop) => stop.name)
+        )
+      ),
     });
   })
 );

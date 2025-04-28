@@ -120,7 +120,8 @@ app.use(
 const corsOptions = {
   origin: [
     "https://goleniowkm.pl",
-    "http://localhost:5173",
+    "http://localhost:8080",
+    "http://localhost:8081",
     "https://*.azurewebsites.net",
   ],
   methods: ["GET"],

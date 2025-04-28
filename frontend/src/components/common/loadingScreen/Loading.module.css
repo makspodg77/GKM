@@ -4,7 +4,7 @@
   align-items: center;
   justify-content: center;
   height: 50vh;
-  color: #0b3e89;
+  color: var(--color-primary);
 }
 
 .spinner {
@@ -12,7 +12,7 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border-left-color: #0b3e89;
+  border-left-color: var(--color-primary);
   animation: spin 1s linear infinite;
   margin-bottom: var(--spacing-md);
 }

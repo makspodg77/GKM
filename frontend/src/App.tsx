@@ -2,15 +2,16 @@ import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
 import './App.css';
 import Header from './components/header/Header';
 import TransportLines from './components/transportLines/TransportLines';
-import LinesTimeTable from './components/linesTimetable/LinesTimetable';
+import Lines from './components/lines/Lines';
 import LineTimetable from './components/lineTimetable/LineTimetable';
 import LineStopTimetable from './components/lineStopTimetable/LineStopTimetable';
 import RealTimeDepartures from './components/realTimeDepartures/RealTimeDepartures';
 import StopGroup from './components/stopGroup/StopGroup';
 import LineRoute from './components/lineRoute/LineRoute';
 import { useState } from 'react';
-import StopTimetable from './components/stopTimetable/stopTimetable';
+import StopTimetable from './components/stops/Stops';
 import News from './components/news/News';
+import About from './components/about/About';
 
 const PageStructure = (props: any) => {
   const getPathAfterHost = () => {
@@ -67,11 +68,38 @@ const PageStructure = (props: any) => {
           >
             Aktualności
           </Link>
+          <Link
+            style={
+              location == '/o-projekcie' || location == '/'
+                ? { backgroundColor: '#FACF00' }
+                : {}
+            }
+            to="/o-projekcie"
+          >
+            O projekcie
+          </Link>
         </section>
         <section className="content">{props.children}</section>
       </div>
       <footer>
-        <div>© 2024 Maksymilian Podgórski</div>
+        <div>
+          <p>ⓒ Maksymilian Podgórski. Wszystkie prawa zastrzeżone.</p>
+          <p>
+            Projekt komunikacji miejskiej, układ linii, rozkład jazdy oraz
+            aplikacja są dziełem fikcyjnym i zostały stworzone wyłącznie w
+            celach kreatywnych.
+          </p>
+          <p>
+            Wszelkie nazwy, trasy i dane przedstawione w aplikacji są wymyślone
+            i nie mają odzwierciedlenia w rzeczywistości.{' '}
+          </p>
+          <p>
+            Zabrania się kopiowania, rozpowszechniania i wykorzystywania
+            materiałów bez pisemnej zgody autora. Niniejsze dzieło jest
+            chronione prawem autorskim zgodnie z ustawą o prawie autorskim i
+            prawach pokrewnych.
+          </p>
+        </div>
       </footer>
     </>
   );
@@ -102,7 +130,7 @@ const App = () => {
           path="/rozklad-jazdy-wedlug-linii"
           element={
             <PageStructure>
-              <LinesTimeTable />
+              <Lines />
             </PageStructure>
           }
         />
@@ -115,7 +143,7 @@ const App = () => {
           }
         />
         <Route
-          path="/rozklad-jazdy-wedlug-linii/:lineId/:stopId/:routeId"
+          path="/rozklad-jazdy-wedlug-linii/:routeId/:stopNumber"
           element={
             <PageStructure>
               <LineStopTimetable />
@@ -132,7 +160,7 @@ const App = () => {
           }
         />
         <Route
-          path="/rozklad-jazdy-wedlug-linii/kurs/:timetableId/:stopId"
+          path="/rozklad-jazdy-wedlug-linii/kurs/:lineId/:timetableId/:stopNumber"
           element={
             <PageStructure>
               <LineRoute />
@@ -152,6 +180,14 @@ const App = () => {
           element={
             <PageStructure>
               <News />
+            </PageStructure>
+          }
+        />
+        <Route
+          path="/o-projekcie"
+          element={
+            <PageStructure>
+              <About />
             </PageStructure>
           }
         />

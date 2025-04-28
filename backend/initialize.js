@@ -2,6 +2,7 @@ const sql = require("mssql");
 const config = require("./utils/config");
 
 const dropTables = `
+    DROP TABLE IF EXISTS refresh_tokens;
     DROP TABLE IF EXISTS timetable;
     DROP TABLE IF EXISTS additional_stop;
     DROP TABLE IF EXISTS departure_route;
@@ -14,14 +15,13 @@ const dropTables = `
     DROP TABLE IF EXISTS route_type;
     DROP TABLE IF EXISTS stop_type;
     DROP TABLE IF EXISTS news;
-    DROP TABLE IF EXISTS users;
 `;
 
 const createLineTypeTable = `
     CREATE TABLE line_type (
         id INT IDENTITY(1,1) PRIMARY KEY,
-        nameSingular NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL,
-        namePlural NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL,
+        name_singular NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL,
+        name_plural NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL,
         color NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL
     );
 `;
@@ -30,16 +30,6 @@ const createStopGroupTable = `
     CREATE TABLE stop_group (
         id BIGINT IDENTITY(1,1) PRIMARY KEY,
         name NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL
-    );
-`;
-
-const createStopTypeTable = `
-    CREATE TABLE stop_type (
-        id BIGINT IDENTITY(1,1) PRIMARY KEY,
-        name NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL,
-        is_first BIT NOT NULL DEFAULT 0,
-        is_last BIT NOT NULL DEFAULT 0,
-        is_optional BIT NOT NULL DEFAULT 0
     );
 `;
 
@@ -80,17 +70,17 @@ const createFullRouteTable = `
         id BIGINT IDENTITY(1,1) PRIMARY KEY,
         route_id BIGINT NOT NULL,
         stop_id BIGINT NOT NULL,
-        stop_type BIGINT NOT NULL,
         travel_time INT NOT NULL,
         is_on_request BIT NOT NULL,
         stop_number BIGINT NOT NULL,
+        is_first BIT NOT NULL DEFAULT 0,
+        is_last BIT NOT NULL DEFAULT 0,
+        is_optional BIT NOT NULL DEFAULT 0,
         FOREIGN KEY (route_id) REFERENCES route(id),
-        FOREIGN KEY (stop_id) REFERENCES stop(id),
-        FOREIGN KEY (stop_type) REFERENCES stop_type(id)
+        FOREIGN KEY (stop_id) REFERENCES stop(id)
     );
     CREATE INDEX full_route_route_id_index ON full_route(route_id);
     CREATE INDEX full_route_stop_id_index ON full_route(stop_id);
-    CREATE INDEX full_route_stop_type_index ON full_route(stop_type);
 `;
 
 const createDepartureRouteTable = `
@@ -108,12 +98,11 @@ const createAdditionalStopTable = `
     CREATE TABLE additional_stop (
         id BIGINT IDENTITY(1,1) PRIMARY KEY,
         route_id BIGINT NOT NULL,
-        stop_id BIGINT NOT NULL,
-        FOREIGN KEY (route_id) REFERENCES departure_route(id),
-        FOREIGN KEY (stop_id) REFERENCES stop(id)
+        stop_number BIGINT NOT NULL, 
+        FOREIGN KEY (route_id) REFERENCES departure_route(id)
     );
     CREATE INDEX additional_stop_route_id_index ON additional_stop(route_id);
-    CREATE INDEX additional_stop_stop_id_index ON additional_stop(stop_id);
+    CREATE INDEX additional_stop_stop_number_index ON additional_stop(stop_number);
 `;
 
 const createTimetableTable = `
@@ -144,6 +133,20 @@ const createUsersTable = `
         created_at DATETIME DEFAULT GETDATE(),
         last_login DATETIME
     );
+`;
+
+const createRefreshTokensTable = `
+    CREATE TABLE refresh_tokens (
+        id BIGINT IDENTITY(1,1) PRIMARY KEY,
+        user_id INT NOT NULL,
+        token NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL,
+        expires_at DATETIME NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT GETDATE(),
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        CONSTRAINT UQ_refresh_tokens_token UNIQUE (token)
+    );
+    CREATE INDEX refresh_tokens_user_id_index ON refresh_tokens(user_id);
+    CREATE INDEX refresh_tokens_token_index ON refresh_tokens(token);
 `;
 
 let poolPromise;
@@ -181,13 +184,10 @@ const initializeTables = async () => {
   try {
     console.log("🔹 Dropping existing tables...");
     await executeQuery(dropTables);
-
     await executeQuery(createLineTypeTable);
     console.log("🔹 Finished createLineTypeTable...");
     await executeQuery(createStopGroupTable);
     console.log("🔹 Finished createStopGroupTable...");
-    await executeQuery(createStopTypeTable);
-    console.log("🔹 Finished createStopTypeTable...");
     await executeQuery(createLineTable);
     console.log("🔹 Finished createLineTable...");
     await executeQuery(createStopTable);
@@ -204,8 +204,8 @@ const initializeTables = async () => {
     console.log("🔹 Finished createTimetableTable...");
     await executeQuery(createNewsTable);
     console.log("🔹 Finished createNewsTable...");
-    await executeQuery(createUsersTable);
-    console.log("🔹 Finished createUsersTable...");
+    await executeQuery(createRefreshTokensTable);
+    console.log("🔹 Finished createRefreshTokensTable...");
 
     console.log("🔹 Database initialization completed successfully.");
   } catch (err) {

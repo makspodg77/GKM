@@ -92,14 +92,16 @@ const getDeparturesForStop = async (stopId, get_base_data = true) => {
       try {
         return calculateDepartureTimes(processedStops, entry.departure_time)
           .filter((item) => Number(item.stop_id) === Number(stopId))
+          .filter((item) => !item.is_last)
           .map((stop) => ({
             line,
             departure_time: stop.departure_time,
             is_on_request: stop.is_on_request,
             last_stop: lastStop.name,
-            route_id: entry.route_id,
+            route_id: entry.full_route_id,
             timetable_id: entry.id,
             stop_number: stop.stop_number,
+            is_last: stop.is_last,
           }));
       } catch (error) {
         console.error(`Error calculating times for entry ${entry.id}:`, error);

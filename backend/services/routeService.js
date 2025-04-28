@@ -1,6 +1,6 @@
 const { NotFoundError, ValidationError } = require("../utils/errorHandler");
 const { executeQuery } = require("../utils/sqlHelper");
-const { getLine } = require("./lineService");
+const { getLine, removeDuplicates } = require("./lineService");
 const {
   getStopsForRoute,
   getAdditionalStops,
@@ -90,9 +90,10 @@ const getLineRoutes = async (line_id, useCache = true) => {
       fr.travel_time, 
       fr.is_on_request, 
       r.is_circular, 
-      st.is_optional, 
-      st.is_first, 
-      st.is_last, 
+      fr.is_optional, 
+      s.map,
+      fr.is_first, 
+      fr.is_last, 
       sg.id AS group_id, 
       r.id AS route_id, 
       fr.stop_number,
@@ -102,7 +103,6 @@ const getLineRoutes = async (line_id, useCache = true) => {
     JOIN full_route fr ON fr.route_id = r.id
     JOIN stop s ON s.id = fr.stop_id
     JOIN stop_group sg ON sg.id = s.stop_group_id
-    JOIN stop_type st ON st.id = fr.stop_type
     WHERE r.line_id = @line_id`;
 
   const results = await executeQuery(query, { line_id });
@@ -146,17 +146,40 @@ const getLineRoutes = async (line_id, useCache = true) => {
   const departureResults = await Promise.all(departurePromises);
   console.log(departureResults);
   const enrichedRoutes = sortedRoutes.map((route) => {
+    // Set to track unique routes
+    const processedRoutes = new Set();
+    const getRouteKey = (first, last) => {
+      return [first, last].sort().join("-");
+    };
+
+    // Filter and map departures
+    const uniqueLinePaths = departureResults
+      .filter((result) => {
+        if (!result.stops || result.stops.length < 2) return false;
+
+        const firstStop = result.stops[0].name;
+        const lastStop = result.stops[result.stops.length - 1].name;
+        const routeKey = getRouteKey(firstStop, lastStop);
+
+        // Filter duplicates
+        if (processedRoutes.has(routeKey)) {
+          return false;
+        }
+
+        processedRoutes.add(routeKey);
+        return true;
+      })
+      .map((result) => ({
+        first_stop: result.stops[0].name,
+        last_stop: result.stops[result.stops.length - 1].name,
+        streets: removeDuplicates(result.stops),
+      }));
+
     return {
       route_id: route[0].route_id,
       is_circular: route[0].is_circular,
       line: basicData,
-
-      linePath: departureResults.map((result) => ({
-        first_stop: result.stops[0].name,
-        last_stop: result.stops[result.stops.length - 1].name,
-        streets: [...new Set(result.stops.map((stop) => stop.street))],
-      })),
-
+      linePath: uniqueLinePaths,
       stops: route,
     };
   });
@@ -265,8 +288,8 @@ const calculateDepartureTimes = (
   let previousTravelTime = 0;
 
   return stops.map((stop, index) => {
-    departureTime = addMinutesToTime(departureTime, previousTravelTime);
     previousTravelTime = stop.travel_time;
+    departureTime = addMinutesToTime(departureTime, previousTravelTime);
 
     return {
       ...stop,

@@ -51,12 +51,11 @@ const getStopsForRoute = async (full_route_id) => {
 
   const results = await executeQuery(
     `SELECT s.stop_group_id, s.street, fr.stop_id, fr.travel_time, 
-           fr.stop_number, fr.stop_type, sg.name, fr.is_on_request, 
-           st.is_optional, st.is_first, st.is_last, fr.route_id
+           fr.stop_number, sg.name, fr.is_on_request, s.map,
+           fr.is_optional, fr.is_first, fr.is_last, fr.route_id
      FROM full_route fr
      JOIN stop s ON s.id = fr.stop_id
      JOIN stop_group sg ON sg.id = s.stop_group_id
-     JOIN stop_type st ON st.id = fr.stop_type
      WHERE fr.route_id = @route_id;`,
     { route_id: full_route_id }
   );
@@ -114,8 +113,10 @@ const getTimetableDataForRoutes = async (routeIds) => {
   const placeholders = routeIds.map((_, i) => `@id${i}`).join(",");
 
   return executeQuery(
-    `SELECT id, route_id, departure_time FROM timetable 
-     WHERE route_id IN (${placeholders})`,
+    `SELECT t.id, t.route_id, dr.route_id AS full_route_id, t.departure_time 
+    FROM timetable t
+    JOIN departure_route dr ON dr.id = t.route_id
+     WHERE t.route_id IN (${placeholders})`,
     params
   );
 };
@@ -147,7 +148,7 @@ const getStopWithGroupData = async (stopId) => {
  */
 const getLineDataByRouteId = async (routeId) => {
   return executeQuery(
-    `SELECT name, nameSingular, namePlural, color FROM route JOIN line ON line.id = route.line_id JOIN line_type ON line_type.id = line.line_type_id WHERE route.id = @routeId`,
+    `SELECT name, name_singular, name_plural, color FROM route JOIN line ON line.id = route.line_id JOIN line_type ON line_type.id = line.line_type_id WHERE route.id = @routeId`,
     { routeId: routeId }
   );
 };
@@ -237,7 +238,7 @@ const formatDeparturesByHour = (departures) => {
     const { departure_time } = departure;
     const hour =
       departure_time[0] === "0"
-        ? departure_time.substr(1, 2)
+        ? departure_time.substr(1, 1)
         : departure_time.substr(0, 2);
 
     if (!acc[hour]) acc[hour] = [];
@@ -265,6 +266,7 @@ const extractUniqueSignatures = (departures) => {
   departures.forEach((departure) => {
     if (departure.signature) {
       signatureMap.set(departure.signature, {
+        color: departure.color,
         signature: departure.signature,
         signature_explanation: departure.signatureExplanation,
       });
@@ -280,7 +282,7 @@ const getLinesFullRoutes = async (useCache = true) => {
     linesFullRoutesCache &&
     Date.now() - linesFullRoutesCacheTime < 300000
   ) {
-    return linesFullRoutesCache;
+    //return linesFullRoutesCache;
   }
 
   const allRouteIds = await executeQuery(`SELECT id FROM route`);

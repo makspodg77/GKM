@@ -2,12 +2,9 @@ import './LoadingScreen.css';
 
 const LoadingScreen = () => {
   return (
-    <div className="LoadingScreen">
-      <div>
-        <div></div>
-        <div></div>
-        <div></div>
-      </div>
+    <div className="loadingContainer">
+      <div className="spinner"></div>
+      <p>Ładowanie...</p>
     </div>
   );
 };
