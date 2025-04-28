@@ -2,29 +2,117 @@ const sql = require("mssql");
 const config = require("./utils/config");
 
 const dropTables = `
+    DROP TABLE IF EXISTS refresh_tokens;
     DROP TABLE IF EXISTS timetable;
-    DROP TABLE IF EXISTS routes;
-    DROP TABLE IF EXISTS transport_lines;
-    DROP TABLE IF EXISTS transport_stops;
-    DROP TABLE IF EXISTS line_types;
+    DROP TABLE IF EXISTS additional_stop;
+    DROP TABLE IF EXISTS departure_route;
+    DROP TABLE IF EXISTS full_route;
+    DROP TABLE IF EXISTS route;
+    DROP TABLE IF EXISTS stop;
+    DROP TABLE IF EXISTS stop_group;
+    DROP TABLE IF EXISTS line;
+    DROP TABLE IF EXISTS line_type;
+    DROP TABLE IF EXISTS route_type;
+    DROP TABLE IF EXISTS stop_type;
     DROP TABLE IF EXISTS news;
 `;
 
-const createLineTypesTable = `
-    CREATE TABLE line_types (
-        id INT PRIMARY KEY,
-        line_type_name NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL,
-        line_type_color NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL,
-        line_type_image NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL
+const createLineTypeTable = `
+    CREATE TABLE line_type (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        name_singular NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL,
+        name_plural NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL,
+        color NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL
     );
 `;
 
-const createTransportStopsTable = `
-    CREATE TABLE transport_stops (
-        id BIGINT PRIMARY KEY,
-        stop_name NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL,
-        stop_direction BIT
+const createStopGroupTable = `
+    CREATE TABLE stop_group (
+        id BIGINT IDENTITY(1,1) PRIMARY KEY,
+        name NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL
     );
+`;
+
+const createLineTable = `
+    CREATE TABLE line (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        line_type_id INT NOT NULL,
+        FOREIGN KEY (line_type_id) REFERENCES line_type(id)
+    );
+    CREATE INDEX line_line_type_id_index ON line(line_type_id);
+`;
+
+const createStopTable = `
+    CREATE TABLE stop (
+        id BIGINT IDENTITY(1,1) PRIMARY KEY,
+        stop_group_id BIGINT NOT NULL,
+        map NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL,
+        street NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL,
+        FOREIGN KEY (stop_group_id) REFERENCES stop_group(id)
+    );
+    CREATE INDEX stop_stop_group_id_index ON stop(stop_group_id);
+`;
+
+const createRouteTable = `
+    CREATE TABLE route (
+        id BIGINT IDENTITY(1,1) PRIMARY KEY,
+        line_id INT NOT NULL,
+        is_circular BIT NOT NULL DEFAULT 0,
+        is_night BIT NOT NULL DEFAULT 0,
+        FOREIGN KEY (line_id) REFERENCES line(id)
+    );
+    CREATE INDEX route_line_id_index ON route(line_id);
+`;
+
+const createFullRouteTable = `
+    CREATE TABLE full_route (
+        id BIGINT IDENTITY(1,1) PRIMARY KEY,
+        route_id BIGINT NOT NULL,
+        stop_id BIGINT NOT NULL,
+        travel_time INT NOT NULL,
+        is_on_request BIT NOT NULL,
+        stop_number BIGINT NOT NULL,
+        is_first BIT NOT NULL DEFAULT 0,
+        is_last BIT NOT NULL DEFAULT 0,
+        is_optional BIT NOT NULL DEFAULT 0,
+        FOREIGN KEY (route_id) REFERENCES route(id),
+        FOREIGN KEY (stop_id) REFERENCES stop(id)
+    );
+    CREATE INDEX full_route_route_id_index ON full_route(route_id);
+    CREATE INDEX full_route_stop_id_index ON full_route(stop_id);
+`;
+
+const createDepartureRouteTable = `
+    CREATE TABLE departure_route (
+        id BIGINT IDENTITY(1,1) PRIMARY KEY,
+        route_id BIGINT NOT NULL,
+        signature NVARCHAR(255) COLLATE Polish_100_CI_AS NULL,
+        color NVARCHAR(255) COLLATE Polish_100_CI_AS NULL,
+        FOREIGN KEY (route_id) REFERENCES route(id)
+    );
+    CREATE INDEX departure_route_route_id_index ON departure_route(route_id);
+`;
+
+const createAdditionalStopTable = `
+    CREATE TABLE additional_stop (
+        id BIGINT IDENTITY(1,1) PRIMARY KEY,
+        route_id BIGINT NOT NULL,
+        stop_number BIGINT NOT NULL, 
+        FOREIGN KEY (route_id) REFERENCES departure_route(id)
+    );
+    CREATE INDEX additional_stop_route_id_index ON additional_stop(route_id);
+    CREATE INDEX additional_stop_stop_number_index ON additional_stop(stop_number);
+`;
+
+const createTimetableTable = `
+    CREATE TABLE timetable (
+        id BIGINT IDENTITY(1,1) PRIMARY KEY,
+        route_id BIGINT NOT NULL,
+        departure_time TIME NOT NULL,
+        FOREIGN KEY (route_id) REFERENCES departure_route(id)
+    );
+    CREATE INDEX timetable_route_id_index ON timetable(route_id);
 `;
 
 const createNewsTable = `
@@ -36,976 +124,36 @@ const createNewsTable = `
     );
 `;
 
-const createTransportLinesTable = `
-    CREATE TABLE transport_lines (
-        id INT PRIMARY KEY,
-        line_name NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL,
-        line_type_id INT NOT NULL,
-        FOREIGN KEY (line_type_id) REFERENCES line_types(id)
+const createUsersTable = `
+    CREATE TABLE users (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        username VARCHAR(50) NOT NULL UNIQUE,
+        password VARCHAR(255) NOT NULL,
+        role VARCHAR(20) NOT NULL DEFAULT 'user',
+        created_at DATETIME DEFAULT GETDATE(),
+        last_login DATETIME
     );
 `;
 
-const createRoutesTable = `
-    CREATE TABLE routes (
-        id INT PRIMARY KEY,
-        line_id INT,
-        stop_id INT,
-        stop_number INT,
-        route_number INT,
-        travel_time INT,
-        is_on_request BIT
+const createRefreshTokensTable = `
+    CREATE TABLE refresh_tokens (
+        id BIGINT IDENTITY(1,1) PRIMARY KEY,
+        user_id INT NOT NULL,
+        token NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL,
+        expires_at DATETIME NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT GETDATE(),
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        CONSTRAINT UQ_refresh_tokens_token UNIQUE (token)
     );
-`;
-
-const createTimetableTable = `
-    CREATE TABLE timetable (
-        id INT PRIMARY KEY,
-        route_number INT,
-        departure_time NVARCHAR(255) COLLATE Polish_100_CI_AS NOT NULL
-    );
-`;
-
-const insertLineTypesData = `
-    INSERT INTO line_types (id, line_type_name, line_type_color, line_type_image)
-    VALUES
-        (1, 'Linie autobusowe dzienne', '#FF0000', 'city.png'),
-        (2, 'Linie tramwajowe dzienne', '#00FF00', 'suburban.png'),
-        (3, 'Linie autobusowe nocne', '#0000FF', 'interurban.png'),
-        (4, 'Linie autobusowe dzienne dodatkowe', '#0000FF', 'interurban.png');`;
-
-const insertTransportStopsData = `
-        INSERT INTO transport_stops (id, stop_name, stop_direction)
-        VALUES
-            (17, N'Kliniska Rzemieślnicza', 1),
-            (18, N'Kliniska Rzemieślnicza', 0),
-            (19, N'Kliniska Szkoła', 1),
-            (20, N'Kliniska Szkoła', 0),
-            (21, N'SKM Kliniska', 1),
-            (22, N'SKM Kliniska', 0),
-            (23, N'Kliniska Nadleśnictwo', 1),
-            (24, N'Kliniska Nadleśnictwo', 0),
-            (25, N'Pucie', 1),
-            (26, N'Pucie', 0),
-            (27, N'Łęsko', 1),
-            (28, N'Łęsko', 0),
-            (29, N'Stawno', 1),
-            (30, N'Stawno', 0),
-            (31, N'Stawno Krzyżówka', 1),
-            (32, N'Stawno Krzyżówka', 0),
-            (33, N'Bolechowo', 1),
-            (34, N'Bolechowo', 0),
-            (35, N'Pucice Krzyż', 1),
-            (36, N'Pucice Krzyż', 0),
-            (37, N'Czarna Łąka Turystyczna', 1),
-            (38, N'Czarna Łąka Turystyczna', 0),
-            (39, N'Czarna Łąka Plażowa', 1),
-            (40, N'Czarna Łąka Plażowa', 0),
-            (41, N'Lubczyna Dino', 1),
-            (42, N'Lubczyna Dino', 0),
-            (43, N'Lubczyna Plaża', 1),
-            (44, N'Lubczyna Plaża', 0),
-            (45, N'Lubczyna Kasztanowa', 1),
-            (46, N'Lubczyna Kasztanowa', 0),
-            (47, N'Borzysławiec', 1),
-            (48, N'Borzysławiec', 0),
-            (49, N'Kliniska Klimatyczna', 1),
-            (50, N'Kliniska Klimatyczna', 0),
-            (51, N'Rurzyca Farmer', 1),
-            (52, N'Rurzyca Farmer', 0),
-            (53, N'Rurzyca Cmentarz', 1),
-            (54, N'Rurzyca Cmentarz', 0),
-            (55, N'Dobroszyn', 1),
-            (56, N'Dobroszyn', 0),
-            (57, N'Warcisławiec', 1),
-            (58, N'Warcisławiec', 0),
-            (59, N'Rurzyca Las', 1),
-            (60, N'Rurzyca Las', 0),
-            (61, N'Łozienica Granitowa', 1),
-            (62, N'Łozienica Granitowa', 0),
-            (63, N'SKM Goleniów Park Przemysłowy', 1),
-            (64, N'SKM Goleniów Park Przemysłowy', 0),
-            (65, N'Stadion Miejski OSiR', 1),
-            (66, N'Stadion Miejski OSiR', 0),
-            (67, N'Podańsko Topolowa', 1),
-            (68, N'Podańsko Topolowa', 0),
-            (69, N'Podańsko Podleśna', 1),
-            (70, N'Podańsko Podleśna', 0),
-            (71, N'Krzywoustego', 1),
-            (72, N'Krzywoustego', 0),
-            (73, N'Osiedle Bieda', 1),
-            (74, N'Osiedle Bieda', 0),
-            (75, N'Rozdzielnia', 1),
-            (76, N'Rozdzielnia', 0),
-            (77, N'Muzeum Motoryzacji', 1),
-            (78, N'Muzeum Motoryzacji', 0),
-            (79, N'Nadleśnictwo', 1),
-            (80, N'Nadleśnictwo', 0),
-            (81, N'Rondo Kasprowicza', 1),
-            (82, N'Rondo Kasprowicza', 0),
-            (83, N'SKM Goleniów', 1),
-            (84, N'SKM Goleniów', 0),
-            (85, N'Polna', 1),
-            (86, N'Polna', 0),
-            (87, N'Ogród Działkowy "Ina"', 1),
-            (88, N'Ogród Działkowy "Ina"', 0),
-            (89, N'Ks. Włodzimierza Kowalskiego', 1),
-            (90, N'Ks. Włodzimierza Kowalskiego', 0),
-            (91, N'Zarosty', 1),
-            (92, N'Zarosty', 0),
-            (93, N'Słowackiego', 1),
-            (94, N'Słowackiego', 0),
-            (95, N'Wawrzyniaka', 1),
-            (96, N'Wawrzyniaka', 0),
-            (97, N'Jana Pawła II', 1),
-            (98, N'Jana Pawła II', 0),
-            (99, N'Rondo Urlicha Schroedera', 1),
-            (100, N'Rondo Urlicha Schroedera', 0),
-            (101, N'Jana Matejki', 1),
-            (102, N'Jana Matejki', 0),
-            (103, N'Przestrzenna', 1),
-            (104, N'Przestrzenna', 0),
-            (105, N'Cmentarz Komunalny', 1),
-            (106, N'Cmentarz Komunalny', 0),
-            (107, N'Żeromskiego', 1),
-            (108, N'Żeromskiego', 0),
-            (109, N'Krzewno', 1),
-            (110, N'Krzewno', 0),
-            (111, N'Skórnica', 1),
-            (112, N'Skórnica', 0),
-            (113, N'Graniczna', 1),
-            (114, N'Graniczna', 0),
-            (115, N'Sadowa', 1),
-            (116, N'Sadowa', 0),
-            (117, N'Anny Jagielonki', 1),
-            (118, N'Anny Jagielonki', 0),
-            (119, N'Rondo Hanzeatyckie', 1),
-            (120, N'Rondo Hanzeatyckie', 0),
-            (121, N'ZSP "Dinozaur"', 1),
-            (122, N'ZSP "Dinozaur"', 0),
-            (123, N'Witosa', 1),
-            (124, N'Witosa', 0),
-            (125, N'Szkolna', 1),
-            (126, N'Szkolna', 0),
-            (127, N'Swedwood', 1),
-            (128, N'Swedwood', 0),
-            (129, N'Załom Kościół', 1),
-            (130, N'Załom Kościół', 0),
-            (131, N'Załom Leśna', 1),
-            (132, N'Załom Leśna', 0),
-            (133, N'Załom Starowieyskiego', 1),
-            (134, N'Załom Starowieyskiego', 0),
-            (135, N'Pucice Leśna', 1),
-            (136, N'Pucice Leśna', 0),
-            (137, N'Kliniska Księżycowa', 1),
-            (138, N'Kliniska Księżycowa', 0),
-            (139, N'Kliniska Park', 1),
-            (140, N'Kliniska Park', 0),
-            (141, N'Czarna Łąka Wczasowa', 1),
-            (142, N'Czarna Łąka Wczasowa', 0),
-            (143, N'Czarna Łąka Wycieczkowa', 1),
-            (144, N'Czarna Łąka Wycieczkowa', 0),
-            (145, N'Bystra Przyjazna', 1),
-            (146, N'Bystra Przyjazna', 0),
-            (147, N'Lubczyna Masztowa', 1),
-            (148, N'Lubczyna Masztowa', 0),
-            (149, N'OSP Lubczyna', 1),
-            (150, N'OSP Lubczyna', 0),
-            (151, N'Lubczyna Jesieniowa', 1),
-            (152, N'Lubczyna Jesieniowa', 0),
-            (153, N'Smolno', 1),
-            (154, N'Smolno', 0),
-            (155, N'Kanał Jankowski', 1),
-            (156, N'Kanał Jankowski', 0),
-            (157, N'Prosta', 1),
-            (158, N'Prosta', 0),
-            (159, N'Mikorzyn', 1),
-            (160, N'Mikorzyn', 0),
-            (161, N'Odrodzenia', 1),
-            (162, N'Odrodzenia', 0),
-            (163, N'Pływalnia Fala', 1),
-            (164, N'Pływalnia Fala', 0),
-            (165, N'Armii Krajowej', 1),
-            (166, N'Armii Krajowej', 0),
-            (167, N'Plac Lotników', 1),
-            (168, N'Plac Lotników', 0),
-            (169, N'Barnima I', 1),
-            (170, N'Barnima I', 0),
-            (171, N'Pocztowa', 1),
-            (172, N'Pocztowa', 0),
-            (173, N'Szarych Szeregów', 1),
-            (174, N'Szarych Szeregów', 0),
-            (175, N'Konstytucji 3 Maja', 1),
-            (176, N'Konstytucji 3 Maja', 0),
-            (177, N'Zakłady Chemiczne', 1),
-            (178, N'Zakłady Chemiczne', 0),
-            (179, N'Zakładowa', 1),
-            (180, N'Zakładowa', 0),
-            (181, N'Os. Słoneczne Wzgórze', 1),
-            (182, N'Os. Słoneczne Wzgórze', 0),
-            (183, N'Os. Zielone wzgórze', 1),
-            (184, N'Os. Zielone Wzgórze', 0),
-            (185, N'Planty', 1),
-            (186, N'Planty', 0);
-    `;
-
-const insertTransportLinesData = `INSERT INTO transport_lines(id,line_name,line_type_id)VALUES      
-    (2,'95',1),(3,'94',1),(4,'93',1),(5,'22',4), (6, '91', 1), (7, '42', 1), (8, '37', 1), (9, '38', 1), (10, '54', 1);
-
-                                 `;
-
-const insertNewsData = `INSERT INTO news
-                                              (title,
-                                              content,
-                                              created_at)
-                                  VALUES     ('Zmiany w komunikacji - korekta nazw zespołów przystankowych',
-                                              'Ta Informacja dotyczy linii: 94, 95, 22, (C); <br> <br> <br>Od dnia 14 grudnia 2024 roku, linia C uległa likwidacji.  <br>Wprowadzone zostały również nowe nazwy niektórych przystanków. <br> <br>Wykaz zmienionych nazw: <br> <br>- "Rurzyca Kościół" na "Dobroszyn" (linia 95) <br>- "Rurzyca Myśliwska" na "Warcisławiec" (linia 95) <br>- "Goleniów Stadion" na "Stadion Miejski OSiR" (linia 95) <br>- "Kliniska Las" na "Pucie" (linia 94) <br>- "Helenów Krzywoustego" na "Krzywoustego" (linia 22) <br>- "Przetwornica" na "Rozdzielnia" (linia 22) <br>- "Kasprowicza Rondo" na "Rondo Kasprowicza" (linia 22)',
-                                              '2024-12-14 16:08:23.740'), ('Zmiany w komunikacji - uruchomienie nowych linii', 'Ta informacja dotyczy linii 37, 38, 42, 22, 91
-<br>
-<br>Od dnia 21 grudnia 2024 roku, linia 22 kursować będzie ze zmienionym rozkładem odjazdów, tylko 
-w godzinach szczytu w częstotliwości co 10 minut.
-<br>
-<br>Uruchomione również zostaną linie 37 (Załom Kościół - Stadion Miejski OSiR [kurs przez Kliniska])
-częstotliwość odjazdów ~45 minut, 38 (Załom Kościół - Stadion Miejski OSiR [kurs przez Lubczyne])
-z częstotliwością odjazdów ~50 minut.
-<br><br>Linia 42 (Polna - SKM Goleniów) z kursami co około 50 minut a w godzinach popołudniowych średnio
-co 20 minut, oraz linia 91 (Polna - Skórnica) kursująca co 30 minut w godzinach popołudniowych, 50 w pozostałych.', '2024-12-21 05:24:22.877');`;
-
-const insertRoutesData = `INSERT INTO routes (id, line_id, stop_id, route_number, travel_time, is_on_request, stop_number)
-    VALUES
-        (126, 8, 130, 90, 0, 0, 1),
-        (127, 8, 132, 90, 1, 0, 2),
-        (128, 8, 134, 90, 2, 0, 3),
-        (129, 8, 136, 90, 2, 0, 4),
-        (130, 8, 36, 90, 1, 0, 5),
-        (131, 8, 138, 90, 1, 0, 6),
-        (132, 8, 18, 90, 1, 0, 7),
-        (133, 8, 140, 90, 1, 0, 8),
-        (134, 8, 52, 90, 2, 0, 9),
-        (135, 8, 54, 90, 3, 0, 10),
-        (136, 8, 56, 90, 1, 0, 11),
-        (137, 8, 58, 90, 4, 0, 12),
-        (138, 8, 60, 90, 5, 0, 13),
-        (139, 8, 62, 90, 2, 0, 14),
-        (140, 8, 64, 90, 1, 0, 15),
-        (141, 8, 66, 90, 5, 0, 16),
-        (142, 8, 65, 91, 0, 0, 1),
-        (143, 8, 63, 91, 5, 0, 2),
-        (144, 8, 61, 91, 1, 0, 3),
-        (145, 8, 59, 91, 2, 0, 4),
-        (146, 8, 57, 91, 5, 0, 5),
-        (147, 8, 55, 91, 4, 0, 6),
-        (148, 8, 53, 91, 1, 0, 7),
-        (149, 8, 51, 91, 3, 0, 8),
-        (150, 8, 139, 91, 2, 0, 9),
-        (151, 8, 17, 91, 1, 0, 10),
-        (152, 8, 137, 91, 1, 0, 11),
-        (153, 8, 35, 91, 1, 0, 12),
-        (154, 8, 135, 91, 2, 0, 13),
-        (155, 8, 133, 91, 2, 0, 14),
-        (156, 8, 131, 91, 1, 0, 15),
-        (157, 8, 129, 91, 1, 0, 16),
-
-        (1, 7, 86, 7, 0, 0, 1),
-        (2, 7, 88, 7, 2, 0, 2),
-        (3, 7, 90, 7, 1, 0, 3),
-        (4, 7, 92, 7, 1, 0, 4),
-        (5, 7, 114, 7, 1, 0, 5),
-        (6, 7, 116, 7, 1, 0, 6),
-        (7, 7, 118, 7, 1, 0, 7),
-        (8, 7, 120, 7, 1, 0, 8),
-        (9, 7, 122, 7, 1, 0, 9),
-        (10, 7, 124, 7, 1, 0, 10),
-        (11, 7, 126, 7, 1, 0, 11),
-        (12, 7, 128, 7, 1, 0, 12),
-        (13, 7, 84, 7, 1, 0, 13),
-        (14, 7, 85, 8, 2, 0, 13),
-        (15, 7, 87, 8, 1, 0, 12),
-        (16, 7, 89, 8, 1, 0, 11),
-        (17, 7, 91, 8, 1, 0, 10),
-        (18, 7, 113, 8, 1, 0, 9),
-        (19, 7, 115, 8, 1, 0, 8),
-        (20, 7, 117, 8, 1, 0, 7),
-        (21, 7, 119, 8, 1, 0, 6),
-        (22, 7, 121, 8, 1, 0, 5),
-        (23, 7, 123, 8, 1, 0, 4),
-        (24, 7, 125, 8, 1, 0, 3),
-        (25, 7, 127, 8, 1, 0, 2),
-        (3000, 7, 83, 8, 0, 0, 1),
-        
-        (26, 6, 86, 9, 0, 0, 1),
-        (27, 6, 88, 9, 2, 0, 2),
-        (28, 6, 90, 9, 1, 0, 3),
-        (29, 6, 92, 9, 1, 0, 4),
-        (30, 6, 94, 9, 1, 0, 5),
-        (31, 6, 96, 9, 1, 0, 6),
-        (32, 6, 98, 9, 1, 0, 7),
-        (33, 6, 100, 9, 1, 0, 8),
-        (34, 6, 102, 9, 1, 0, 9),
-        (35, 6, 104, 9, 1, 0, 10),
-        (36, 6, 106, 9, 1, 0, 11),
-        (37, 6, 66, 9, 2, 0, 12),
-        (38, 6, 108, 9, 2, 0, 13),
-        (39, 6, 110, 9, 1, 0, 14),
-        (40, 6, 112, 9, 1, 0, 15),
-        (41, 6, 85, 10, 2, 0, 15),
-        (42, 6, 87, 10, 1, 0, 14),
-        (43, 6, 89, 10, 1, 0, 13),
-        (44, 6, 91, 10, 1, 0, 12),
-        (45, 6, 93, 10, 1, 0, 11),
-        (46, 6, 95, 10, 1, 0, 10),
-        (47, 6, 97, 10, 1, 0, 9),
-        (48, 6, 99, 10, 1, 0, 8),
-        (49, 6, 101, 10, 1, 0, 7),
-        (50, 6, 103, 10, 1, 0, 6),
-        (51, 6, 105, 10, 2, 0, 5),
-        (52, 6, 65, 10, 1, 0, 4),
-        (53, 6, 107, 10, 1, 0, 3),
-        (54, 6, 109, 10, 1, 0, 2),
-        (55, 6, 111, 10, 0, 0, 1),
-
-        (56, 9, 130, 11, 0, 0, 1),
-        (57, 9, 132, 11, 1, 0, 2),
-        (58, 9, 134, 11, 2, 0, 3),
-        (59, 9, 136, 11, 2, 0, 4),
-        (60, 9, 36, 11, 1, 0, 5),
-        (61, 9, 142, 11, 1, 0, 6),
-        (62, 9, 144, 11, 1, 0, 7),
-        (63, 9, 40, 11, 1, 0, 8),
-        (64, 9, 146, 11, 1, 0, 9),
-        (65, 9, 148, 11, 4, 0, 10),
-        (66, 9, 150, 11, 1, 0, 11),
-        (67, 9, 152, 11, 1, 0, 12),
-        (68, 9, 154, 11, 2, 0, 13),
-        (69, 9, 156, 11, 8, 0, 14),
-        (70, 9, 158, 11, 1, 0, 15),
-        (71, 9, 66, 11, 3, 0, 16),
-        (72, 9, 129, 12, 1, 0, 16),
-        (73, 9, 131, 12, 2, 0, 15),
-        (74, 9, 133, 12, 2, 0, 14),
-        (75, 9, 135, 12, 1, 0, 13),
-        (76, 9, 35, 12, 1, 0, 12),
-        (77, 9, 141, 12, 1, 0, 11),
-        (78, 9, 143, 12, 1, 0, 10),
-        (79, 9, 39, 12, 1, 0, 9),
-        (80, 9, 145, 12, 4, 0, 8),
-        (81, 9, 147, 12, 1, 0, 7),
-        (82, 9, 149, 12, 1, 0, 6),
-        (83, 9, 151, 12, 2, 0, 5),
-        (84, 9, 153, 12, 8, 0, 4),
-        (85, 9, 155, 12, 1, 0, 3),
-        (86, 9, 157, 12, 3, 0, 2),
-        (87, 9, 65, 12, 0, 0, 1),
-
-        (105, 5, 67, 22, 0, 0, 1),
-        (88, 5, 69, 22, 4, 0, 2),
-        (89, 5, 71, 22, 3, 0, 3),
-        (90, 5, 73, 22, 2, 0, 4),
-        (91, 5, 75, 22, 5, 0, 5),
-        (92, 5, 77, 22, 2, 0, 6),
-        (93, 5, 79, 22, 3, 0, 7),
-        (94, 5, 81, 22, 2, 0, 8),
-        (95, 5, 83, 22, 2, 0, 9),
-        (96, 5, 68, 23, 4, 0, 9),
-        (97, 5, 70, 23, 3, 0, 8),
-        (98, 5, 72, 23, 2, 0, 7),
-        (99, 5, 74, 23, 5, 0, 6),
-        (100, 5, 76, 23, 2, 0, 5),
-        (101, 5, 78, 23, 3, 0, 4),
-        (102, 5, 80, 23, 2, 0, 3),
-        (103, 5, 82, 23, 2, 0, 2),
-        (104, 5, 84, 23, 0, 0, 1),
-
-        (158, 2, 18, 3, 0, 0, 1),
-        (106, 2, 140, 3, 1, 0, 2),
-        (107, 2, 50, 3, 2, 0, 3),
-        (108, 2, 52, 3, 2, 0, 4),
-        (109, 2, 54, 3, 3, 0, 5),
-        (110, 2, 56, 3, 1, 0, 6),
-        (111, 2, 58, 3, 4, 0, 7),
-        (112, 2, 60, 3, 5, 0, 8),
-        (113, 2, 62, 3, 2, 0, 9),
-        (114, 2, 64, 3, 1, 0, 10),
-        (115, 2, 66, 3, 5, 0, 11),
-        (116, 2, 17, 4, 1, 0, 11),
-        (117, 2, 139, 4, 2, 0, 10),
-        (118, 2, 49, 4, 2, 0, 9),
-        (119, 2, 51, 4, 3, 0, 8),
-        (120, 2, 53, 4, 1, 0, 7),
-        (121, 2, 55, 4, 4, 0, 6),
-        (122, 2, 57, 4, 5, 0, 5),
-        (123, 2, 59, 4, 2, 0, 4),
-        (124, 2, 61, 4, 1, 0, 3),
-        (125, 2, 63, 4, 5, 0, 2),
-        (159, 2, 65, 4, 0, 0, 1),
-
-        (160, 4, 17, 93, 0, 0, 1),
-        (161, 4, 35, 93, 4, 0, 2),
-        (162, 4, 37, 93, 3, 0, 3),
-        (163, 4, 39, 93, 2, 0, 4),
-        (164, 4, 41, 93, 2, 0, 5),
-        (165, 4, 43, 93, 3, 0, 6),
-        (166, 4, 45, 93, 4, 0, 7),
-        (167, 4, 47, 93, 4, 0, 8),
-        (168, 4, 18, 94, 4, 0, 8),
-        (169, 4, 36, 94, 3, 0, 7),
-        (170, 4, 38, 94, 2, 0, 6),
-        (171, 4, 40, 94, 2, 0, 5),
-        (172, 4, 42, 94, 3, 0, 4),
-        (173, 4, 44, 94, 4, 0, 3),
-        (174, 4, 46, 94, 4, 0, 2),
-        (175, 4, 48, 94, 0, 0, 1),
-
-        (193, 3, 18, 5, 0, 0, 1),
-        (176, 3, 20, 5, 2, 0, 2),
-        (177, 3, 22, 5, 2, 0, 3),
-        (178, 3, 24, 5, 4, 0, 4),
-        (179, 3, 26, 5, 6, 0, 5),
-        (180, 3, 28, 5, 6, 0, 6),
-        (181, 3, 30, 5, 5, 0, 7),
-        (182, 3, 32, 5, 2, 0, 8),
-        (183, 3, 34, 5, 4, 0, 9),
-        (184, 3, 17, 6, 2, 0, 9),
-        (185, 3, 19, 6, 2, 0, 8),
-        (186, 3, 21, 6, 4, 0, 7),
-        (187, 3, 23, 6, 6, 0, 6),
-        (188, 3, 25, 6, 6, 0, 5),
-        (189, 3, 27, 6, 5, 0, 4),
-        (190, 3, 29, 6, 2, 0, 3),
-        (191, 3, 31, 6, 4, 0, 2),
-        (192, 3, 33, 6, 0, 0, 1),
-
-        (194, 10, 159, 100, 0, 0, 1),
-        (195, 10, 161, 100, 2, 0, 2),
-        (196, 10, 163, 100, 1, 0, 3),
-        (197, 10, 99, 100, 1, 0, 4),
-        (198, 10, 165, 100, 2, 0, 5),
-        (199, 10, 167, 100, 2, 0, 6),
-        (200, 10, 169, 100, 2, 0, 7),
-        (201, 10, 185, 100, 2, 0, 8),
-        (202, 10, 171, 100, 1, 0, 9),
-        (203, 10, 173, 100, 1, 0, 10),
-        (204, 10, 175, 100, 2, 0, 11),
-        (205, 10, 83, 100, 1, 0, 12),
-        (206, 10, 177, 100, 2, 0, 13),
-        (207, 10, 179, 100, 2, 0, 14),
-        (208, 10, 181, 100, 2, 0, 15),
-        (209, 10, 183, 100, 1, 0, 16),
-        (210, 10, 160, 101, 1, 0, 16),
-        (211, 10, 162, 101, 2, 0, 15),
-        (212, 10, 164, 101, 2, 0, 14),
-        (213, 10, 100, 101, 2, 0, 13),
-        (214, 10, 166, 101, 1, 0, 12),
-        (215, 10, 168, 101, 2, 0, 11),
-        (216, 10, 170, 101, 1, 0, 10),
-        (217, 10, 186, 101, 1, 0, 9),
-        (218, 10, 172, 101, 2, 0, 8),
-        (219, 10, 174, 101, 2, 0, 7),
-        (220, 10, 176, 101, 2, 0, 6),
-        (221, 10, 84, 101, 2, 0, 5),
-        (222, 10, 178, 101, 1, 0, 4),
-        (223, 10, 180, 101, 1, 0, 3),
-        (224, 10, 182, 101, 2, 0, 2),
-        (225, 10, 184, 101, 0, 0, 1);
-        `;
-
-const insertTimetableData = `
-    INSERT INTO timetable (id, route_number, departure_time)
-    VALUES
-        (37, 22, '22:02'),
-        (38, 23, '22:02'),
-        (39, 94, '19:08'),
-        (40, 94, '11:42'),
-        (44, 3, '5:05'),
-        (45, 3, '5:45'),
-        (46, 3, '6:25'),
-        (47, 3, '6:55'),
-        (48, 3, '6:40'),
-        (49, 3, '7:15'),
-        (50, 3, '7:30'),
-        (51, 3, '7:45'),
-        (52, 3, '8:00'),
-        (53, 3, '8:30'),
-        (54, 3, '9:00'),
-        (55, 3, '9:40'),
-        (56, 3, '10:20'),
-        (57, 3, '11:00'),
-        (58, 3, '11:40'),
-        (59, 3, '12:32'),
-        (60, 3, '13:00'),
-        (61, 3, '13:32'),
-        (62, 3, '14:00'),
-        (63, 3, '14:42'),
-        (64, 3, '15:10'),
-        (65, 3, '15:40'),
-        (66, 3, '16:10'),
-        (67, 3, '16:30'),
-        (68, 3, '16:50'),
-        (69, 3, '17:15'),
-        (70, 3, '17:35'),
-        (71, 3, '18:10'),
-        (72, 3, '19:00'),
-        (73, 3, '19:50'),
-        (74, 3, '20:30'),
-        (75, 3, '21:20'),
-        (76, 3, '23:02'),
-        (77, 4, '4:56'),
-        (78, 4, '5:30'),
-        (79, 4, '6:10'),
-        (80, 4, '6:30'),
-        (81, 4, '6:50'),
-        (82, 4, '7:10'),
-        (83, 4, '7:30'),
-        (84, 4, '7:55'),
-        (85, 4, '8:25'),
-        (86, 4, '8:55'),
-        (87, 4, '9:30'),
-        (88, 4, '10:10'),
-        (89, 4, '11:52'),
-        (90, 4, '12:41'),
-        (91, 4, '13:20'),
-        (92, 4, '13:49'),
-        (93, 4, '14:31'),
-        (94, 4, '15:02'),
-        (95, 4, '15:35'),
-        (96, 4, '16:05'),
-        (97, 4, '16:26'),
-        (98, 4, '16:47'),
-        (99, 4, '17:30'),
-        (100, 4, '18:03'),
-        (101, 4, '18:43'),
-        (102, 4, '19:14'),
-        (103, 4, '19:45'),
-        (104, 4, '20:15'),
-        (105, 4, '20:59'),
-        (106, 4, '21:44'),
-        (107, 4, '22:58'),
-        (108, 93, '5:10'),
-        (109, 93, '6:02'),
-        (110, 93, '7:02'),
-        (111, 93, '7:51'),
-        (112, 93, '8:50'),
-        (113, 93, '9:42'),
-        (114, 93, '10:28'),
-        (115, 93, '10:59'),
-        (116, 93, '11:43'),
-        (117, 93, '12:30'),
-        (118, 93, '13:01'),
-        (119, 93, '14:00'),
-        (120, 93, '14:30'),
-        (121, 93, '15:01'),
-        (122, 93, '15:31'),
-        (123, 93, '16:00'),
-        (124, 93, '16:13'),
-        (125, 93, '16:37'),
-        (126, 93, '16:44'),
-        (127, 93, '17:03'),
-        (128, 93, '17:33'),
-        (129, 93, '18:10'),
-        (130, 93, '18:40'),
-        (131, 93, '19:05'),
-        (132, 93, '19:25'),
-        (133, 93, '19:44'),
-        (134, 93, '20:15'),
-        (135, 93, '20:45'),
-        (136, 93, '21:20'),
-        (137, 93, '22:42'),
-        (138, 94, '4:51'),
-        (139, 94, '5:20'),
-        (140, 94, '5:59'),
-        (141, 94, '6:29'),
-        (142, 94, '7:01'),
-        (143, 94, '7:42'),
-        (144, 94, '8:20'),
-        (145, 94, '9:00'),
-        (146, 94, '9:47'),
-        (147, 94, '10:24'),
-        (148, 94, '11:02'),
-        (149, 94, '11:48'),
-        (150, 94, '12:36'),
-        (151, 94, '13:08'),
-        (152, 94, '13:48'),
-        (153, 94, '14:25'),
-        (154, 94, '14:55'),
-        (155, 94, '15:26'),
-        (156, 94, '16:01'),
-        (157, 94, '16:41'),
-        (158, 94, '17:24'),
-        (159, 94, '17:54'),
-        (160, 94, '18:27'),
-        (161, 94, '18:57'),
-        (162, 94, '19:27'),
-        (163, 94, '19:47'),
-        (164, 94, '20:07'),
-        (165, 94, '20:27'),
-        (166, 94, '20:47'),
-        (167, 94, '21:17'),
-        (168, 94, '21:50'),
-        (169, 94, '22:30'),
-        (170, 5, '5:50'),
-        (171, 5, '6:50'),
-        (172, 5, '7:31'),
-        (173, 5, '8:01'),
-        (174, 5, '9:40'),
-        (175, 5, '10:20'),
-        (176, 5, '11:00'),
-        (177, 5, '11:40'),
-        (178, 5, '12:20'),
-        (179, 5, '12:50'),
-        (181, 5, '13:31'),
-        (182, 5, '14:09'),
-        (183, 5, '14:49'),
-        (184, 5, '15:39'),
-        (185, 5, '16:19'),
-        (186, 5, '16:59'),
-        (187, 5, '17:39'),
-        (188, 5, '18:19'),
-        (189, 5, '19:10'),
-        (190, 5, '19:40'),
-        (191, 5, '20:30'),
-        (192, 5, '21:29'),
-        (193, 5, '22:29'),
-        (194, 5, '23:19'),
-        (195, 6, '5:40'),
-        (196, 6, '6:25'),
-        (197, 6, '7:04'),
-        (198, 6, '7:44'),
-        (199, 6, '8:22'),
-        (200, 6, '8:42'),
-        (201, 6, '9:13'),
-        (202, 6, '9:50'),
-        (203, 6, '10:20'),
-        (204, 6, '11:15'),
-        (205, 6, '12:01'),
-        (206, 6, '12:41'),
-        (207, 6, '13:21'),
-        (208, 6, '13:58'),
-        (209, 6, '14:34'),
-        (210, 6, '15:02'),
-        (211, 6, '15:41'),
-        (212, 6, '16:30'),
-        (213, 6, '17:08'),
-        (214, 6, '17:52'),
-        (215, 6, '18:38'),
-        (216, 6, '19:05'),
-        (217, 6, '19:55'),
-        (218, 6, '20:50'),
-        (219, 6, '22:02'),
-        (228, 22, '6:10'),
-        (229, 22, '6:20'),
-        (230, 22, '6:30'),
-        (231, 22, '6:40'),
-        (232, 22, '6:50'),
-        (233, 22, '7:00'),
-        (234, 22, '7:10'),
-        (235, 22, '7:20'),
-        (236, 22, '7:30'),
-        (237, 22, '7:40'),
-        (238, 22, '7:50'),
-        (239, 22, '8:00'),
-        (240, 22, '8:10'),
-        (241, 22, '14:30'),
-        (242, 22, '14:40'),
-        (243, 22, '14:50'),
-        (244, 22, '15:00'),
-        (245, 22, '15:10'),
-        (246, 22, '15:20'),
-        (247, 22, '15:30'),
-        (248, 22, '15:40'),
-        (249, 22, '15:50'),
-        (250, 22, '16:00'),
-        (251, 22, '16:10'),
-        (252, 22, '16:20'),
-        (253, 22, '16:30'),
-        (254, 22, '16:40'),
-        (255, 22, '16:50'),
-        (256, 22, '17:00'),
-        (257, 22, '17:10'),
-        (258, 23, '6:30'),
-        (259, 23, '6:40'),
-        (260, 23, '6:50'),
-        (261, 23, '7:00'),
-        (262, 23, '7:10'),
-        (263, 23, '7:20'),
-        (264, 23, '7:30'),
-        (265, 23, '7:40'),
-        (266, 23, '7:50'),
-        (267, 23, '8:00'),
-        (268, 23, '8:10'),
-        (269, 23, '8:20'),
-        (270, 23, '8:30'),
-        (271, 23, '14:40'),
-        (272, 23, '14:50'),
-        (273, 23, '15:00'),
-        (274, 23, '15:10'),
-        (275, 23, '15:20'),
-        (276, 23, '15:30'),
-        (277, 23, '15:40'),
-        (278, 23, '15:50'),
-        (279, 23, '16:00'),
-        (280, 23, '16:10'),
-        (281, 23, '16:20'),
-        (282, 23, '16:30'),
-        (283, 23, '16:40'),
-        (284, 23, '16:50'),
-        (285, 23, '17:00'),
-        (286, 23, '17:10'),
-        (287, 23, '17:20'),
-        (288, 23, '17:30'),
-        (289, 8, '5:50'),
-        (290, 8, '6:40'),
-        (291, 8, '7:30'),
-        (292, 8, '8:20'),
-        (293, 8, '9:10'),
-        (294, 8, '10:00'),
-        (295, 8, '10:50'),
-        (296, 8, '11:50'),
-        (297, 8, '12:40'),
-        (298, 8, '13:30'),
-        (299, 8, '14:20'),
-        (300, 8, '14:40'),
-        (301, 8, '15:10'),
-        (302, 8, '15:30'),
-        (303, 8, '16:00'),
-        (304, 8, '16:25'),
-        (305, 8, '16:50'),
-        (306, 8, '17:20'),
-        (307, 8, '17:50'),
-        (308, 8, '18:20'),
-        (309, 8, '18:40'),
-        (310, 8, '19:30'),
-        (311, 8, '20:20'),
-        (312, 8, '21:10'),
-        (313, 8, '22:00'),
-        (314, 8, '22:50'),
-        (315, 7, '5:20'),
-        (316, 7, '6:10'),
-        (317, 7, '7:00'),
-        (318, 7, '7:50'),
-        (319, 7, '8:40'),
-        (320, 7, '9:30'),
-        (321, 7, '10:20'),
-        (322, 7, '11:10'),
-        (323, 7, '12:00'),
-        (324, 7, '12:50'),
-        (325, 7, '13:40'),
-        (326, 7, '14:30'),
-        (327, 7, '15:20'),
-        (328, 7, '15:40'),
-        (329, 7, '16:10'),
-        (330, 7, '16:30'),
-        (331, 7, '16:50'),
-        (332, 7, '17:00'),
-        (333, 7, '17:50'),
-        (334, 7, '18:20'),
-        (335, 7, '18:40'),
-        (336, 7, '19:30'),
-        (337, 7, '20:20'),
-        (338, 7, '21:10'),
-        (339, 7, '22:00'),
-        (340, 7, '22:50'),
-        (341, 10, '7:10'),
-        (342, 10, '8:00'),
-        (343, 10, '8:50'),
-        (344, 10, '9:40'),
-        (345, 10, '10:30'),
-        (346, 10, '11:20'),
-        (347, 10, '12:10'),
-        (348, 10, '13:00'),
-        (349, 10, '13:30'),
-        (350, 10, '14:00'),
-        (351, 10, '14:30'),
-        (352, 10, '15:00'),
-        (353, 10, '15:30'),
-        (354, 10, '16:00'),
-        (355, 10, '16:30'),
-        (356, 10, '17:00'),
-        (357, 10, '17:30'),
-        (358, 10, '18:00'),
-        (359, 10, '18:30'),
-        (360, 10, '19:00'),
-        (361, 10, '19:30'),
-        (362, 10, '20:00'),
-        (363, 10, '20:50'),
-        (364, 10, '21:40'),
-        (365, 10, '22:30'),
-        (366, 9, '6:50'),
-        (367, 9, '7:40'),
-        (368, 9, '8:30'),
-        (369, 9, '9:20'),
-        (370, 9, '10:10'),
-        (371, 9, '11:00'),
-        (372, 9, '11:50'),
-        (373, 9, '12:40'),
-        (374, 9, '13:30'),
-        (375, 9, '14:00'),
-        (376, 9, '14:30'),
-        (377, 9, '15:00'),
-        (378, 9, '15:30'),
-        (379, 9, '16:00'),
-        (380, 9, '16:30'),
-        (381, 9, '17:00'),
-        (382, 9, '17:30'),
-        (383, 9, '18:00'),
-        (384, 9, '18:30'),
-        (385, 9, '19:00'),
-        (386, 9, '19:30'),
-        (387, 9, '20:00'),
-        (388, 9, '20:30'),
-        (389, 9, '21:20'),
-        (390, 9, '22:10'),
-        (391, 12, '4:50'),
-        (392, 12, '5:40'),
-        (393, 12, '6:30'),
-        (394, 12, '7:20'),
-        (395, 12, '8:10'),
-        (396, 12, '9:00'),
-        (397, 12, '9:50'),
-        (398, 12, '10:40'),
-        (399, 12, '11:40'),
-        (400, 12, '12:20'),
-        (401, 12, '13:10'),
-        (402, 12, '14:00'),
-        (403, 12, '14:50'),
-        (404, 12, '15:40'),
-        (405, 12, '16:40'),
-        (406, 12, '17:20'),
-        (407, 12, '18:10'),
-        (408, 12, '19:00'),
-        (409, 12, '19:50'),
-        (410, 12, '20:40'),
-        (411, 12, '21:40'),
-        (412, 12, '22:20'),
-        (413, 12, '23:10'),
-        (414, 11, '5:50'),
-        (415, 11, '6:40'),
-        (416, 11, '7:30'),
-        (417, 11, '8:20'),
-        (418, 11, '9:00'),
-        (419, 11, '9:50'),
-        (420, 11, '10:50'),
-        (421, 11, '11:40'),
-        (422, 11, '12:30'),
-        (423, 11, '13:20'),
-        (424, 11, '14:00'),
-        (425, 11, '14:50'),
-        (426, 11, '15:50'),
-        (427, 11, '16:40'),
-        (428, 11, '17:30'),
-        (429, 11, '18:20'),
-        (430, 11, '19:00'),
-        (431, 11, '19:50'),
-        (432, 11, '20:50'),
-        (433, 11, '21:40'),
-        (434, 11, '22:30'),
-        (435, 11, '23:20'),
-        (436, 91, '4:45'),
-        (437, 91, '5:30'),
-        (438, 91, '6:15'),
-        (439, 91, '7:00'),
-        (440, 91, '7:45'),
-        (441, 91, '8:45'),
-        (442, 91, '9:30'),
-        (443, 91, '10:15'),
-        (444, 91, '11:00'),
-        (445, 91, '11:45'),
-        (446, 91, '12:45'),
-        (447, 91, '13:30'),
-        (448, 91, '14:15'),
-        (449, 91, '15:00'),
-        (450, 91, '15:45'),
-        (451, 91, '16:45'),
-        (452, 91, '17:30'),
-        (453, 91, '18:15'),
-        (454, 91, '19:00'),
-        (455, 91, '19:45'),
-        (456, 91, '20:45'),
-        (457, 91, '21:30'),
-        (458, 91, '22:15'),
-        (459, 91, '23:00'),
-        (460, 90, '4:15'),
-        (461, 90, '5:00'),
-        (462, 90, '5:45'),
-        (463, 90, '6:30'),
-        (464, 90, '7:15'),
-        (465, 90, '8:00'),
-        (466, 90, '8:45'),
-        (467, 90, '9:30'),
-        (468, 90, '10:15'),
-        (469, 90, '11:00'),
-        (470, 90, '11:45'),
-        (471, 90, '12:30'),
-        (472, 90, '13:15'),
-        (473, 90, '14:00'),
-        (474, 90, '14:45'),
-        (475, 90, '15:30'),
-        (476, 90, '16:15'),
-        (477, 90, '17:00'),
-        (478, 90, '17:45'),
-        (479, 90, '18:30'),
-        (480, 90, '19:15'),
-        (481, 90, '20:00'),
-        (482, 90, '20:45'),
-        (483, 90, '21:30'),
-        (484, 90, '22:15'),
-        (485, 100, '4:55'),
-        (486, 100, '5:40'),
-        (487, 100, '6:25'),
-        (488, 100, '7:10'),
-        (489, 100, '7:55'),
-        (490, 100, '8:40'),
-        (491, 100, '9:25'),
-        (492, 100, '10:10'),
-        (493, 100, '10:55'),
-        (494, 100, '11:40'),
-        (495, 100, '12:25'),
-        (496, 100, '13:10'),
-        (497, 100, '13:55'),
-        (498, 100, '14:40'),
-        (499, 100, '15:25'),
-        (500, 100, '16:10'),
-        (501, 100, '16:55'),
-        (502, 100, '17:40'),
-        (503, 100, '18:25'),
-        (504, 100, '19:10'),
-        (505, 100, '19:55'),
-        (506, 100, '20:40'),
-        (507, 100, '21:25'),
-        (508, 100, '22:10'),
-        (509, 100, '22:55'),
-        (510, 100, '23:40'),
-        (511, 101, '4:50'),
-        (512, 101, '5:35'),
-        (513, 101, '6:20'),
-        (514, 101, '7:05'),
-        (515, 101, '7:50'),
-        (516, 101, '8:35'),
-        (517, 101, '9:20'),
-        (518, 101, '10:05'),
-        (519, 101, '10:50'),
-        (520, 101, '11:35'),
-        (521, 101, '12:20'),
-        (522, 101, '13:05'),
-        (523, 101, '13:50'),
-        (524, 101, '14:35'),
-        (525, 101, '15:20'),
-        (526, 101, '16:05'),
-        (527, 101, '16:50'),
-        (528, 101, '17:35'),
-        (529, 101, '18:20'),
-        (530, 101, '19:05'),
-        (531, 101, '19:50'),
-        (532, 101, '20:35'),
-        (533, 101, '21:20'),
-        (534, 101, '22:05'),
-        (535, 101, '22:50'),
-        (536, 101, '23:35');
+    CREATE INDEX refresh_tokens_user_id_index ON refresh_tokens(user_id);
+    CREATE INDEX refresh_tokens_token_index ON refresh_tokens(token);
 `;
 
 let poolPromise;
 
 const getPool = () => {
   if (!poolPromise) {
-    poolPromise = new sql.ConnectionPool(config)
+    poolPromise = new sql.ConnectionPool(config.database)
       .connect()
       .then((pool) => {
         console.log("Connected to SQL Server");
@@ -1013,90 +161,56 @@ const getPool = () => {
       })
       .catch((err) => {
         console.error("Database Connection Failed! Bad Config: ", err);
-        poolPromise = null; // Reset poolPromise to allow retrying connection
+        poolPromise = null;
         throw err;
       });
   }
   return poolPromise;
 };
 
-const executeQuery = async (query, callback) => {
-  console.log("Executing query:", query.split("\n")[1].trim());
+const executeQuery = async (query) => {
   try {
     const pool = await getPool();
     const result = await pool.request().query(query);
     console.log("Query executed successfully.");
-    if (callback) callback(null, result);
+    return result;
   } catch (err) {
     console.error("Error executing query:", err);
-    if (callback) callback(err, null);
+    throw err;
   }
 };
 
-const initializeTables = () => {
-  executeQuery(dropTables, (err) => {
-    if (!err) {
-      executeQuery(createLineTypesTable, (err) => {
-        if (!err) {
-          executeQuery(createTransportStopsTable, (err) => {
-            if (!err) {
-              executeQuery(createNewsTable, (err) => {
-                if (!err) {
-                  executeQuery(createTransportLinesTable, (err) => {
-                    if (!err) {
-                      executeQuery(createRoutesTable, (err) => {
-                        if (!err) {
-                          executeQuery(createTimetableTable, (err) => {
-                            if (!err) {
-                              executeQuery(insertLineTypesData, (err) => {
-                                if (!err) {
-                                  executeQuery(
-                                    insertTransportStopsData,
-                                    (err) => {
-                                      if (!err) {
-                                        executeQuery(
-                                          insertTransportLinesData,
-                                          (err) => {
-                                            if (!err) {
-                                              executeQuery(
-                                                insertRoutesData,
-                                                (err) => {
-                                                  if (!err) {
-                                                    executeQuery(
-                                                      insertTimetableData,
-                                                      (err) => {
-                                                        if (!err) {
-                                                          executeQuery(
-                                                            insertNewsData
-                                                          );
-                                                        }
-                                                      }
-                                                    );
-                                                  }
-                                                }
-                                              );
-                                            }
-                                          }
-                                        );
-                                      }
-                                    }
-                                  );
-                                }
-                              });
-                            }
-                          });
-                        }
-                      });
-                    }
-                  });
-                }
-              });
-            }
-          });
-        }
-      });
-    }
-  });
+const initializeTables = async () => {
+  try {
+    console.log("🔹 Dropping existing tables...");
+    await executeQuery(dropTables);
+    await executeQuery(createLineTypeTable);
+    console.log("🔹 Finished createLineTypeTable...");
+    await executeQuery(createStopGroupTable);
+    console.log("🔹 Finished createStopGroupTable...");
+    await executeQuery(createLineTable);
+    console.log("🔹 Finished createLineTable...");
+    await executeQuery(createStopTable);
+    console.log("🔹 Finished createStopTable...");
+    await executeQuery(createRouteTable);
+    console.log("🔹 Finished createRouteTable...");
+    await executeQuery(createFullRouteTable);
+    console.log("🔹 Finished createFullRouteTable...");
+    await executeQuery(createDepartureRouteTable);
+    console.log("🔹 Finished createDepartureRouteTable...");
+    await executeQuery(createAdditionalStopTable);
+    console.log("🔹 Finished createAdditionalStopTable...");
+    await executeQuery(createTimetableTable);
+    console.log("🔹 Finished createTimetableTable...");
+    await executeQuery(createNewsTable);
+    console.log("🔹 Finished createNewsTable...");
+    await executeQuery(createRefreshTokensTable);
+    console.log("🔹 Finished createRefreshTokensTable...");
+
+    console.log("🔹 Database initialization completed successfully.");
+  } catch (err) {
+    console.error("Error initializing database:", err);
+  }
 };
 
 initializeTables();

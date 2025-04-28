@@ -1,61 +1,85 @@
-.StopGroup {
-  .map {
-    width: calc(100% - 75px);
-    height: 300px;
-    background-color: #facf00;
-    position: relative;
+.StopGroup .map {
+  width: calc(100% - 75px);
+  height: 300px;
+  background-color: #facf00;
+}
+
+.StopGroup h1,
+.StopGroup h4 {
+  margin-top: 0;
+}
+
+.StopGroup h3 {
+  margin-bottom: 10px;
+}
+
+.StopGroup .stopContainer {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  justify-content: flex-start; /* Align items to the start */
+}
+
+.StopGroup .stop {
+  flex: 0 0 calc(50% - 8px); /* Don't grow, don't shrink, exactly 50% - half the gap */
+  max-width: calc(50% - 8px); /* Ensure max width is respected */
+  min-width: 300px;
+  box-sizing: border-box;
+}
+
+.StopGroup .stop .route {
+  display: flex;
+  flex-direction: row;
+  margin-bottom: 5px;
+}
+
+.StopGroup .stop .route > div:first-child,
+.StopGroup .stop .route > .line-name {
+  width: 10%;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.StopGroup .stop .route .line-name {
+  position: relative;
+  margin-left: 10px;
+}
+
+.StopGroup .stop .route .type-color {
+  position: absolute;
+  width: 4px;
+  height: 22px;
+  left: -7px;
+}
+
+.StopGroup .stop .route > div:nth-child(2) {
+  width: 50%;
+}
+
+.StopGroup .stop .route > div:last-child {
+  flex-grow: 1;
+}
+
+.StopGroup .future-departure {
+  opacity: 0.7;
+}
+
+.StopGroup .stop .route div:nth-child(2) a.destination-link {
+  color: #056b89;
+}
+
+.StopGroup .stop .route div:nth-child(2) a.destination-link:hover {
+  color: #009788;
+}
+
+@media only screen and (max-width: 1200px) {
+  .StopGroup .stop {
+    flex: 0 0 100%;
+    max-width: 100%;
+    width: 100%;
   }
-
-  h1 {
-    margin-top: 0;
-  }
-
-  .map::after {
-    content: 'tu kiedys MOZE bedzie mapa';
-    font-size: 2rem;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(45deg);
-  }
-
-  .stop {
-    width: 50%;
-    float: left;
-
-    .route {
-      display: flex;
-      flex-direction: row;
-      margin-bottom: 5px;
-
-      :first-child {
-        width: 10%;
-        font-weight: 700;
-      }
-
-      :nth-child(2) {
-        width: 50%;
-        > a {
-          color: #056b89;
-        }
-
-        a:hover {
-          color: #009788;
-        }
-      }
-
-      :last-child {
-        flex-grow: 1;
-      }
-    }
-  }
-
-  @media only screen and (max-width: 1200px) {
-    .stop {
-      width: 100%;
-    }
-    .stop:first-of-type {
-      margin-bottom: 20px;
-    }
+  .StopGroup .stop:first-of-type {
+    margin-bottom: 20px;
   }
 }

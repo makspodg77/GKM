@@ -7,8 +7,25 @@
     margin-bottom: 0;
   }
 
+  .stopName {
+    position: relative;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
   .nextDeparture {
     color: #056b89;
+  }
+
+  .type-color {
+    position: absolute;
+    width: 3px;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 20px;
+    left: -7px;
   }
 
   .nextDeparture:hover {
@@ -21,37 +38,52 @@
 
   .lineType {
     font-weight: 700;
-    margin-bottom: 20px;
+    position: relative;
+    margin-left: 8px;
+    margin-bottom: 5px;
   }
 
   button {
     border: 0;
     background-color: #056b89;
     color: white;
-    display: flex;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 10px;
-    margin-top: 20px;
-    padding: 10px;
+    display: grid;
+    place-content: center;
+    padding: 7px;
     cursor: pointer;
     font-size: 1rem;
     transition: 0.15s ease-in-out all;
   }
-
+  .buttonContainer {
+    display: flex;
+    position: absolute;
+    right: 0;
+    gap: 15px;
+    margin-left: auto; /* Push to the right edge */
+  }
   button:hover {
     background-color: #009788;
   }
 
   .otherLine {
     display: inline;
-    margin-left: 5px;
+    position: relative;
+    margin-left: 15px;
     color: #056b89;
     text-decoration: underline;
   }
 
   .bold {
     font-weight: 700;
+  }
+
+  .finalStops {
+    font-weight: 700;
+  }
+
+  .mapWrapper {
+    width: 100%;
+    margin: 10px 0;
   }
 
   table {
@@ -66,6 +98,16 @@
     td,
     th {
       min-width: (100% / 20);
+      position: relative;
+      a {
+        text-decoration: none !important;
+      }
+    }
+    .signature {
+      position: absolute;
+      font-size: 14px;
+      top: -3px;
+      right: 2px;
     }
   }
   .left {
@@ -94,14 +136,15 @@
       .totalTravelTime {
         width: 25px;
         font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
       .stopOther {
         width: 25px;
         height: 100%;
         display: flex;
-        flex-direction: column;
-        justify-content: center;
         align-items: center;
       }
 
@@ -114,11 +157,20 @@
       }
 
       .stopName {
-        display: flex;
-        align-items: center;
+        img {
+          width: 15px;
+        }
+        a {
+          display: flex;
+          align-items: center;
+          justify-content: flex-start;
+          gap: 8px;
+        }
+
         flex-grow: 1;
         width: max-content;
         text-align: left;
+
         text-decoration: underline;
         padding-right: 5px;
         color: #056b89;
@@ -130,9 +182,6 @@
     }
 
     > div:first-child {
-      gap: 10px;
-      margin: 0 0 10px 0;
-
       button {
         margin: 0 0 0 0;
         padding: 10px;
@@ -173,12 +222,14 @@
   th,
   td {
     width: 35px;
-    text-align: center;
+    text-align: left;
     border: 1px solid #d0d0d0;
     line-height: 20px;
     vertical-align: top;
   }
-
+  th {
+    text-align: center;
+  }
   @media only screen and (max-width: 1200px) {
     .left {
       width: 100%;

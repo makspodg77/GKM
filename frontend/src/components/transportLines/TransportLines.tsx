@@ -12,7 +12,7 @@ const TransportLines = () => {
 
   useEffect(() => {
     setLoading(true);
-    service.getTransportLines().then((data) => {
+    service.getLinesRoutes().then((data) => {
       console.log(data);
       setTransportLines(data);
       setLoading(false);
@@ -28,25 +28,30 @@ const TransportLines = () => {
         {Object.keys(transportLines).map((lineType: string) => (
           <li key={lineType}>
             <h2>{lineType}</h2>
-            {Object.keys(transportLines[lineType]).map((lineName: string) => (
-              <div className="line-container" key={lineName}>
-                <div>{lineName}</div>
-                <div>
-                  <span className="finalStops">
-                    {transportLines[lineType][lineName].at(0)?.stop_name} ↔{' '}
-                    {transportLines[lineType][lineName].at(-1)?.stop_name}
-                  </span>
-                  {transportLines[lineType][lineName].map((stopName) => (
-                    <span key={stopName.stop_name}>
-                      {stopName.stop_name}
-                      {transportLines[lineType][lineName].at(-1) != stopName
-                        ? ' - '
-                        : ''}{' '}
-                    </span>
-                  ))}
+            {Object.keys(transportLines[lineType])
+              .filter((line) => Array.isArray(transportLines[lineType][line]))
+              .map((lineName: string) => (
+                <div className="line-container" key={lineName}>
+                  <div style={{ background: transportLines[lineType].color }}>
+                    {lineName}
+                  </div>
+                  <div>
+                    {transportLines[lineType][lineName].map((line) => (
+                      <>
+                        <span className="finalStops">
+                          {line.first_stop} ↔ {line.last_stop}
+                        </span>
+                        {line.streets.map((stopName) => (
+                          <span key={stopName}>
+                            {stopName}
+                            {line.streets.at(-1) != stopName ? ' - ' : ''}{' '}
+                          </span>
+                        ))}
+                      </>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </li>
         ))}
       </ul>

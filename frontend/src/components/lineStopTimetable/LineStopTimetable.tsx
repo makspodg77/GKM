@@ -4,28 +4,39 @@ import { useParams, Link } from 'react-router-dom';
 import service, { DepartureTime } from '../../services/db';
 import displayIcon from '../../assets/tablica.png';
 import MiniRealTimeDepartures from '../miniRealTimeDepartures/MiniRealTimeDepartures';
-import returnIcon from '../../assets/przeciwny_kierunek.png';
-import allIcon from '../../assets/wszystkie_trasy.png';
 import LoadingScreen from '../common/loadingScreen/LoadingScreen';
+import firstIcon from '../../assets/first.png';
+import optionalIcon from '../../assets/optional.png';
+import lastIcon from '../../assets/last.png';
+import routeIcon from '../../assets/route.svg';
+import locationIcon from '../../assets/location.svg';
+import SingleStopMap from '../singleStopMap/SingleStopMap';
+import onRequestIcon from '../../assets/on_request.png';
 
 const LineStopTimetable = () => {
-  const { lineId, stopId, routeId } = useParams<{
-    lineId: string;
-    stopId: string;
+  const { routeId, stopNumber } = useParams<{
+    stopNumber: string;
     routeId: string;
   }>();
   const [loading, setLoading] = useState<boolean>(true);
-  const [departureTimes, setDepartureTimes] = useState<
-    { departure_time: string; departure_id: number }[][]
-  >([]);
+  const [departureTimes, setDepartureTimes] = useState<{
+    [hour: string]: {
+      departure_time: string;
+      signature: string;
+      color: string;
+      timetable_id: string;
+      route_id: string;
+    }[];
+  }>({});
   const [nextDeparture, setNextDeparture] = useState<{
     departure_id: number;
     departure_time: string;
+    isToday?: boolean;
   } | null>(null);
   const [countdown, setCountdown] = useState<string | null>(null);
   const [timetable, setTimetable] = useState<DepartureTime | null>(null);
   const intervalsRef2 = useRef<NodeJS.Timeout[]>([]);
-
+  const [isStopShow, setIsStopShown] = useState(false);
   let travelTime = 0;
   interface departureType {
     departure_time: string;
@@ -38,113 +49,206 @@ const LineStopTimetable = () => {
       .map((time) => parseInt(time));
     const departure = new Date();
     departure.setHours(hours, minutes, 0, 0);
+
     let diffMs = departure.getTime() - now.getTime();
-    if (diffMs < 0) {
+
+    // If the departure is tomorrow (not today)
+    if (!departureTime.isToday) {
+      departure.setDate(departure.getDate() + 1);
+      diffMs = departure.getTime() - now.getTime();
+    } else if (diffMs < 0) {
+      // If it's negative but within 1 minute, consider it as "now"
+      if (diffMs > -60000) {
+        // within 1 minute in the past
+        return 0; // Return 0 to indicate "teraz"
+      }
+      // Otherwise, it must be tomorrow
       departure.setDate(departure.getDate() + 1);
       diffMs = departure.getTime() - now.getTime();
     }
+
     const diffMinutes = Math.round(diffMs / 60000);
     return diffMinutes;
   };
 
   const Sort = (data: departureType[]) => {
-    data = data.sort((a, b) => {
+    data = [...data].sort((a, b) => {
       const [hoursA, minutesA] = a.departure_time.split(':').map(Number);
       const [hoursB, minutesB] = b.departure_time.split(':').map(Number);
-      const dateA = new Date(1970, 0, 1, hoursA, minutesA);
-      const dateB = new Date(1970, 0, 1, hoursB, minutesB);
-
-      if (dateA.getTime() > dateB.getTime()) return 1;
-      if (dateA.getTime() < dateB.getTime()) return -1;
-      return 0;
+      return hoursA * 60 + minutesA - (hoursB * 60 + minutesB);
     });
     return data;
+  };
+
+  // Function to handle already formatted departures by hour
+  const organizeDeparturesByHour = (departures: {
+    [hour: string]: {
+      departure_time: string;
+      signature: string;
+      color: string;
+      timetable_id: string;
+      route_id: string;
+    }[];
+  }) => {
+    if (
+      departures &&
+      typeof departures === 'object' &&
+      !Array.isArray(departures)
+    ) {
+      return departures;
+    }
+
+    if (Array.isArray(departures)) {
+      const departuresByHour: { [hour: string]: any[] } = {};
+
+      departures.forEach((departure) => {
+        const [hours, minutes] = departure.departure_time
+          .split(':')
+          .map(Number);
+
+        // Create hour key
+        const hourKey = hours.toString();
+
+        if (!departuresByHour[hourKey]) {
+          departuresByHour[hourKey] = [];
+        }
+
+        departuresByHour[hourKey].push({
+          departure_time: minutes.toString().padStart(2, '0'),
+          signature: departure.signature,
+          color: departure.color,
+          timetable_id: departure.departure_id.toString(),
+          route_id: departure.route_id,
+        });
+      });
+
+      return departuresByHour;
+    }
+
+    // If it's neither an object nor array, return empty object
+    console.error('Invalid departures format:', departures);
+    return {};
+  };
+
+  // Function to flatten hour-based departures back to a list
+  const flattenDepartures = (departuresByHour: {
+    [hour: string]: any[];
+  }): any[] => {
+    const flatList: any[] = [];
+
+    Object.keys(departuresByHour).forEach((hour) => {
+      departuresByHour[hour]?.forEach((departure) => {
+        flatList.push({
+          departure_time: `${hour.padStart(2, '0')}:${departure.departure_time}`,
+          departure_id: departure.timetable_id,
+          signature: departure.signature,
+          color: departure.color,
+          route_id: departure.route_id,
+        });
+      });
+    });
+
+    return Sort(flatList);
   };
 
   useEffect(() => {
     intervalsRef2.current.forEach((interval) => clearInterval(interval));
     intervalsRef2.current = [];
+
     if (nextDeparture) {
       const updateCountdown = () => {
         const newTimeDiff = calculateTimeDifference(nextDeparture);
         setCountdown(newTimeDiff.toString());
 
+        // If current time is past the departure time (including the 1-minute grace period)
         if (newTimeDiff <= 0) {
+          // If it's exactly 0, wait 60 seconds before checking for the next departure
+          const delayBeforeNextDeparture = newTimeDiff === 0 ? 60000 : 1000;
+
           setTimeout(() => {
-            const nextTime = nearestDepartureTime(
-              Sort(timetable!.departure_times)
-            );
+            // We need to re-flatten the departures here
+            const flattenedDepartures = flattenDepartures(departureTimes);
+            const nextTime = nearestDepartureTime(flattenedDepartures);
             setNextDeparture(nextTime);
-          }, 60000);
+          }, delayBeforeNextDeparture);
         }
       };
 
       updateCountdown();
-      const interval = setInterval(updateCountdown, 60000);
+      const interval = setInterval(updateCountdown, 15000); // Check more frequently (every 15 seconds)
       intervalsRef2.current.push(interval);
     }
+
     return () => {
       intervalsRef2.current.forEach((interval) => clearInterval(interval));
       intervalsRef2.current = [];
     };
-  }, [nextDeparture, timetable]);
+  }, [nextDeparture, departureTimes]);
 
   const nearestDepartureTime = (departureTimes: departureType[]) => {
+    if (!departureTimes || departureTimes.length === 0) {
+      return null;
+    }
+
     const now = new Date();
     now.setSeconds(0, 0);
+
+    // First, check for departures later today
     for (const time of departureTimes) {
       const [hours, minutes] = time.departure_time.split(':').map(Number);
       const departureTime = new Date();
       departureTime.setHours(hours, minutes, 0, 0);
 
       if (departureTime > now) {
-        return time;
+        return {
+          ...time,
+          isToday: true,
+        };
       }
     }
-    return departureTimes[0];
+
+    // If we get here, there are no more departures today
+    // Return the first departure for tomorrow
+    return {
+      ...departureTimes[0],
+      isToday: false,
+    };
   };
 
   useEffect(() => {
     setLoading(true);
-    if (!lineId || !stopId || !routeId) {
+    if (!stopNumber || !routeId) {
       return;
     }
     service
-      .getDepartureTimes(stopId, routeId)
+      .getLineStop(routeId, stopNumber)
       .then((data) => {
+        console.log(data);
         setTimetable(data);
-        setNextDeparture(nearestDepartureTime(Sort(data.departure_times)));
-        setDepartureTimes(groupDepartureTimes(data.departure_times));
+
+        const departuresByHour = organizeDeparturesByHour(data.departures);
+        setDepartureTimes(departuresByHour);
+
+        // Use the flattened list to find the nearest departure
+        const flattenedDepartures = flattenDepartures(departuresByHour);
+        setNextDeparture(nearestDepartureTime(flattenedDepartures));
+
         setLoading(false);
       })
       .catch((error) => {
         console.error('Error fetching route:', error);
         setLoading(false);
       });
-  }, [lineId, stopId, routeId]);
-
-  const groupDepartureTimes = (departureTimes: departureType[]) => {
-    const groupedDepartureTimes: any[][] = [];
-    for (let i = 0; i <= 24; i++) {
-      groupedDepartureTimes.push([]);
-    }
-    departureTimes.forEach((time) => {
-      const hour = parseInt(time.departure_time.split(':')[0]);
-      groupedDepartureTimes[hour].push({
-        departure_time: time.departure_time.split(':')[1],
-        departure_id: time.departure_id,
-      });
-    });
-    return groupedDepartureTimes;
-  };
+  }, [stopNumber, routeId]);
 
   if (loading) {
     return <LoadingScreen />;
   }
 
   let condition = Number(
-    timetable?.stops.find((obj) => obj.stop_id == stopId)?.stop_number
+    timetable?.stops.find((obj) => obj.stop_number == stopNumber)?.stop_number
   );
+
   const selected = { backgroundColor: '#009788', color: 'white' };
   const fromHour = 4;
   const toHour = 23;
@@ -152,13 +256,51 @@ const LineStopTimetable = () => {
   return (
     <div className="LineStopTimetable">
       <div className="left">
-        <h1>Rozkład jazdy linii {timetable?.line_name}</h1>
-        <div className="lineType">{timetable?.line_type_name}</div>
-        <div>
-          <span className="bold">Przystanek</span>: {timetable?.stop_name}
+        <h1>Rozkład jazdy linii {timetable?.line.name}</h1>
+        <div className="lineType">
+          <div
+            className="type-color"
+            style={{ backgroundColor: timetable?.line.color }}
+          ></div>
+          {timetable?.line.name_singular}
+        </div>
+        <div className="stopName">
+          <div className="buttonContainer">
+            <button
+              onClick={() => setIsStopShown(!isStopShow)}
+              title="Lokalizacja przystanku"
+            >
+              <img src={locationIcon} width="20px"></img>
+            </button>
+            <Link
+              to={`/rozklad-jazdy-wedlug-linii/${timetable?.line.id}`}
+              title="Pozostałe trasy tej linii"
+            >
+              <button>
+                <img src={routeIcon} width="20px"></img>
+              </button>
+            </Link>
+          </div>
+          <span>
+            <span className="bold">Przystanek</span>: {timetable?.stop.name} (
+            {timetable?.stop.stop_group_id}/{timetable?.stop.stop_id})
+          </span>
+        </div>
+        <div
+          className="mapWrapper"
+          style={{ display: isStopShow ? 'block' : 'none' }}
+        >
+          <SingleStopMap
+            coordinates={timetable.stop.map || '14.77, 53.46'}
+            name={timetable.stop.name}
+            street={timetable.stop.street}
+            stopId={timetable.stop.stop_id}
+            color="#e74c3c"
+          />
         </div>
         <div>
-          <span className="bold">Kierunek</span>: {timetable?.last_stop_name}
+          <span className="bold">Kierunek</span>:{' '}
+          {timetable?.last_stops.join(' lub ')}
         </div>
         <div>
           {Array.isArray(timetable?.other_lines) &&
@@ -169,13 +311,14 @@ const LineStopTimetable = () => {
                   {timetable.other_lines.map((line) => (
                     <Link
                       key={line.route_number}
-                      to={`/rozklad-jazdy-wedlug-linii/${line.line_name}/${stopId}/${line.route_number}`}
+                      to={`/rozklad-jazdy-wedlug-linii/${line.route_id}/${line.stop_number}`}
                     >
-                      <div
-                        className="otherLine nextDeparture"
-                        key={line.line_name}
-                      >
-                        {line.line_name}
+                      <div className="otherLine nextDeparture" key={line.name}>
+                        <div
+                          className="type-color"
+                          style={{ backgroundColor: line.color }}
+                        ></div>
+                        {line.name}
                       </div>
                     </Link>
                   ))}
@@ -185,29 +328,35 @@ const LineStopTimetable = () => {
         </div>
         <div>
           <span className="bold">Najbliższy odjazd</span>:{' '}
-          {countdown && Number(countdown) > 0 ? (
-            <>
-              <Link
-                className="nextDeparture"
-                to={`/rozklad-jazdy-wedlug-linii/kurs/${nextDeparture?.departure_id}/${stopId}`}
-              >
-                {nextDeparture?.departure_time}
-              </Link>
-              {` (za ${countdown} minut)`}
-            </>
+          {nextDeparture ? (
+            countdown && Number(countdown) > 0 ? (
+              <>
+                <Link
+                  className="nextDeparture"
+                  to={`/rozklad-jazdy-wedlug-linii/kurs/${nextDeparture.departure_id}`}
+                >
+                  {nextDeparture.departure_time}
+                </Link>
+                {nextDeparture.isToday
+                  ? ` (za ${countdown} minut)`
+                  : ` (za ${countdown} minut, jutro)`}
+              </>
+            ) : (
+              <>
+                <Link
+                  className="nextDeparture"
+                  to={`/rozklad-jazdy-wedlug-linii/kurs/${nextDeparture.departure_id}`}
+                >
+                  {nextDeparture.departure_time}
+                </Link>{' '}
+                (teraz)
+              </>
+            )
           ) : (
-            <>
-              <Link
-                className="nextDeparture"
-                to={`/rozklad-jazdy-wedlug-linii/kurs/${nextDeparture?.departure_id}/${stopId}`}
-              >
-                {nextDeparture?.departure_time}
-              </Link>{' '}
-              (teraz)
-            </>
+            'Brak odjazdu'
           )}
         </div>
-        <MiniRealTimeDepartures id={stopId!} />
+        <MiniRealTimeDepartures id={timetable?.stop.stop_id} />
         <div className="table-container">
           <table>
             <thead>
@@ -219,73 +368,89 @@ const LineStopTimetable = () => {
             </thead>
             <tbody>
               <tr>
-                {Array.from({ length: toHour - fromHour + 1 }, (_, index) => (
-                  <td key={index}>
-                    <div>
-                      {departureTimes[fromHour + index]?.map((time) => (
-                        <Link
-                          key={time.departure_id}
-                          to={`/rozklad-jazdy-wedlug-linii/kurs/${time.departure_id}/${stopId}`}
-                        >
-                          <div
-                            style={
-                              (fromHour + index < 10
-                                ? '0'.concat((fromHour + index).toString())
-                                : fromHour + index
-                              )
-                                .toString()
-                                .concat(':'.concat(time.departure_time)) ===
-                              nextDeparture?.departure_time
-                                ? { backgroundColor: '#FACF00' }
-                                : {}
-                            }
+                {Array.from({ length: toHour - fromHour + 1 }, (_, index) => {
+                  const hour = (fromHour + index).toString();
+                  return (
+                    <td key={index}>
+                      <div>
+                        {departureTimes[hour]?.map((time) => (
+                          <Link
+                            key={time.timetable_id}
+                            to={`/rozklad-jazdy-wedlug-linii/kurs/${timetable.line.id}/${time.timetable_id}/${timetable.stop.stop_number}`}
                           >
-                            {time.departure_time}
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  </td>
-                ))}
+                            <div
+                              style={{
+                                backgroundColor:
+                                  `${hour.padStart(2, '0')}:${time.departure_time}` ===
+                                  nextDeparture?.departure_time
+                                    ? '#FACF00'
+                                    : '',
+                                color:
+                                  time.color !== '#3498db'
+                                    ? time.color
+                                    : 'inherit',
+                              }}
+                            >
+                              {time.departure_time}
+                              {time.signature != 'Podstawowy' ? (
+                                <div className="signature">
+                                  {time.signature}
+                                </div>
+                              ) : (
+                                <></>
+                              )}
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </td>
+                  );
+                })}
               </tr>
             </tbody>
           </table>
         </div>
-        Operator: PKS Kamień Pomorski
+        {timetable.signatures.length > 1 ||
+        !timetable.signatures.find(
+          (signature) => signature.signature == 'Podstawowy'
+        ) ? (
+          <>
+            <span className="bold">Objaśnienia:</span>
+            <div>
+              {timetable.signatures
+                .filter((signature) => signature.signature != 'Podstawowy')
+                .map((signature) => (
+                  <div style={{ color: signature.color }}>
+                    {signature.signature +
+                      '  ' +
+                      signature.signature_explanation}
+                  </div>
+                ))}
+            </div>
+          </>
+        ) : (
+          <></>
+        )}
+        <br /> Operator: PKS Kamień Pomorski
       </div>
       <div className="right">
-        <div>
-          <Link
-            to={`/rozklad-jazdy-wedlug-linii/${timetable?.line_name}/${timetable?.other_way_stop_id[0].id}/${timetable?.other_way_stop_id[0].route_number}`}
-          >
-            <button>
-              <img src={returnIcon} width="20px"></img>
-              <div>
-                rozkład jazdy dla przeciwnego kierunku<div></div>
-              </div>
-            </button>
-          </Link>
-          <Link to={`/rozklad-jazdy-wedlug-linii/${timetable?.line_name}`}>
-            <button>
-              <img src={allIcon} width="20px"></img>
-              <div>
-                wszystkie trasy tej linii<div></div>
-              </div>
-            </button>
-          </Link>
-        </div>
         {timetable?.stops.map((stop, index) => (
           <div key={index}>
-            <Link to={`/zespol-przystankowy/${stop.stop_id}`}>
+            <Link
+              to={`/zespol-przystankowy/${stop.stop_group_id}`}
+              title="wszystkie linie zatrzymujące sie przy tym zespole przystankowym"
+            >
               <div className="stopOther">
                 <img width="75%" src={displayIcon} />
               </div>
             </Link>
             <div
               className="totalTravelTime"
-              style={index + 1 >= condition ? selected : {}}
+              style={
+                index + 1 >= condition && !stop.is_optional ? selected : {}
+              }
             >
-              {index >= condition
+              {index >= condition && !stop.is_optional
                 ? (travelTime = travelTime + Number(stop.travel_time))
                 : ''}
             </div>
@@ -293,7 +458,7 @@ const LineStopTimetable = () => {
               className="travelTime"
               style={index + 1 == condition ? selected : {}}
             >
-              {stop.travel_time}
+              {stop.is_optional ? <></> : stop.travel_time}
             </div>
             <div
               className="stopName"
@@ -301,9 +466,27 @@ const LineStopTimetable = () => {
             >
               <Link
                 style={index + 1 == condition ? selected : {}}
-                to={`/rozklad-jazdy-wedlug-linii/${timetable.line_name}/${stop.stop_id}/${stop.route_number}`}
+                to={`/rozklad-jazdy-wedlug-linii/${timetable.stop.route_id}/${stop.stop_number}`}
               >
-                {stop.stop_name} {stop.is_on_request ? 'nż' : ''}
+                {stop.is_first && stop.is_optional ? (
+                  <img src={firstIcon} />
+                ) : stop.is_last && stop.is_optional ? (
+                  <img src={lastIcon} />
+                ) : stop.is_optional ? (
+                  <img src={optionalIcon} />
+                ) : (
+                  ''
+                )}
+                {stop.is_first || stop.is_last ? (
+                  <span className="finalStops">{stop.name}</span>
+                ) : (
+                  stop.name
+                )}
+                {stop.is_on_request ? (
+                  <img src={onRequestIcon} title="Przystanek na żądanie" />
+                ) : (
+                  ''
+                )}
               </Link>
             </div>
           </div>

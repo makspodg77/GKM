@@ -2,9 +2,18 @@
   h1 {
     margin: 0;
   }
-
+  .type-color {
+    position: absolute;
+    width: 3px;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 20px;
+    left: -7px;
+  }
   h3 {
     margin-top: 0;
+    position: relative;
+    margin-left: 8px;
   }
 
   a {

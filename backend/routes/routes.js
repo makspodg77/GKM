@@ -1,138 +1,211 @@
 const express = require("express");
-const sql = require("mssql");
-const config = require("../utils/config");
 const router = express.Router();
+const { asyncHandler } = require("../utils/errorHandler");
+const { getLineRoutes, getRoute } = require("../services/routeService");
 
-const addMinutesToTime = (time, minutesToAdd) => {
-  let [hours, minutes] = time.split(":").map(Number);
-  let date = new Date();
+/**
+ * @swagger
+ * /api/routes/{line_id}:
+ *   get:
+ *     tags: [Routes]
+ *     summary: Get all routes for a line
+ *     description: Returns all the routes depending on the route type
+ *     parameters:
+ *       - in: path
+ *         name: line_id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: ID of the line that routes should be returned for
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved routes for a line
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   route_id:
+ *                     type: string
+ *                     description: ID of the route
+ *                   is_circular:
+ *                     type: boolean
+ *                     description: Whether the route is circular
+ *                   line:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         description: Line ID
+ *                       name:
+ *                         type: string
+ *                         description: Line name
+ *                       color:
+ *                         type: string
+ *                         description: Line color code
+ *                   stops:
+ *                     type: array
+ *                     items:
+ *                       $ref: '#/components/schemas/RouteStop'
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  "/:line_id",
+  asyncHandler(async (req, res) => {
+    const { line_id } = req.params;
 
-  date.setHours(hours);
-  date.setMinutes(minutes);
+    res.set("Cache-Control", "public, max-age=300");
 
-  date.setMinutes(date.getMinutes() + minutesToAdd);
+    res.json(await getLineRoutes(line_id));
+  })
+);
+/**
+ * @swagger
+ * /api/routes/route/{line_id}/{departure_id}:
+ *   get:
+ *     tags: [Routes]
+ *     summary: Get a specific route
+ *     description: Return the full route of a specific departure ID
+ *     parameters:
+ *       - in: path
+ *         name: departure_id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the departure to get the route for
+ *       - in: path
+ *         name: line_id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the line to get the route for
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved route for the departure ID
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 departureInfo:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       description: Departure ID
+ *                     route_id:
+ *                       type: string
+ *                       description: Route ID
+ *                     departure_time:
+ *                       type: string
+ *                       format: date-time
+ *                       description: Departure time in ISO format
+ *                 routeInfo:
+ *                   type: object
+ *                   properties:
+ *                     timetable_id:
+ *                       type: string
+ *                       description: Timetable ID
+ *                     full_route_id:
+ *                       type: string
+ *                       description: Full route ID
+ *                     departure_id:
+ *                       type: string
+ *                       description: Departure ID
+ *                     signature:
+ *                       type: string
+ *                       nullable: true
+ *                       description: Route signature
+ *                     color:
+ *                       type: string
+ *                       nullable: true
+ *                       description: Route color
+ *                     departure_time:
+ *                       type: string
+ *                       format: date-time
+ *                       description: Departure time in ISO format
+ *                 lineInfo:
+ *                   type: object
+ *                   properties:
+ *                     name:
+ *                       type: string
+ *                       description: Line name
+ *                       example: "93"
+ *                     nameSingular:
+ *                       type: string
+ *                       description: Line type name in singular form
+ *                     namePlural:
+ *                       type: string
+ *                       description: Line type name in plural form
+ *                     color:
+ *                       type: string
+ *                       description: Line color code
+ *                       example: "#FF00FF"
+ *                     id:
+ *                       type: integer
+ *                       description: Line ID
+ *                 stops:
+ *                   type: array
+ *                   description: List of stops in this route with their departure times
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       stop_group_id:
+ *                         type: string
+ *                         description: ID of the stop group
+ *                       street:
+ *                         type: string
+ *                         description: Street name
+ *                         example: "Franklina Delano Roosevelta"
+ *                       stop_id:
+ *                         type: string
+ *                         description: ID of the stop
+ *                       travel_time:
+ *                         type: integer
+ *                         description: Travel time from previous stop in minutes
+ *                         example: 4
+ *                       stop_number:
+ *                         type: integer
+ *                         description: Position of this stop in the route
+ *                         example: 2
+ *                       stop_type:
+ *                         type: string
+ *                         description: Type of stop (1 = normal, 2 = first, 3 = last, etc.)
+ *                       name:
+ *                         type: string
+ *                         description: Name of the stop
+ *                         example: "Brama Portowa"
+ *                       is_on_request:
+ *                         type: boolean
+ *                         description: Indicates if the stop is on request
+ *                       is_optional:
+ *                         type: boolean
+ *                         description: Indicates if the stop is optional
+ *                       is_first:
+ *                         type: boolean
+ *                         description: Indicates if this is the first stop
+ *                       is_last:
+ *                         type: boolean
+ *                         description: Indicates if this is the last stop
+ *                       departure_time:
+ *                         type: string
+ *                         description: Time of departure from this stop
+ *                         example: "05:04"
+ *       404:
+ *         description: Departure not found
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  "/route/:line_id/:departure_id",
+  asyncHandler(async (req, res) => {
+    const { departure_id, line_id } = req.params;
 
-  let newHours = date.getHours().toString().padStart(2, "0");
-  let newMinutes = date.getMinutes().toString().padStart(2, "0");
-
-  return `${newHours}:${newMinutes}`;
-};
-
-const executeQuery = async (query) => {
-  try {
-    await sql.connect(config);
-    const result = await sql.query(query);
-    return result.recordset;
-  } catch (err) {
-    console.error("Query error:", err);
-    throw err;
-  } finally {
-    await sql.close();
-  }
-};
-
-// GET /api/routes/route
-// Returns one line's schedule identified by its line id
-router.get("/route", async (req, res) => {
-  const { lineNr, direction } = req.query;
-  const query = `
-    SELECT r.*, l.*, s.*
-    FROM routes r
-    LEFT JOIN transport_lines l ON r.line_id = l.id
-    LEFT JOIN transport_stops s ON r.stop_id = s.id
-    WHERE r.line_id = ${lineNr}
-    AND s.stop_direction = ${direction}`;
-
-  try {
-    const results = await executeQuery(query);
-    const modifiedResults = results.map((result) => ({
-      travel_time: result.travel_time,
-      is_on_request: result.is_on_request,
-      stop_name: result.stop_name,
-    }));
-    res.json(modifiedResults);
-  } catch (err) {
-    res.status(500).send("Error running query.");
-  }
-});
-
-router.get("/specificRouteTimetable/:departure_id", async (req, res) => {
-  const { departure_id } = req.params;
-  const query = `
-    SELECT ts.stop_name, r.stop_id, tt.departure_time, r.travel_time, tl.line_name, lt.line_type_name, r.route_number, r.stop_number
-    FROM timetable tt
-    JOIN routes r ON tt.route_number = r.route_number
-    JOIN transport_lines tl ON tl.id = r.line_id
-    JOIN transport_stops ts ON ts.id = r.stop_id
-    JOIN line_types lt ON lt.id = tl.line_type_id
-    WHERE tt.id = ${departure_id}`;
-
-  try {
-    const results = await executeQuery(query);
-    let departure_sum = results[0].departure_time;
-    for (let result of results.sort((a, b) => a.stop_number - b.stop_number)) {
-      departure_sum = addMinutesToTime(departure_sum, result.travel_time);
-      result.departure_time = departure_sum;
-    }
-    res.json(results.sort((a, b) => a.stop_number - b.stop_number));
-  } catch (err) {
-    res.status(500).send("Error running query.");
-  }
-});
-
-// GET /api/routes/lineRoute/:id
-// Returns the route for a specific route
-// The route is identified by its route id
-router.get("/lineRoute/:id", async (req, res) => {
-  const id = req.params.id;
-  const query = `
-    SELECT r.*, s.*, l.*, lt.*
-    FROM routes r
-    LEFT JOIN transport_stops s ON r.stop_id = s.id
-    LEFT JOIN transport_lines l ON r.line_id = l.id
-    LEFT JOIN line_types lt ON l.line_type_id = lt.id
-    WHERE l.line_name = '${id}'`;
-
-  try {
-    const results = await executeQuery(query);
-    const groupedResults = results.reduce((acc, result) => {
-      const {
-        stop_name,
-        travel_time,
-        is_on_request,
-        stop_direction,
-        route_number,
-        stop_id,
-        stop_number,
-      } = result;
-      if (!acc[stop_direction]) {
-        acc[stop_direction] = [];
-      }
-      acc[stop_direction].push({
-        stop_name,
-        travel_time,
-        is_on_request,
-        route_number,
-        stop_id,
-        stop_number,
-      });
-      return acc;
-    }, {});
-
-    groupedResults.line_name = results[0].line_name;
-    groupedResults.line_type = results[0].line_type_name;
-    groupedResults.line_color = results[0].line_type_color;
-    groupedResults[true] = groupedResults[true].sort(
-      (a, b) => a.stop_number - b.stop_number
-    );
-    groupedResults[false] = groupedResults[false].sort(
-      (a, b) => a.stop_number - b.stop_number
-    );
-
-    res.json(groupedResults);
-  } catch (err) {
-    res.status(500).send("Error running query.");
-  }
-});
+    res.json(await getRoute(departure_id, line_id));
+  })
+);
 
 module.exports = router;

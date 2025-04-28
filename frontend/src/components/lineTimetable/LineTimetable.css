@@ -6,6 +6,30 @@
 
   h2 {
     margin-bottom: 15px;
+    clear: both;
+  }
+
+  h3 {
+    position: relative;
+    margin-left: 8px;
+  }
+
+  .first-stop,
+  .last-stop {
+    font-weight: 600;
+  }
+
+  .stopName img {
+    width: 15px;
+    height: 15px;
+    image-rendering: crisp-edges; /* Firefox */
+  }
+
+  .type-color {
+    position: absolute;
+    width: 4px;
+    height: 22px;
+    left: -7px;
   }
 
   h3 {
@@ -30,10 +54,6 @@
     width: 50%;
     float: left;
 
-    .finalStop {
-      font-weight: 700;
-    }
-
     .routeContainer {
       display: flex;
       margin-top: 10px;
@@ -56,6 +76,10 @@
 
       .stopName {
         text-decoration: underline;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 10px;
       }
 
       .stopOther,

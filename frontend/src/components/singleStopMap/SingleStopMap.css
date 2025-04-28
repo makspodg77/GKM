@@ -1,0 +1,44 @@
+.single-stop-map-container {
+  width: calc(100% - 75px); /* Match your existing width */
+  height: 250px;
+  overflow: hidden;
+}
+
+.single-stop-map {
+  width: 100%;
+  height: 100%;
+}
+
+.stop-popup {
+  padding: 5px;
+  font-family: 'Open Sans', sans-serif;
+}
+
+.stop-popup strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 14px;
+}
+
+.stop-popup .street {
+  color: #555;
+  font-size: 12px;
+}
+
+.stop-popup .stop-id {
+  color: #777;
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.stop-popup .on-request {
+  color: #e74c3c;
+  font-size: 11px;
+  font-style: italic;
+  margin-top: 3px;
+}
+
+.maplibregl-popup-content {
+  padding: 10px;
+  border-radius: 4px;
+}
