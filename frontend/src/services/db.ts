@@ -2,6 +2,8 @@ import axios from 'axios';
 import { ROUTES } from './config';
 
 export interface Stop {
+  street: string;
+  map: null;
   is_on_request: any;
   stop_number: any;
   route_id: any;
