@@ -81,7 +81,13 @@ const LineTimetable = () => {
       <h2>Mapa</h2>
 
       <MapRouteDisplay
-        routes={line.map((path) => path.stops)}
+        routes={line.map((path) =>
+          path.stops.map((stop) => ({
+            ...stop,
+            map: stop.map || '',
+            street: stop.street || '',
+          }))
+        )}
         colors={[line[0].line.color || '#e74c3c']}
       />
     </div>
