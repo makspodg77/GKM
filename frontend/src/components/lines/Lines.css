@@ -1,42 +1,59 @@
-.LineTimetable {
-  ul {
-    list-style-type: none;
-    padding: 0;
-    margin: 0;
+.LineTimetable a {
+  text-decoration: none;
+}
+
+.LineTimetable .line-category h2 {
+  margin: 0 0 1rem;
+  color: #333;
+  font-size: 1.4rem;
+  border-bottom: 1px solid #eaeaea;
+  padding-bottom: 0.5rem;
+}
+
+.LineTimetable .line {
+  width: 80px;
+  height: 35px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.2rem;
+  border-top: #facf00 3px solid;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.LineTimetable .line-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.LineTimetable .line-wrapper {
+  padding: 2px;
+}
+
+.LineTimetable .no-lines {
+  padding: 2rem;
+  text-align: center;
+  color: #666;
+  margin: 2rem 0;
+}
+
+@media only screen and (max-width: 768px) {
+  .LineTimetable .line {
+    width: 60px;
+    height: 30px;
+    font-size: 1rem;
   }
 
-  a {
-    text-decoration: none;
+  .LineTimetable .line-container {
+    gap: 8px;
   }
 
-  a:hover {
-    color: #009788;
-  }
-
-  .line {
-    width: 80px;
-    height: 35px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  .LineTimetable .line-category h2 {
     font-size: 1.2rem;
-    border-top: #facf00 3px solid;
-    color: aliceblue;
-    background-color: #056b89;
-  }
-
-  .line-container {
-    display: flex;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-  }
-
-  @media only screen and (max-width: 1200px) {
-    .line-container {
-      flex-wrap: wrap;
-      margin: auto;
-    }
+    margin: 1rem 0 0.5rem;
   }
 }

@@ -1,6 +1,9 @@
+import PageTitle from '../common/pageTitle/PageTitle';
+
 const About = () => {
   return (
     <>
+      <PageTitle title="O projekcie..." />
       <p>
         Mieszkam w małej wsi o nazwie Kliniska Wielkie, około 10 minut
         samochodem od obrzeży Szczecina. Jeśli chciałem dostać się do Szczecina
@@ -46,14 +49,95 @@ const About = () => {
         Dla użytkownika końcowego dostępna jest część prezentująca rozkłady i
         mapy, natomiast od strony "backendu" stworzyłem panel zarządzania siecią
         komunikacji miejskiej. Pozwala on na dodawanie nowych typów linii,
-        zespołów przystankowych, przystanków i połączeń. Panel zarządzania, do
-        którego można przejść [tutaj] (kliknij, aby przejść do panelu), także ma
-        dwie wersje — druga umożliwia bardziej zaawansowane i wygodniejsze
-        wprowadzanie danych.
+        zespołów przystankowych, przystanków i połączeń.{' '}
+        <p>
+          Panel zarządzania, do którego możesz przejść
+          {'  '}{' '}
+          <a href="LINK_DO_PANELU" target="_blank" rel="noopener noreferrer">
+            tutaj
+          </a>
+          , także istnieje w dwóch wersjach — nowsza umożliwia bardziej
+          zaawansowane i wygodne wprowadzanie danych.
+        </p>
       </p>{' '}
       <p>
         Obecnie strona goleniowkm.pl działa w oparciu o dane wprowadzone przez
-        [link do panelu].
+        właśnie ten panel.
+      </p>
+      <strong>Moje plany na przyszłość dla projektu?</strong>
+      <ol>
+        <li>dalszy rozwój siatki komunikacyjnej powiatu</li>
+        <li>długotrwałe wsparcie techniczne</li>
+        <li>przpisanie brygady do linii i kursu (może i nawet pracowników?)</li>
+        <li>symulacja systemu lokalizacji gps</li>
+        <li>symulacja funkcjonalności zajezdni</li>
+        <li>wydarzenia losowe (awaria pojazdu, opóźnienia, odwołane kursy)</li>
+      </ol>
+      <h4>
+        Mam nadzieję, że korzystanie ze strony będzie dla Ciebie tak przyjemne,
+        jak dla mnie było jej tworzenie 💖
+      </h4>
+      <h4>Strony na które warto zajrzeć: </h4>
+      <ul>
+        <li>
+          <a href="https://www.bazakolejowa.pl/index.php">
+            www.bazakolejowa.pl
+          </a>
+        </li>
+        <li>
+          <a href="https://www.mkm.szczecin.pl/">www.mkm.szczecin.pl</a>
+        </li>
+        <li>
+          <a href="https://www.zditm.szczecin.pl/pl/pasazer/informacje">
+            www.zditm.szczecin.pl
+          </a>
+        </li>
+      </ul>
+      <h4>A teraz trochę więcej informacji technicznych...</h4>
+      <p>
+        Obie aplikacje zostały zbudowane w technologii <strong>React</strong> po
+        stronie frontendu oraz <strong>Node.js</strong> na backendzie. W
+        projekcie korzystam z darmowych hostingów baz danych{' '}
+        <strong>SQL Server</strong>, które przechowują wszystkie informacje o
+        liniach, przystankach, brygadach i rozkładach jazdy.
+      </p>
+      <p>
+        Cały system został zaprojektowany tak, aby odjazdy autobusów generowały
+        się <strong>dynamicznie</strong> — bez ręcznego wpisywania każdego
+        kursu. Godziny odjazdów są automatycznie obliczane na podstawie wyjazdu
+        brygady z pętli, uwzględniając czas przejazdu pomiędzy kolejnymi
+        przystankami. Dzięki temu rozkłady są zawsze aktualne i dokładne, nawet
+        w przypadku zmian w sieci połączeń.
+      </p>
+      <p>
+        Zarządzanie całą stroną jest możliwe dzięki rozbudowanemu{' '}
+        <strong>panelowi administratora</strong>. Pozwala on na szybkie i
+        wygodne dodawanie nowych linii, przystanków, brygad oraz rozkładów jazdy
+        — wszystko bez konieczności edytowania kodu źródłowego.
+        <strong>
+          Każda zmiana wprowadzona w panelu jest natychmiastowo widoczna
+        </strong>{' '}
+        na stronie użytkownika, co gwarantuje płynne i bezproblemowe
+        aktualizowanie danych.
+      </p>
+      <p>
+        Projekt został zaprojektowany z myślą o{' '}
+        <strong>prostocie użytkowania</strong> oraz{' '}
+        <strong>elastyczności rozwoju</strong> w przyszłości. Zarówno interfejs
+        użytkownika, jak i panel administracyjny są responsywne i dostosowane do
+        urządzeń mobilnych, co pozwala zarządzać stroną oraz przeglądać rozkłady
+        praktycznie z każdego miejsca.
+      </p>
+      <p>
+        Cały system działa w oparciu o nowoczesne technologie webowe i został
+        stworzony z myślą o łatwej rozbudowie oraz długoterminowym utrzymaniu.
+      </p>
+      <h4>Struktura bazy danych</h4>
+      <p>
+        Poniżej możesz zobaczyć schemat struktury bazy danych używanej w
+        projekcie GKM — pokazuje ona relacje między liniami, przystankami oraz
+        kursami. Dzięki odpowiedniemu rozplanowaniu danych mogłem stworzyć
+        wydajny i skalowalny system.
       </p>
       <iframe
         width="100%"
@@ -68,6 +152,23 @@ const About = () => {
         frameBorder="0"
         src="https://drawsql.app/teams/gkm/diagrams/gkm/embed"
       ></iframe>
+      <h4>Chcesz zobaczyć kod źródłowy lub się ze mną skontaktować?</h4>
+      <ul>
+        <li>
+          <strong>GitHub projektu:</strong>{' '}
+          <a
+            href="https://github.com/elzbietagawickaLOVE/GKM"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GKM na GitHub
+          </a>
+        </li>
+        <li>
+          <strong>E-mail:</strong>{' '}
+          <a href="mailto:makspodg77@gmail.com">makspodg77@gmail.com</a>
+        </li>
+      </ul>
     </>
   );
 };

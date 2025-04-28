@@ -1,55 +1,75 @@
 import { useEffect, useState } from 'react';
-import service from '../../services/db';
+import service, { LineCategoryListing, LineInfo } from '../../services/db';
 import { Link } from 'react-router-dom';
-import { TransportLinesGrouped } from '../../services/db';
 import './Lines.css';
 import LoadingScreen from '../common/loadingScreen/LoadingScreen';
+import PageTitle from '../common/pageTitle/PageTitle';
 
 const Lines = () => {
   const [loading, setLoading] = useState<boolean>(false);
-  const [lines, setLines] = useState<TransportLinesGrouped>({});
+  const [lines, setLines] = useState<LineCategoryListing>({});
 
   useEffect(() => {
     setLoading(true);
-    service.getLines().then((data) => {
-      setLines(data);
-      setLoading(false);
-    });
+    service
+      .getLines()
+      .then((data: LineCategoryListing) => {
+        const sortedLines: LineCategoryListing = {};
+        Object.entries(data).forEach(([category, lines]) => {
+          sortedLines[category] = [...lines].sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
+        });
+        setLines(sortedLines);
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error('Failed to load lines:', error);
+        setLoading(false);
+      });
   }, []);
+
+  const hasLines = Object.values(lines).some((array) => array.length > 0);
 
   if (loading) return <LoadingScreen />;
 
   return (
     <div className="LineTimetable">
-      <h1>Rozklady jazdy według linii</h1>
-      <ul>
-        {Object.keys(lines)
-
-          .map((lineType: any, index) => (
-            <li key={lineType}>
-              <h2>{lineType}</h2>
-              <div className="line-container">
-                {lines[lineType]
-                  .sort((a, b) => a.name - b.name)
-                  .map((lineName) => (
-                    <Link
-                      key={lineName.id}
-                      to={`/rozklad-jazdy-wedlug-linii/${lineName.id}`}
-                    >
-                      <div>
-                        <div
-                          className="line"
-                          style={{ backgroundColor: lineName.color }}
-                        >
-                          {lineName.name}
-                        </div>
+      <PageTitle title="Rozkłady jazdy według linii" />
+      {hasLines ? (
+        <section className="LineTimetable">
+          {Object.entries(lines).map(([lineType, lineInfoArray]) => (
+            <div key={lineType} className="line-category">
+              <h2 id={`category-${lineType}`}>{lineType}</h2>
+              <div
+                className="line-container"
+                role="list"
+                aria-labelledby={`category-${lineType}`}
+              >
+                {lineInfoArray.map((line) => (
+                  <Link
+                    key={line.id}
+                    to={`/rozklad-jazdy-wedlug-linii/${line.id}`}
+                    className="line-link"
+                    aria-label={`Line ${line.name}`}
+                  >
+                    <div className="line-wrapper" role="listitem">
+                      <div
+                        className="line"
+                        style={{ backgroundColor: line.color }}
+                      >
+                        {line.name}
                       </div>
-                    </Link>
-                  ))}
+                    </div>
+                  </Link>
+                ))}
               </div>
-            </li>
+            </div>
           ))}
-      </ul>
+        </section>
+      ) : (
+        <div className="no-lines">Brak dostępnych linii</div>
+      )}
     </div>
   );
 };
