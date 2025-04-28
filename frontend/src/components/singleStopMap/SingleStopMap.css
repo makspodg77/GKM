@@ -1,5 +1,5 @@
 .single-stop-map-container {
-  width: calc(100% - 75px); /* Match your existing width */
+  width: 100%;
   height: 250px;
   overflow: hidden;
 }

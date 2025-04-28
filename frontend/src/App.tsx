@@ -70,9 +70,7 @@ const PageStructure = (props: any) => {
           </Link>
           <Link
             style={
-              location == '/o-projekcie' || location == '/'
-                ? { backgroundColor: '#FACF00' }
-                : {}
+              location == '/o-projekcie' ? { backgroundColor: '#FACF00' } : {}
             }
             to="/o-projekcie"
           >

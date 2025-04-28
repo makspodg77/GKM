@@ -1,60 +1,95 @@
 import './TransportLines.css';
 import { useEffect, useState } from 'react';
-import service from '../../services/db';
+import service, { RouteInfo } from '../../services/db';
 import { TransportLinesGrouped } from '../../services/db';
 import LoadingScreen from '../common/loadingScreen/LoadingScreen';
+import PageTitle from '../common/pageTitle/PageTitle';
+
+const LineRoute: React.FC<{ route: RouteInfo }> = ({ route }) => (
+  <div className="route-container">
+    <div className="route-endpoints">
+      {route.first_stop} ↔ {route.last_stop}
+    </div>
+    <p className="route-streets">{route.streets.join(' - ')}</p>
+  </div>
+);
+
+const LineBadge = ({ name, color }: { name: string; color: string }) => (
+  <div className="line-badge" style={{ background: color }}>
+    {name}
+  </div>
+);
 
 const TransportLines = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [transportLines, setTransportLines] = useState<TransportLinesGrouped>(
     {}
   );
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
-    service.getLinesRoutes().then((data) => {
-      console.log(data);
-      setTransportLines(data);
-      setLoading(false);
-    });
+    service
+      .getLinesRoutes()
+      .then((data: TransportLinesGrouped) => {
+        setTransportLines(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('Failed to load routes:', err);
+        setError('Nie udało się załadować danych linii.');
+        setLoading(false);
+      });
   }, []);
 
   if (loading) return <LoadingScreen />;
+  if (error) return <div className="error-message">{error}</div>;
 
   return (
     <div className="TransportLines">
-      <h1>Linie komunikacji miejskiej</h1>
-      <ul>
-        {Object.keys(transportLines).map((lineType: string) => (
-          <li key={lineType}>
-            <h2>{lineType}</h2>
-            {Object.keys(transportLines[lineType])
-              .filter((line) => Array.isArray(transportLines[lineType][line]))
-              .map((lineName: string) => (
-                <div className="line-container" key={lineName}>
-                  <div style={{ background: transportLines[lineType].color }}>
-                    {lineName}
-                  </div>
-                  <div>
-                    {transportLines[lineType][lineName].map((line) => (
-                      <>
-                        <span className="finalStops">
-                          {line.first_stop} ↔ {line.last_stop}
-                        </span>
-                        {line.streets.map((stopName) => (
-                          <span key={stopName}>
-                            {stopName}
-                            {line.streets.at(-1) != stopName ? ' - ' : ''}{' '}
-                          </span>
-                        ))}
-                      </>
-                    ))}
-                  </div>
-                </div>
-              ))}
-          </li>
-        ))}
-      </ul>
+      <PageTitle title="Linie komunikacji miejskiej" />
+
+      <div className="line-categories">
+        {Object.entries(transportLines).map(([lineType, lineTypeData]) => {
+          if (!lineTypeData || Array.isArray(lineTypeData)) return null;
+
+          const color = lineTypeData.color || '#056b89';
+
+          return (
+            <section key={lineType} className="line-category">
+              <h2 id={`category-${lineType}`}>{lineType}</h2>
+
+              <div
+                className="line-list"
+                role="list"
+                aria-labelledby={`category-${lineType}`}
+              >
+                {Object.entries(lineTypeData)
+                  .filter(([key]) => key !== 'color' && key !== 'routes')
+                  .map(([lineName, routes]) => (
+                    <article
+                      key={lineName}
+                      className="line-item"
+                      role="listitem"
+                    >
+                      <LineBadge name={lineName} color={color} />
+
+                      <div className="routes">
+                        {Array.isArray(routes) &&
+                          routes.map((route, idx) => (
+                            <LineRoute
+                              key={`${lineName}-${idx}`}
+                              route={route}
+                            />
+                          ))}
+                      </div>
+                    </article>
+                  ))}
+              </div>
+            </section>
+          );
+        })}
+      </div>
     </div>
   );
 };

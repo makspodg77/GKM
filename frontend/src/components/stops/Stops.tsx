@@ -1,73 +1,110 @@
 import './Stops.css';
-import service, { StopsCategorized } from '../../services/db';
+import service, { Stop, StopLetterListing } from '../../services/db';
 import { Link } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { debounce } from 'lodash';
 import LoadingScreen from '../common/loadingScreen/LoadingScreen';
+import PageTitle from '../common/pageTitle/PageTitle';
 
 const Stops = () => {
-  const [stops, setStops] = useState<StopsCategorized>({});
+  const [stops, setStops] = useState<StopLetterListing>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [filterSearch, setFilterSearch] = useState('');
-  const [filteredStops, setFilteredStops] = useState<StopsCategorized>({});
+  const [filteredStops, setFilteredStops] = useState<StopLetterListing>({});
 
-  // Fetch stops data
   useEffect(() => {
-    service.getStops().then((data) => {
-      setStops(data);
-      setFilteredStops(data); // Initialize filtered stops with all stops
-      setLoading(false);
-    });
+    setLoading(true);
+    service
+      .getStops()
+      .then((data: StopLetterListing) => {
+        setStops(data);
+        setFilteredStops(data);
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error('Failed to load stops:', error);
+        setLoading(false);
+      });
   }, []);
 
-  // Filter stops when search changes
+  const debouncedFilter = useCallback(
+    debounce((value: string) => {
+      if (!Object.keys(stops).length) return;
+
+      const searchLower = value.toLowerCase();
+      const filtered: StopLetterListing = {};
+
+      Object.keys(stops).forEach((letter) => {
+        const filteredLetterStops = stops[letter].filter((stop) =>
+          stop.name.toLowerCase().includes(searchLower)
+        );
+
+        if (filteredLetterStops.length > 0) {
+          filtered[letter] = filteredLetterStops;
+        }
+      });
+
+      setFilteredStops(filtered);
+    }, 300),
+    [stops]
+  );
+
   useEffect(() => {
-    if (!Object.keys(stops).length) return;
-
-    const searchLower = filterSearch.toLowerCase();
-
-    // Create a new filtered object with the same structure
-    const filtered: StopsCategorized = {};
-
-    Object.keys(stops).forEach((letter) => {
-      // Filter the stops array for this letter
-      const filteredLetterStops = stops[letter].filter((stop) =>
-        stop.name.toLowerCase().includes(searchLower)
-      );
-
-      // Only add this letter if it has matching stops
-      if (filteredLetterStops.length > 0) {
-        filtered[letter] = filteredLetterStops;
-      }
-    });
-
-    setFilteredStops(filtered);
-  }, [filterSearch, stops]);
+    debouncedFilter(filterSearch);
+    return () => {
+      debouncedFilter.cancel();
+    };
+  }, [filterSearch, debouncedFilter]);
 
   if (loading) {
     return <LoadingScreen />;
   }
 
   return (
-    <div className="StopTimetable">
-      <h1>Rozkłady jazdy według przystanków</h1>
-      <input
-        className="search"
-        placeholder="Szukaj przystanku..."
-        value={filterSearch}
-        onChange={(e) => setFilterSearch(e.target.value)}
-      />
+    <section className="StopTimetable">
+      <PageTitle title="Rozkłady jazdy według przystanków" />
 
-      {Object.keys(filteredStops).map((letter) => (
-        <>
-          <h1>{letter}</h1>
-          <div>
-            {filteredStops[letter].map((stop) => (
-              <Link to={`/zespol-przystankowy/${stop.id}`}>{stop.name}</Link>
-            ))}
+      <div className="search-container">
+        <input
+          className="search"
+          type="text"
+          placeholder="Szukaj przystanku..."
+          value={filterSearch}
+          onChange={(e) => setFilterSearch(e.target.value)}
+          aria-label="Szukaj przystanku"
+        />
+      </div>
+
+      <div className="stop-groups">
+        {Object.keys(filteredStops).map((letter: string) => (
+          <div key={letter} className="stop-letter-group">
+            <h2 id={`letter-${letter}`}>{letter}</h2>
+            <div
+              className="stop-links"
+              role="list"
+              aria-labelledby={`letter-${letter}`}
+            >
+              {filteredStops[letter].map((stop: Stop) => (
+                <Link
+                  key={stop.id}
+                  to={`/zespol-przystankowy/${stop.id}`}
+                  className="stop-link"
+                  role="listitem"
+                >
+                  {stop.name}
+                </Link>
+              ))}
+            </div>
           </div>
-        </>
-      ))}
-    </div>
+        ))}
+      </div>
+
+      {Object.keys(filteredStops).length === 0 && (
+        <p className="no-stops">
+          Brak przystanków spełniających kryteria wyszukiwania
+        </p>
+      )}
+    </section>
   );
 };
 

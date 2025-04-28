@@ -1,4 +1,8 @@
-import { useRef, useState, useEffect } from 'react';
+const ONE_DAY_MS = 86400000; // 24h w milisekundach
+const ONE_MINUTE_MS = 60000; // 1 minuta w milisekundach
+const TWO_MINUTES_MS = 120000; // 2 minuty w milisekundach
+
+import { useRef, useState, useEffect, useCallback } from 'react';
 import service from '../services/db';
 
 export interface DepartureInfo {
@@ -15,80 +19,69 @@ export interface DepartureInfo {
   countdownText?: string | null;
 }
 
-// Helper function to process time information
 export const processTimeInfo = (timeString: string) => {
   const now = new Date();
   now.setSeconds(0, 0);
-  const time = new Date();
-  time.setSeconds(0, 0);
+
   const [hours, minutes] = timeString.split(':').map(Number);
+  const time = new Date();
   time.setHours(hours, minutes, 0, 0);
 
-  // Check if departure just passed (within the last 2 minutes)
-  const justPassedTime = new Date(now);
-  justPassedTime.setMinutes(now.getMinutes() - 2); // Two minutes ago
+  const diffMs = time.getTime() - now.getTime();
+  const justPassedTime = now.getTime() - TWO_MINUTES_MS;
 
   return {
-    time: time,
-    isPast: time < now,
-    justPassed: time >= justPassedTime && time < now, // Time is between now and 2 minutes ago
+    time,
+    isPast: diffMs < 0,
+    justPassed: time.getTime() >= justPassedTime && diffMs < 0,
     formattedTime: timeString,
   };
 };
 
-// Function to calculate minutes until departure
 export const calculateMinutesToDeparture = (departureTime: string): number => {
   const now = new Date();
   const [hours, minutes] = departureTime.split(':').map(Number);
-  const departure = new Date();
-  departure.setHours(hours, minutes, 0, 0);
 
-  // If departure is in the past (for the current day), it's tomorrow
-  if (departure < now) {
-    departure.setDate(departure.getDate() + 1);
+  let timestamp = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    hours,
+    minutes
+  ).getTime();
+
+  if (timestamp < now.getTime()) {
+    timestamp += ONE_DAY_MS;
   }
 
-  // Calculate difference in minutes
-  const diffMs = departure.getTime() - now.getTime();
-  return Math.max(0, Math.round(diffMs / 60000)); // Return minutes, minimum 0
+  return Math.max(0, Math.round((timestamp - now.getTime()) / ONE_MINUTE_MS));
 };
 
-// Zmodyfikowana funkcja sortDepartures
 export const sortDepartures = (data: any[]): any[] => {
   if (!Array.isArray(data)) {
     console.error('Sort function expected an array but received:', data);
     return [];
   }
 
-  const now = new Date();
+  const now = new Date().getTime();
 
   return [...data].sort((a, b) => {
-    // Extract hours and minutes
     const [hoursA, minutesA] = a.departure_time.split(':').map(Number);
     const [hoursB, minutesB] = b.departure_time.split(':').map(Number);
 
-    // Create Date objects
-    const timeA = new Date();
-    timeA.setHours(hoursA, minutesA, 0, 0);
+    const timestampA = new Date().setHours(hoursA, minutesA, 0, 0);
+    const timestampB = new Date().setHours(hoursB, minutesB, 0, 0);
 
-    const timeB = new Date();
-    timeB.setHours(hoursB, minutesB, 0, 0);
+    let diffA = timestampA - now;
+    let diffB = timestampB - now;
 
-    // Calculate time differences
-    const diffA = timeA.getTime() - now.getTime();
-    const diffB = timeB.getTime() - now.getTime();
+    if (diffA < 0) diffA += ONE_DAY_MS;
+    if (diffB < 0) diffB += ONE_DAY_MS;
 
-    // If both are in the past or both are in the future, sort by time
-    if ((diffA < 0 && diffB < 0) || (diffA >= 0 && diffB >= 0)) {
-      return timeA.getTime() - timeB.getTime();
-    }
-
-    // If one is in the past and one is in the future, the future one comes first
-    return diffB - diffA;
+    return diffA - diffB;
   });
 };
 
-// Zmodyfikowana funkcja processDepartures
 export const processDepartures = (departuresArray: any[]): DepartureInfo[] => {
   if (!Array.isArray(departuresArray)) {
     console.error('Expected departures to be an array, got:', departuresArray);
@@ -101,15 +94,12 @@ export const processDepartures = (departuresArray: any[]): DepartureInfo[] => {
     const timeInfo = processTimeInfo(dep.departure_time);
     const minutesUntil = calculateMinutesToDeparture(dep.departure_time);
 
-    // Get departure time to compare with current time
     const [depHours, depMinutes] = dep.departure_time.split(':').map(Number);
     const depTime = new Date();
     depTime.setHours(depHours, depMinutes, 0, 0);
 
-    // Calculate seconds until departure (negative if in the past)
     const secondsUntil = (depTime.getTime() - now.getTime()) / 1000;
 
-    // Show ">>>" exactly 30 seconds before departure
     const isDeparting = secondsUntil >= 0 && secondsUntil <= 30;
 
     return {
@@ -121,13 +111,11 @@ export const processDepartures = (departuresArray: any[]): DepartureInfo[] => {
         minutesUntil > 0 && minutesUntil <= 30
           ? `za ${minutesUntil} min`
           : null,
-      // We'll use isPast to determine sort order
       isPast: secondsUntil < 0,
     };
   });
 };
 
-// Zmodyfikowana funkcja useRealTimeDepartures
 export const useRealTimeDepartures = (stopId: string | number | null) => {
   const [departures, setDepartures] = useState<DepartureInfo[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -139,100 +127,92 @@ export const useRealTimeDepartures = (stopId: string | number | null) => {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const originalDeparturesRef = useRef<any[]>([]);
 
+  const updateDepartures = useCallback(() => {
+    const now = new Date();
+    const currentTime = {
+      hours: now.getHours().toString().padStart(2, '0'),
+      minutes: now.getMinutes().toString().padStart(2, '0'),
+    };
+
+    setTime(currentTime);
+
+    setDepartures((prevDepartures) => {
+      if (prevDepartures.length === 0) return prevDepartures;
+
+      const updated = prevDepartures.map((dep) => {
+        const minutesUntil = calculateMinutesToDeparture(dep.departure_time);
+        const [h, m] = dep.departure_time.split(':').map(Number);
+
+        const depTimestamp = new Date().setHours(h, m, 0, 0);
+        const secondsUntil = (depTimestamp - now.getTime()) / 1000;
+        const isDeparting = secondsUntil >= 0 && secondsUntil <= 30;
+
+        return {
+          ...dep,
+          minutesUntil,
+          departure_text: isDeparting ? '>>>' : undefined,
+          countdownText:
+            minutesUntil > 0 && minutesUntil <= 30
+              ? `za ${minutesUntil} min`
+              : null,
+          isPast: secondsUntil < 0,
+        };
+      });
+
+      return sortDepartures(updated);
+    });
+  }, []);
+
+  const fetchData = useCallback(() => {
+    if (!stopId) return;
+
+    setLoading(true);
+    service
+      .getStopDepartures(Number(stopId))
+      .then((data) => {
+        if (data?.departures?.length) {
+          setStop(data.baseData || {});
+          originalDeparturesRef.current = data.departures;
+          setDepartures(processDepartures(data.departures));
+        } else {
+          setDepartures([]);
+        }
+      })
+      .catch(() => {
+        setDepartures([]);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [stopId]);
+
   useEffect(() => {
     if (!stopId) {
       setLoading(false);
       return;
     }
 
-    // Czyszczenie poprzednich interwałów
     if (intervalRef.current) clearInterval(intervalRef.current);
 
-    setLoading(true);
-
-    // Funkcja pobierająca dane
-    const fetchData = () => {
-      service
-        .getStopDepartures(Number(stopId))
-        .then((data) => {
-          if (data?.departures?.length) {
-            setStop(data.baseData || {});
-            originalDeparturesRef.current = data.departures;
-
-            // Przetwórz i posortuj odjazdy
-            const processed = processDepartures(data.departures);
-            setDepartures(processed);
-          } else {
-            setDepartures([]);
-          }
-          setLoading(false);
-        })
-        .catch(() => {
-          setDepartures([]);
-          setLoading(false);
-        });
-    };
-
-    // Pobranie danych tylko raz
     fetchData();
 
-    // Prosty interwał do aktualizacji czasu i odliczania
     intervalRef.current = setInterval(() => {
+      updateDepartures();
+
       const now = new Date();
-
-      // Aktualizacja zegara
-      setTime({
-        hours: now.getHours().toString().padStart(2, '0'),
-        minutes: now.getMinutes().toString().padStart(2, '0'),
-      });
-
-      // Aktualizacja stanu odjazdów - bez filtrowania!
-      setDepartures((prev) => {
-        // Aktualizuj wszystkie odjazdy
-        const updated = prev.map((dep) => {
-          const minutesUntil = calculateMinutesToDeparture(dep.departure_time);
-          const [h, m] = dep.departure_time.split(':').map(Number);
-          const depTime = new Date();
-          depTime.setHours(h, m, 0, 0);
-
-          // Oblicz sekundy do odjazdu
-          const secondsUntil = (depTime.getTime() - now.getTime()) / 1000;
-
-          // Pokaż ">>>" 30 sekund przed odjazdem
-          const isDeparting = secondsUntil >= 0 && secondsUntil <= 30;
-
-          return {
-            ...dep,
-            minutesUntil,
-            departure_text: isDeparting ? '>>>' : undefined,
-            countdownText:
-              minutesUntil > 0 && minutesUntil <= 30
-                ? `za ${minutesUntil} min`
-                : null,
-            // Oznacz czy odjazd jest w przeszłości (do sortowania)
-            isPast: secondsUntil < 0,
-          };
-        });
-
-        // Posortuj - przeszłe odjazdy na koniec listy
-        return sortDepartures(updated);
-      });
-
-      // Sprawdź czy jest północ, aby pobrać nowy rozkład
       if (
         now.getHours() === 0 &&
         now.getMinutes() === 0 &&
-        now.getSeconds() === 0
+        now.getSeconds() < 2
       ) {
         fetchData();
       }
     }, 1000);
 
-    // Czyszczenie przy odmontowaniu
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [stopId]);
+  }, [stopId, fetchData, updateDepartures]);
 
   return { departures, loading, currentTime: time, stop };
 };

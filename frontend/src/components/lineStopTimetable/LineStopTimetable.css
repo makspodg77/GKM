@@ -1,271 +1,344 @@
+/* Convert nested selectors to standard CSS */
 .LineStopTimetable {
-  .table-container {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.LineStopTimetable .table-container {
+  width: 100%;
+}
+
+.LineStopTimetable a:focus,
+.LineStopTimetable button:focus {
+  outline: 2px solid #056b89;
+  outline-offset: 2px;
+}
+
+.LineStopTimetable h1 {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.LineStopTimetable .stopName {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.LineStopTimetable .nextDeparture {
+  color: #056b89;
+}
+
+.LineStopTimetable .type-color {
+  position: absolute;
+  width: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 20px;
+  left: -7px;
+}
+
+.LineStopTimetable .nextDeparture:hover {
+  color: #009788;
+}
+
+.LineStopTimetable a {
+  color: inherit;
+}
+
+.LineStopTimetable button {
+  border: 0;
+  background-color: #056b89;
+  color: white;
+  display: grid;
+  place-content: center;
+  padding: 7px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: 0.15s ease-in-out all;
+}
+
+.LineStopTimetable .buttonContainer {
+  display: flex;
+  position: absolute;
+  right: 0;
+  gap: 15px;
+  margin-left: auto; /* Push to the right edge */
+}
+
+.LineStopTimetable button:hover {
+  background-color: #009788;
+}
+
+.LineStopTimetable .otherLine {
+  display: inline;
+  position: relative;
+  margin-left: 15px;
+  color: #056b89;
+  text-decoration: underline;
+}
+
+.LineStopTimetable .bold {
+  font-weight: 700;
+}
+
+.LineStopTimetable .finalStops {
+  font-weight: 700;
+}
+
+.LineStopTimetable .mapWrapper {
+  width: 100%;
+  margin: 10px 0;
+}
+
+.LineStopTimetable table {
+  margin-top: 20px;
+  margin-bottom: 20px;
+  border-spacing: 0;
+  border: 1px solid #d0d0d0;
+  width: 100%;
+}
+
+.LineStopTimetable table tr,
+.LineStopTimetable table td,
+.LineStopTimetable table th {
+  min-width: (100% / 20);
+  position: relative;
+}
+
+.LineStopTimetable table tr a,
+.LineStopTimetable table td a,
+.LineStopTimetable table th a {
+  text-decoration: none !important;
+}
+
+.LineStopTimetable table .signature {
+  position: absolute;
+  font-size: 14px;
+  top: -3px;
+  right: 2px;
+}
+
+.LineStopTimetable .left {
+  width: 65%;
+  margin-right: 5%;
+  float: left;
+}
+
+.LineStopTimetable .right {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  gap: 0;
+  width: 30%;
+  float: left;
+}
+
+.LineStopTimetable .right > div {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.LineStopTimetable .right > div > div {
+  height: 25px;
+  text-align: center;
+  padding: 3px;
+}
+
+.LineStopTimetable .right .totalTravelTime {
+  width: 25px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.LineStopTimetable .right .stopOther {
+  width: 25px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.LineStopTimetable .right .travelTime {
+  width: 25px;
+  font-weight: 700;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.LineStopTimetable .right .stopName img {
+  width: 15px;
+}
+
+.LineStopTimetable .right .stopName a {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.LineStopTimetable .right .stopName {
+  flex-grow: 1;
+  width: max-content;
+  text-align: left;
+  text-decoration: underline;
+  padding-right: 5px;
+  color: #056b89;
+}
+
+.LineStopTimetable .right .stopName:hover {
+  color: #009788;
+}
+
+.LineStopTimetable .right > div:first-child button {
+  margin: 0 0 0 0;
+  padding: 10px;
+  position: relative;
+}
+
+.LineStopTimetable .right > div:first-child button > div {
+  position: absolute;
+  background-color: #f3f3f3;
+  width: max-content;
+  padding: 10px;
+  color: black;
+  top: calc(-50% - 4px);
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  visibility: hidden;
+  transition: 0.3s ease-in-out all;
+}
+
+.LineStopTimetable .right > div:first-child button > div > div {
+  clip-path: polygon(50% 100%, 0 0, 100% 0);
+  height: 10px;
+  width: 15px;
+  position: absolute;
+  top: 113%;
+  left: 50%;
+  transform: translate(-50%, -90%);
+  background-color: #f3f3f3;
+}
+
+.LineStopTimetable .right > div:first-child button:hover > div {
+  opacity: 1;
+  visibility: visible;
+}
+
+.LineStopTimetable th,
+.LineStopTimetable td {
+  width: 35px;
+  text-align: left;
+  border: 1px solid #d0d0d0;
+  line-height: 20px;
+  vertical-align: top;
+}
+
+.LineStopTimetable th {
+  text-align: center;
+}
+
+@media only screen and (max-width: 1200px) {
+  .LineStopTimetable .left {
     width: 100%;
-  }
-  h1 {
-    margin-top: 0;
-    margin-bottom: 0;
   }
 
-  .stopName {
-    position: relative;
+  .LineStopTimetable .right {
+    margin-top: 10px;
+    width: 100%;
+  }
+
+  .LineStopTimetable .stopName {
+    width: auto;
+  }
+
+  .LineStopTimetable table {
     width: 100%;
     display: flex;
-    justify-content: space-between;
+    flex-direction: row;
+    margin-bottom: 10px;
+  }
+
+  .LineStopTimetable tr {
+    display: flex;
     align-items: center;
+    justify-content: center;
+    flex-direction: column;
   }
 
-  .nextDeparture {
-    color: #056b89;
+  .LineStopTimetable tbody {
+    flex-grow: 1;
   }
 
-  .type-color {
-    position: absolute;
-    width: 3px;
-    top: 50%;
-    transform: translateY(-50%);
-    height: 20px;
-    left: -7px;
-  }
-
-  .nextDeparture:hover {
-    color: #009788;
-  }
-
-  a {
-    color: inherit;
-  }
-
-  .lineType {
-    font-weight: 700;
-    position: relative;
-    margin-left: 8px;
-    margin-bottom: 5px;
-  }
-
-  button {
-    border: 0;
-    background-color: #056b89;
-    color: white;
-    display: grid;
-    place-content: center;
-    padding: 7px;
-    cursor: pointer;
-    font-size: 1rem;
-    transition: 0.15s ease-in-out all;
-  }
-  .buttonContainer {
-    display: flex;
-    position: absolute;
-    right: 0;
-    gap: 15px;
-    margin-left: auto; /* Push to the right edge */
-  }
-  button:hover {
-    background-color: #009788;
-  }
-
-  .otherLine {
-    display: inline;
-    position: relative;
-    margin-left: 15px;
-    color: #056b89;
-    text-decoration: underline;
-  }
-
-  .bold {
-    font-weight: 700;
-  }
-
-  .finalStops {
-    font-weight: 700;
-  }
-
-  .mapWrapper {
+  .LineStopTimetable td {
     width: 100%;
+    height: 20px;
+  }
+
+  .LineStopTimetable td > div {
+    margin-left: 5px;
+    min-height: inherit;
+    display: flex;
+    gap: 5px;
+  }
+}
+
+/* Smaller screens adjustments */
+@media only screen and (max-width: 768px) {
+  .LineStopTimetable {
+    flex-direction: column;
+  }
+
+  .LineStopTimetable .left,
+  .LineStopTimetable .right {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .LineStopTimetable .stopName {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .LineStopTimetable .buttonContainer {
+    position: static;
     margin: 10px 0;
   }
 
-  table {
-    margin-top: 20px;
-    margin-bottom: 20px;
-    border-spacing: 0;
-    border: 1px solid #d0d0d0;
+  .LineStopTimetable h1 {
+    font-size: 1.4rem;
+  }
+}
 
+@media print {
+  .LineStopTimetable {
+    display: block;
+  }
+
+  .LineStopTimetable .left,
+  .LineStopTimetable .right {
     width: 100%;
-
-    tr,
-    td,
-    th {
-      min-width: (100% / 20);
-      position: relative;
-      a {
-        text-decoration: none !important;
-      }
-    }
-    .signature {
-      position: absolute;
-      font-size: 14px;
-      top: -3px;
-      right: 2px;
-    }
+    float: none;
+    padding: 0;
   }
-  .left {
-    width: 65%;
-    margin-right: 5%;
-    float: left;
+
+  .LineStopTimetable button,
+  .LineStopTimetable .mapWrapper {
+    display: none !important;
   }
-  .right {
-    display: flex;
-    flex-direction: column;
-    flex-wrap: wrap;
-    gap: 0;
-    width: 30%;
-    float: left;
 
-    > div {
-      display: flex;
-      justify-content: flex-start;
-
-      > div {
-        height: 25px;
-        text-align: center;
-        padding: 3px;
-      }
-
-      .totalTravelTime {
-        width: 25px;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .stopOther {
-        width: 25px;
-        height: 100%;
-        display: flex;
-        align-items: center;
-      }
-
-      .travelTime {
-        width: 25px;
-        font-weight: 700;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-      }
-
-      .stopName {
-        img {
-          width: 15px;
-        }
-        a {
-          display: flex;
-          align-items: center;
-          justify-content: flex-start;
-          gap: 8px;
-        }
-
-        flex-grow: 1;
-        width: max-content;
-        text-align: left;
-
-        text-decoration: underline;
-        padding-right: 5px;
-        color: #056b89;
-      }
-
-      .stopName:hover {
-        color: #009788;
-      }
-    }
-
-    > div:first-child {
-      button {
-        margin: 0 0 0 0;
-        padding: 10px;
-        position: relative;
-
-        > div {
-          position: absolute;
-          background-color: #f3f3f3;
-          width: max-content;
-          padding: 10px;
-          color: black;
-          top: calc(-50% - 4px);
-          left: 50%;
-          transform: translate(-50%, -50%);
-          opacity: 0;
-          visibility: hidden;
-          transition: 0.3s ease-in-out all;
-
-          > div {
-            clip-path: polygon(50% 100%, 0 0, 100% 0);
-            height: 10px;
-            width: 15px;
-            position: absolute;
-            top: 113%;
-            left: 50%;
-            transform: translate(-50%, -90%);
-            background-color: #f3f3f3;
-          }
-        }
-      }
-
-      button:hover > div {
-        opacity: 1;
-        visibility: visible;
-      }
-    }
+  .LineStopTimetable table {
+    page-break-inside: avoid;
+    font-size: 9pt;
   }
-  th,
-  td {
-    width: 35px;
-    text-align: left;
-    border: 1px solid #d0d0d0;
-    line-height: 20px;
-    vertical-align: top;
-  }
-  th {
-    text-align: center;
-  }
-  @media only screen and (max-width: 1200px) {
-    .left {
-      width: 100%;
-    }
 
-    .right {
-      margin-top: 10px;
-      width: 100%;
-    }
-    .stopName {
-      width: auto;
-    }
-    table {
-      width: 100%;
-      display: flex;
-      flex-direction: row;
-      margin-bottom: 10px;
-    }
-    tr {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-    }
-    tbody {
-      flex-grow: 1;
-    }
-    td {
-      width: 100%;
-      height: 20px;
-      > div {
-        margin-left: 5px;
-        min-height: inherit;
-        display: flex;
-        gap: 5px;
-      }
-    }
+  .LineStopTimetable a {
+    text-decoration: none !important;
+    color: black !important;
   }
 }

@@ -1,15 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import service from '../../services/db';
+import service, { DepartureData, StopData } from '../../services/db';
 import MiniRealTimeDepartures from '../miniRealTimeDepartures/MiniRealTimeDepartures';
 import './StopGroup.css';
 import LoadingScreen from '../common/loadingScreen/LoadingScreen';
 import SingleStopMap from '../singleStopMap/SingleStopMap';
+import PageTitle from '../common/pageTitle/PageTitle';
 
 const StopGroup = () => {
   const { stopId } = useParams<{ stopId: string }>();
-  const [stopGroup, setStopGroup] = useState<any>([]);
+  const [stopGroup, setStopGroup] = useState<StopData[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   const FormatDepartureTime = (data: string) => {
     const now = new Date();
@@ -19,22 +21,18 @@ const StopGroup = () => {
     const [hours, minutes] = data.split(':').map(Number);
     time.setHours(hours, minutes, 0, 0);
 
-    // Return an object with the time and a flag indicating if it's for today or tomorrow
     return {
       time: time,
-      isPast: time < now,
+      isTomorrow: time < now,
       formattedTime: data,
     };
   };
 
   const updateCountdown = () => {
-    // Ensure stopGroup exists and has items
     if (!stopGroup || !stopGroup.length) return;
 
     try {
-      // Create a shallow copy of the array
       const updatedStopGroup = stopGroup.map((stop) => {
-        // Add a safety check for stop.departures
         if (!stop || !stop.departures || !Array.isArray(stop.departures)) {
           console.warn('Invalid stop format:', stop);
           return stop;
@@ -46,7 +44,6 @@ const StopGroup = () => {
         };
       });
 
-      // Only update if we have valid data
       if (updatedStopGroup && updatedStopGroup.length > 0) {
         setStopGroup(updatedStopGroup);
       }
@@ -55,51 +52,90 @@ const StopGroup = () => {
     }
   };
 
-  const Sort = (data: any) => {
-    return data.sort((a: any, b: any) => {
+  const Sort = useCallback((data: DepartureData[]) => {
+    return [...data].sort((a, b) => {
       const timeA = FormatDepartureTime(a.departure_time);
       const timeB = FormatDepartureTime(b.departure_time);
 
-      // First compare if one is past (tomorrow) and the other is future (today)
-      if (timeA.isPast && !timeB.isPast) return 1; // A is tomorrow, B is today
-      if (!timeA.isPast && timeB.isPast) return -1; // A is today, B is tomorrow
+      if (timeA.isTomorrow && !timeB.isTomorrow) return 1;
+      if (!timeA.isTomorrow && timeB.isTomorrow) return -1;
 
-      // If both are on the same day, compare by time
       return timeA.time.getTime() - timeB.time.getTime();
     });
-  };
-
-  useEffect(() => {
-    setIsLoading(true);
-    service.getStopGroup(Number(stopId)).then((data) => {
-      const processedData = data.map((stop) => ({
-        ...stop,
-        departures: Sort(stop.departures),
-      }));
-      console.log(processedData);
-      setStopGroup(processedData);
-      setIsLoading(false);
-    });
-  }, [stopId]);
-
-  useEffect(() => {
-    const interval = setInterval(updateCountdown, 5000);
-    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    // Only set interval if we have data
+    setIsLoading(true);
+
+    service
+      .getStopGroup(Number(stopId))
+      .then((data) => {
+        if (!Array.isArray(data) || data.length === 0) {
+          setError('Nie znaleziono przystanków w tej grupie');
+          return;
+        }
+
+        const processedData = data.map((stop: StopData) => ({
+          ...stop,
+          departures: Sort(stop.departures),
+        }));
+        setStopGroup(processedData);
+        setError(null);
+      })
+      .catch((err) => {
+        console.error('Error fetching stop group:', err);
+        setError('Wystąpił błąd podczas ładowania danych przystanku');
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [stopId, Sort]);
+
+  useEffect(() => {
     if (!stopGroup || !stopGroup.length) return;
 
-    const interval = setInterval(updateCountdown, 5000); // 1 minute is enough
+    const interval = setInterval(updateCountdown, 5000);
     return () => clearInterval(interval);
-  }, [stopGroup]); // Add stopGroup as dependency
+  }, [stopGroup]);
+
+  const Departure = ({ departure }: { departure: DepartureData }) => {
+    const timeInfo = FormatDepartureTime(departure.departure_time);
+
+    return (
+      <div
+        className={`route ${timeInfo.isTomorrow ? 'tomorrow-departure' : 'today-departure'}`}
+      >
+        <div className="line-name">
+          <div
+            className="type-color"
+            style={{ backgroundColor: departure.line.color }}
+          ></div>
+          {departure.line.name}
+        </div>
+        <div>
+          <Link
+            to={`/rozklad-jazdy-wedlug-linii/${departure.route_id}/${departure.stop_number}`}
+            className="destination-link"
+          >
+            {departure.last_stop}
+          </Link>
+        </div>
+        <div>{timeInfo.formattedTime}</div>
+      </div>
+    );
+  };
+
+  if (error) {
+    return <div className="error-message">{error}</div>;
+  }
 
   return (
     <>
       {!isLoading ? (
-        <div className="StopGroup">
-          <h1>Zespół przystankowy "{stopGroup[0].stop.group_name}"</h1>
+        <div className="StopGroup" aria-live="polite">
+          <PageTitle
+            title={`Zespół przystankowy "${stopGroup[0]?.stop?.group_name || ''}"`}
+          />
           <h4>
             Ten zespoł składa się z {stopGroup.length}{' '}
             {stopGroup.length > 1 ? 'przystanków' : 'przystanku'}
@@ -121,35 +157,9 @@ const StopGroup = () => {
                 <MiniRealTimeDepartures id={stop.stop.stop_id} />
                 <h3>Najbliższe odjazdy według rozkładu jazdy:</h3>
                 <div>
-                  {stop.departures.slice(0, 20).map((departure, idx) => {
-                    const timeInfo = FormatDepartureTime(
-                      departure.departure_time
-                    );
-                    console.log(departure);
-                    return (
-                      <div
-                        className={`route ${timeInfo.isPast ? 'future-departure' : ''}`}
-                        key={idx}
-                      >
-                        <div className="line-name">
-                          <div
-                            className="type-color"
-                            style={{ backgroundColor: departure.line.color }}
-                          ></div>
-                          {departure.line.name}
-                        </div>
-                        <div>
-                          <Link
-                            to={`/rozklad-jazdy-wedlug-linii/${departure.route_id}/${departure.stop_number}`}
-                            className="destination-link"
-                          >
-                            {departure.last_stop}
-                          </Link>
-                        </div>
-                        <div>{timeInfo.formattedTime}</div>
-                      </div>
-                    );
-                  })}
+                  {stop.departures.slice(0, 20).map((departure, idx) => (
+                    <Departure key={idx} departure={departure} />
+                  ))}
                 </div>
               </div>
             ))}
