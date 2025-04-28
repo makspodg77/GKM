@@ -2,7 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './MapRouteDisplay.css';
-import { Stop } from '../../services/db';
+
+interface Stop {
+  map: string;
+  street: string;
+  is_on_request: boolean;
+  name: string;
+  stop_number: string;
+}
 
 interface MapRouteDisplayProps {
   routes: Stop[][];
