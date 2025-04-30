@@ -204,7 +204,24 @@ const generateSignatureExplanation = (additionalStops, allStops) => {
     }
   } else if (lastStops.length) {
     const lastStop = lastStops[0].name;
-    explanation = `Kurs tylko do przystanku "${lastStop}"`;
+
+    // Check if this last stop is optional and after the normal last stop
+    const isOptionalExtension = additionalStopInfo.some(
+      (stop) =>
+        stop.is_last &&
+        stop.is_optional &&
+        allStops.some(
+          (regularStop) =>
+            regularStop.is_last &&
+            !regularStop.is_optional &&
+            Number(regularStop.stop_number) < Number(stop.stop_number)
+        )
+    );
+
+    // Use different wording based on the context
+    explanation = isOptionalExtension
+      ? `Kurs do przystanku "${lastStop}"`
+      : `Kurs tylko do przystanku "${lastStop}"`;
 
     if (middleStops.length) {
       const middleStopNames = middleStops
