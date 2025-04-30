@@ -1,5 +1,5 @@
-export const API_BASE_URL = 'http://localhost:8080/api';
-export const API_BASE_URL6 = 'https://goleniowkm.pl/api';
+export const API_BASE_URL6 = 'http://localhost:8080/api';
+export const API_BASE_URL = 'https://goleniowkm.pl/api';
 export const ROUTES = {
   HOME: `${API_BASE_URL}/lines`,
   LINES: `${API_BASE_URL}/lines/all`,
