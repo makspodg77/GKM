@@ -76,10 +76,8 @@ const removeDuplicates = (stops) => {
   let previousStreet = null;
 
   for (const stop of stops) {
-    // Skip stops with no street name
     if (!stop.street) continue;
 
-    // If this street is different from previous one, add it
     if (stop.street !== previousStreet) {
       result.push(stop.street);
       previousStreet = stop.street;
@@ -176,7 +174,7 @@ const getLinesFullRoutes = async (useCache = true) => {
     acc[line.name_plural][line.name].push({
       first_stop: firstStop.name,
       last_stop: lastStop.name,
-      streets: removeDuplicates(stops),
+      streets: stops,
     });
 
     usedRoutes.add(routeKey);

@@ -1,23 +1,6 @@
-.LineTimetable {
-  width: 100%;
-  padding: 1rem 0;
-}
-
-.LineTimetable h1 {
-  margin-bottom: 0;
-  margin-top: 0;
-}
-
 .LineTimetable h2 {
   margin-bottom: 15px;
   clear: both;
-}
-
-.LineTimetable h3 {
-  position: relative;
-  margin-left: 8px;
-  display: flex;
-  margin-top: 0;
 }
 
 .LineTimetable .type-color {
@@ -47,12 +30,10 @@
 
 .LineTimetable .finalStops {
   font-weight: 700;
-  margin-top: 10px;
   margin-bottom: 5px;
 }
 
 .LineTimetable .streets {
-  margin-bottom: 10px;
   line-height: 1.4;
 }
 
@@ -94,7 +75,7 @@
 .LineTimetable .routeStop {
   display: flex;
   align-items: center;
-  padding: 5px 0;
+  padding: 3px 0;
   width: 100%;
 }
 
@@ -110,7 +91,7 @@
 .LineTimetable .stopTime {
   width: 30px;
   color: #202020;
-  text-decoration: none !important;
+  text-decoration: none;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -143,12 +124,6 @@
   margin-bottom: 15px;
   padding-left: 10px;
   border-left: 3px solid #facf00;
-}
-
-.LineTimetable:after {
-  content: '';
-  display: table;
-  clear: both;
 }
 
 @media only screen and (max-width: 1200px) {

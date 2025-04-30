@@ -228,6 +228,10 @@ router.get(
       );
     }
 
+    const is_night = await executeQuery(
+      `SELECT is_night FROM route WHERE id = ${full_route_id}`
+    );
+
     const allStops = (await getStopsForRoute(full_route_id))
       .map((result) => ({ ...result, stop_number: Number(result.stop_number) }))
       .sort((a, b) => a.stop_number - b.stop_number);
@@ -293,6 +297,7 @@ router.get(
 
     res.json({
       line: await getLine(route[0].line_id),
+      is_night: is_night[0].is_night,
       departures: formatDeparturesByHour(departuresFlat),
       signatures: extractUniqueSignatures(departuresFlat),
       stops: allStops,

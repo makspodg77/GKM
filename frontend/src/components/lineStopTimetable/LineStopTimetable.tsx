@@ -30,7 +30,7 @@ interface HourlyDepartureTableProps {
     departure_time: string;
     timetable_id: number | string;
   } | null;
-  timetable: DepartureTime | null; // Changed from the specific shape to DepartureTime
+  timetable: DepartureTime | null;
 }
 
 const HourlyDepartureTable = ({
@@ -39,63 +39,75 @@ const HourlyDepartureTable = ({
   departureTimes,
   nextDeparture,
   timetable,
-}: HourlyDepartureTableProps) => (
-  <div className="table-container">
-    <table aria-label="Rozkład odjazdów według godzin">
-      <thead>
-        <tr>
-          {Array.from({ length: toHour - fromHour + 1 }, (_, index) => (
-            <th key={index}>{fromHour + index}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          {Array.from({ length: toHour - fromHour + 1 }, (_, index) => {
-            const hour = (fromHour + index).toString();
-            return (
-              <td key={index}>
-                <div>
-                  {departureTimes[hour]?.map((time) => (
-                    <Link
-                      key={time.timetable_id}
-                      to={
-                        timetable?.line?.id
-                          ? `/rozklad-jazdy-wedlug-linii/kurs/${timetable.line.id}/${time.timetable_id}/${timetable.stop.stop_number}`
-                          : '#'
-                      }
-                    >
-                      <div
-                        style={{
-                          backgroundColor:
-                            `${hour.padStart(2, '0')}:${time.departure_time}` ===
-                            nextDeparture?.departure_time
-                              ? '#FACF00'
-                              : '',
-                          color:
-                            time.color !== '#3498db' ? time.color : 'inherit',
-                        }}
-                      >
-                        {time.departure_time}
-                        {time.signature != 'Podstawowy' ? (
-                          <div className="signature">{time.signature}</div>
-                        ) : (
-                          <></>
-                        )}
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </td>
-            );
-          })}
-        </tr>
-      </tbody>
-    </table>
-  </div>
-);
+}: HourlyDepartureTableProps) => {
+  const isNightRoute = timetable?.is_night && fromHour > toHour;
 
-// Extract stop list to its own component
+  const hoursArray = isNightRoute
+    ? [
+        ...Array.from({ length: 24 - fromHour + 1 }, (_, i) => fromHour + i),
+        ...Array.from({ length: toHour + 1 }, (_, i) => i),
+      ]
+    : Array.from({ length: toHour - fromHour + 1 }, (_, i) => fromHour + i);
+
+  return (
+    <div className="table-container">
+      <table aria-label="Rozkład odjazdów według godzin">
+        <thead>
+          <tr>
+            {hoursArray.map((hour, index) => (
+              <th key={index}>{hour}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            {hoursArray.map((hour, index) => {
+              const hourStr = hour.toString();
+              return (
+                <td key={index}>
+                  <div>
+                    {departureTimes[hourStr]?.map((time) => (
+                      <Link
+                        key={time.timetable_id}
+                        to={
+                          timetable?.line?.id
+                            ? `/rozklad-jazdy-wedlug-linii/kurs/${timetable.line.id}/${time.timetable_id}/${timetable.stop.stop_number}`
+                            : '#'
+                        }
+                      >
+                        <div
+                          style={{
+                            backgroundColor:
+                              `${hourStr.padStart(2, '0')}:${time.departure_time}` ===
+                              nextDeparture?.departure_time
+                                ? '#FACF00'
+                                : '',
+                            color:
+                              time.color !== '#3498db' ? time.color : 'inherit',
+                          }}
+                        >
+                          <div className="departureMinutes">
+                            {time.departure_time}
+                            {time.signature != 'Podstawowy' ? (
+                              <div className="signature">{time.signature}</div>
+                            ) : (
+                              <></>
+                            )}
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </td>
+              );
+            })}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 interface Stop {
   stop_group_id: string;
   is_optional: boolean;
@@ -133,7 +145,12 @@ const StopsList = ({
           </Link>
           <div
             className="totalTravelTime"
-            style={index + 1 >= condition && !stop.is_optional ? selected : {}}
+            style={
+              index + 1 >= condition &&
+              (!stop.is_optional || index + 1 == condition)
+                ? selected
+                : {}
+            }
           >
             {index >= condition && !stop.is_optional
               ? (travelTime = travelTime + Number(stop.travel_time))
@@ -180,7 +197,6 @@ const StopsList = ({
   );
 };
 
-// Create dedicated utility functions for time operations
 const calculateTimeDifference = (
   departureTime: {
     timetable_id?: number;
@@ -252,7 +268,6 @@ const LineStopTimetable = () => {
     return data;
   };
 
-  // Function to handle already formatted departures by hour
   const organizeDeparturesByHour = (departures: {
     [hour: string]: {
       departure_time: string;
@@ -278,7 +293,6 @@ const LineStopTimetable = () => {
           .split(':')
           .map(Number);
 
-        // Create hour key
         const hourKey = hours.toString();
 
         if (!departuresByHour[hourKey]) {
@@ -297,12 +311,10 @@ const LineStopTimetable = () => {
       return departuresByHour;
     }
 
-    // If it's neither an object nor array, return empty object
     console.error('Invalid departures format:', departures);
     return {};
   };
 
-  // Memoize expensive calculations
   const flattenDepartures = useCallback(
     (departuresByHour: { [hour: string]: any[] }): any[] => {
       const flatList: any[] = [];
@@ -336,13 +348,10 @@ const LineStopTimetable = () => {
         );
         setCountdown(newTimeDiff.toString());
 
-        // If current time is past the departure time (including the 1-minute grace period)
         if (newTimeDiff <= 0) {
-          // If it's exactly 0, wait 60 seconds before checking for the next departure
           const delayBeforeNextDeparture = newTimeDiff === 0 ? 60000 : 1000;
 
           setTimeout(() => {
-            // We need to re-flatten the departures here
             const flattenedDepartures = flattenDepartures(departureTimes);
             const nextTime = nearestDepartureTime(flattenedDepartures);
             setNextDeparture(
@@ -359,7 +368,7 @@ const LineStopTimetable = () => {
       };
 
       updateCountdown();
-      const interval = setInterval(updateCountdown, 15000); // Check more frequently (every 15 seconds)
+      const interval = setInterval(updateCountdown, 15000);
       intervalsRef2.current.push(interval);
     }
 
@@ -377,7 +386,6 @@ const LineStopTimetable = () => {
     const now = new Date();
     now.setSeconds(0, 0);
 
-    // First, check for departures later today
     for (const time of departureTimes) {
       const [hours, minutes] = time.departure_time.split(':').map(Number);
       const departureTime = new Date();
@@ -391,8 +399,6 @@ const LineStopTimetable = () => {
       }
     }
 
-    // If we get here, there are no more departures today
-    // Return the first departure for tomorrow
     return {
       ...departureTimes[0],
       isToday: false,
@@ -420,7 +426,6 @@ const LineStopTimetable = () => {
         const departuresByHour = organizeDeparturesByHour(data.departures);
         setDepartureTimes(departuresByHour);
 
-        // Use the flattened list to find the nearest departure
         const flattenedDepartures = flattenDepartures(departuresByHour);
         setNextDeparture(nearestDepartureTime(flattenedDepartures));
       })
@@ -454,10 +459,6 @@ const LineStopTimetable = () => {
       (obj: { stop_number: number }) => obj.stop_number === Number(stopNumber)
     )?.stop_number
   );
-
-  const selected = { backgroundColor: '#009788', color: 'white' };
-  const fromHour = 4;
-  const toHour = 23;
 
   return (
     <div className="LineStopTimetable">
@@ -565,8 +566,8 @@ const LineStopTimetable = () => {
           <MiniRealTimeDepartures id={timetable.stop.stop_id} />
         )}
         <HourlyDepartureTable
-          fromHour={4}
-          toHour={23}
+          fromHour={timetable?.is_night ? 22 : 4}
+          toHour={timetable?.is_night ? 4 : 23}
           departureTimes={departureTimes}
           nextDeparture={nextDeparture}
           timetable={timetable}

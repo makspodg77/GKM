@@ -29,7 +29,7 @@ export interface LineInfo {
 export interface RouteInfo {
   first_stop: string;
   last_stop: string;
-  streets: string[];
+  streets: { street: string; name: string }[];
 }
 
 export interface LineDetailCategory {
@@ -40,6 +40,7 @@ export interface LineDetailCategory {
 }
 
 export interface DepartureTime {
+  is_night: boolean;
   line: {
     name: string;
     name_singular: string;

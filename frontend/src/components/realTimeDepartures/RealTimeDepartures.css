@@ -1,13 +1,9 @@
-/* Base container */
 .RealTimeDepartures {
-  width: 100%;
   display: flex;
   flex-direction: column;
-  height: 100%;
   padding: 1rem;
 }
 
-/* Header styling */
 .RealTimeDepartures .stop-header {
   display: flex;
   justify-content: space-between;
@@ -35,7 +31,6 @@
   margin-left: 10px;
 }
 
-/* Back button */
 .RealTimeDepartures .back-button {
   margin: 1rem 0;
   display: inline-block;
@@ -51,13 +46,11 @@
   background-color: #e0e0e0;
 }
 
-/* Departures container */
 .RealTimeDepartures .departures-container {
   width: 90%;
   margin: 0 auto;
 }
 
-/* Table header */
 .RealTimeDepartures .table-header {
   display: flex;
   font-weight: 700;
@@ -80,7 +73,6 @@
   text-align: right;
 }
 
-/* Departure rows */
 .RealTimeDepartures .departure-row {
   display: flex;
   padding: 15px 0;
@@ -107,7 +99,6 @@
   justify-content: flex-end;
 }
 
-/* Special status styling */
 .RealTimeDepartures .departing {
   animation: fadeInOut 1s infinite;
 }
@@ -131,7 +122,6 @@
   color: #333;
 }
 
-/* No departures message */
 .RealTimeDepartures .no-departures {
   text-align: center;
   padding: 40px 0;
@@ -140,7 +130,6 @@
   font-size: 1.5rem;
 }
 
-/* Error container */
 .RealTimeDepartures .error-container {
   padding: 40px;
   text-align: center;
@@ -165,7 +154,6 @@
   background-color: #045570;
 }
 
-/* Animation for arriving buses */
 @keyframes fadeInOut {
   0%,
   100% {
@@ -176,7 +164,6 @@
   }
 }
 
-/* Responsive adjustments */
 @media only screen and (max-width: 1200px) {
   .RealTimeDepartures {
     display: block;
@@ -219,6 +206,7 @@
 @media only screen and (max-width: 768px) {
   .RealTimeDepartures .departure-row {
     font-size: 1rem;
+    padding: 5px 0;
   }
 
   .RealTimeDepartures .departures-container,

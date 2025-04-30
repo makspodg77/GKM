@@ -10,7 +10,9 @@ const LineRoute: React.FC<{ route: RouteInfo }> = ({ route }) => (
     <div className="route-endpoints">
       {route.first_stop} ↔ {route.last_stop}
     </div>
-    <p className="route-streets">{route.streets.join(' - ')}</p>
+    <p className="route-streets">
+      {route.streets.map((stop) => `${stop.name} (${stop.street})`).join(' - ')}
+    </p>
   </div>
 );
 
@@ -32,6 +34,7 @@ const TransportLines = () => {
     service
       .getLinesRoutes()
       .then((data: TransportLinesGrouped) => {
+        console.log(data);
         setTransportLines(data);
         setLoading(false);
       })

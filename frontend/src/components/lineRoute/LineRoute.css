@@ -1,80 +1,131 @@
-.LineRoute {
-  h1 {
-    margin: 0;
+:root {
+  --primary-color: #056b89;
+  --secondary-color: #009788;
+  --light-bg: #f3f3f3;
+}
+
+.LineRoute .stop-info {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+
+.LineRoute a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.LineRoute a:hover {
+  color: var(--secondary-color);
+}
+
+.LineRoute .routeContainer {
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.LineRoute .routeContainer > div:nth-child(odd) {
+  background-color: var(--light-bg);
+}
+
+.LineRoute .routeContainer > div {
+  padding: 8px 10px;
+  display: flex;
+  justify-content: flex-start;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 15px;
+  align-items: center;
+}
+
+.LineRoute .route-stop.current {
+  background-color: #e6f7f5;
+  border-left: 3px solid var(--secondary-color);
+}
+
+.LineRoute .route-stop.past .stop-name {
+  color: #888;
+}
+
+.LineRoute .routeContainer > div > div:nth-child(1) {
+  width: 2%;
+  min-width: 20px;
+}
+
+.LineRoute .routeContainer > div > div:nth-child(2) {
+  width: 2%;
+  min-width: 20px;
+}
+
+.LineRoute .routeContainer > div > div:nth-child(2) > a > img {
+  width: 15px;
+  height: auto;
+}
+
+.LineRoute .routeContainer > div > div:nth-child(3) {
+  width: 66%;
+  margin-left: 10px;
+}
+
+.LineRoute .routeContainer > div > div:nth-child(3) a {
+  text-decoration: underline;
+  color: var(--primary-color);
+}
+
+.LineRoute .routeContainer > div > div:nth-child(4) {
+  width: 20%;
+  text-align: center;
+}
+
+.LineRoute .routeContainer > div > div:nth-child(5) {
+  width: 10%;
+  text-align: end;
+}
+
+.LineRoute .current-indicator {
+  font-weight: bold;
+  font-size: 1.2em;
+  color: var(--secondary-color);
+}
+
+.LineRoute .stop-id {
+  font-size: 0.9em;
+  color: #777;
+  margin-left: 5px;
+}
+
+@media only screen and (max-width: 768px) {
+  .LineRoute .routeContainer > div {
+    flex-wrap: wrap;
+    padding: 8px;
   }
-  .type-color {
-    position: absolute;
-    width: 3px;
-    top: 50%;
-    transform: translateY(-50%);
-    height: 20px;
-    left: -7px;
-  }
-  h3 {
-    margin-top: 0;
-    position: relative;
-    margin-left: 8px;
+
+  .LineRoute .routeContainer > div > div:nth-child(1) {
+    width: 10%;
+    order: 1;
   }
 
-  a {
-    color: inherit;
+  .LineRoute .routeContainer > div > div:nth-child(2) {
+    width: 10%;
+    order: 2;
   }
 
-  a:hover {
-    color: #009788;
+  .LineRoute .routeContainer > div > div:nth-child(3) {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 8px;
+    order: 5;
   }
 
-  .routeContainer {
-    display: flex;
-    justify-content: center;
-    flex-direction: column;
-
-    > div:nth-child(odd) {
-      background-color: #f3f3f3;
-    }
-
-    > div {
-      padding: 8px 0;
-      display: flex;
-      justify-content: flex-start;
-      padding-left: 10px;
-      padding-right: 10px;
-      flex-direction: row;
-      flex-wrap: nowrap;
-      gap: 15px;
-
-      :nth-child(1) {
-        width: 2%;
-      }
-
-      :nth-child(2) {
-        width: 2%;
-        > a {
-          > img {
-            width: 15px;
-          }
-        }
-      }
-
-      :nth-child(3) {
-        width: 66%;
-        margin-left: 10px;
-        text-decoration: underline;
-        color: #056b89;
-      }
-
-      :nth-child(4) {
-        width: 20%;
-        text-align: center;
-      }
-
-      :nth-child(5) {
-        width: 10%;
-        text-align: end;
-      }
-    }
+  .LineRoute .routeContainer > div > div:nth-child(4) {
+    width: 40%;
+    text-align: left;
+    order: 3;
   }
 
-  @media only screen and (max-width: 1200px) {
+  .LineRoute .routeContainer > div > div:nth-child(5) {
+    width: 40%;
+    order: 4;
   }
 }

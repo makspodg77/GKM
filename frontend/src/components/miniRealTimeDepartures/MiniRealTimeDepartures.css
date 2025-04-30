@@ -125,7 +125,7 @@
 
 @media (max-width: 768px) {
   .MiniRealTimeDepartures .realTimeDepartures {
-    margin-left: 15px;
+    margin-left: 0;
     min-width: auto;
     width: calc(100% - 20px);
   }

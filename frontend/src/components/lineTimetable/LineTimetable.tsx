@@ -143,10 +143,7 @@ const Route: React.FC<RouteProps> = ({ stops, lineId }) => {
   );
 };
 
-const StopDisplay: React.FC<{ stop: Stop; lineId: string }> = ({
-  stop,
-  lineId,
-}) => {
+const StopDisplay: React.FC<{ stop: Stop; lineId: string }> = ({ stop }) => {
   const stopIconType =
     stop.is_first && stop.is_optional
       ? firstIcon

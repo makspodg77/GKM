@@ -20,8 +20,7 @@
   font-size: 20px;
   padding-left: 15px;
   box-sizing: border-box;
-  border: none;
-  outline: 2px solid rgb(204, 204, 204);
+  border: 2px solid rgb(204, 204, 204);
 }
 
 .StopTimetable .stop-link {

@@ -110,11 +110,14 @@ const LineRoute = () => {
               </div>
               <div className={`stop-name ${isPastStop ? 'passed' : ''}`}>
                 <Link
+                  className="stop-info"
                   to={`/rozklad-jazdy-wedlug-linii/${stop.route_id}/${stop.stop_number}`}
                 >
-                  {stop.name}
+                  <span>{stop.name}</span>
                   {stop.is_on_request && (
                     <img
+                      width={'15px'}
+                      height={'15px'}
                       src={onRequestIcon}
                       title="Przystanek na żądanie"
                       alt="Na żądanie"

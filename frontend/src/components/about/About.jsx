@@ -132,6 +132,10 @@ const About = () => {
         Cały system działa w oparciu o nowoczesne technologie webowe i został
         stworzony z myślą o łatwej rozbudowie oraz długoterminowym utrzymaniu.
       </p>
+      <h4>Link do wszystkich linii naniesionych na jedną mape: </h4>
+      <a href="https://metrodreamin.com/view/c1gyRGRtbXEyQmh4MzV3emhTZnV0dDIyQldYMnww">
+        https://metrodreamin.com/view/c1gyRGRtbXEyQmh4MzV3emhTZnV0dDIyQldYMnww
+      </a>
       <h4>Struktura bazy danych</h4>
       <p>
         Poniżej możesz zobaczyć schemat struktury bazy danych używanej w
