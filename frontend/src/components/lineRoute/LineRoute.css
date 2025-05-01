@@ -94,38 +94,3 @@
   color: #777;
   margin-left: 5px;
 }
-
-@media only screen and (max-width: 768px) {
-  .LineRoute .routeContainer > div {
-    flex-wrap: wrap;
-    padding: 8px;
-  }
-
-  .LineRoute .routeContainer > div > div:nth-child(1) {
-    width: 10%;
-    order: 1;
-  }
-
-  .LineRoute .routeContainer > div > div:nth-child(2) {
-    width: 10%;
-    order: 2;
-  }
-
-  .LineRoute .routeContainer > div > div:nth-child(3) {
-    width: 100%;
-    margin-left: 0;
-    margin-top: 8px;
-    order: 5;
-  }
-
-  .LineRoute .routeContainer > div > div:nth-child(4) {
-    width: 40%;
-    text-align: left;
-    order: 3;
-  }
-
-  .LineRoute .routeContainer > div > div:nth-child(5) {
-    width: 40%;
-    order: 4;
-  }
-}

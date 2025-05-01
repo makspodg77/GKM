@@ -168,7 +168,7 @@ const StopsList = ({
           >
             <Link
               style={index + 1 == condition ? selected : {}}
-              to={`/rozklad-jazdy-wedlug-linii/${timetable.stop.route_id}/${stop.stop_number}`}
+              to={`/rozklad-jazdy-wedlug-linii/${timetable.stop.route_id}/${index + 1}`}
             >
               {stop.is_first && stop.is_optional ? (
                 <img src={firstIcon} />

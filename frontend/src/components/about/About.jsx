@@ -3,7 +3,7 @@ import PageTitle from '../common/pageTitle/PageTitle';
 const About = () => {
   return (
     <>
-      <PageTitle title="O projekcie..." />
+      <PageTitle title="O projekcie" />
       <p>
         Mieszkam w małej wsi o nazwie Kliniska Wielkie, około 10 minut
         samochodem od obrzeży Szczecina. Jeśli chciałem dostać się do Szczecina

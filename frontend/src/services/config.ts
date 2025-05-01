@@ -1,5 +1,9 @@
-export const API_BASE_URL6 = 'http://localhost:8080/api';
-export const API_BASE_URL = 'https://goleniowkm.pl/api';
+// For Vite projects
+const isDevelopment = import.meta.env.DEV;
+export const API_BASE_URL = isDevelopment
+  ? 'http://localhost:8080/api'
+  : 'https://goleniowkm.pl/api';
+
 export const ROUTES = {
   HOME: `${API_BASE_URL}/lines`,
   LINES: `${API_BASE_URL}/lines/all`,
