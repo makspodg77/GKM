@@ -16,8 +16,8 @@ const Lines = () => {
       .then((data: LineCategoryListing) => {
         const sortedLines: LineCategoryListing = {};
         Object.entries(data).forEach(([category, lines]) => {
-          sortedLines[category] = [...lines].sort((a, b) =>
-            a.name.localeCompare(b.name)
+          sortedLines[category] = [...lines].sort(
+            (a, b) => Number(a.name) - Number(b.name)
           );
         });
         setLines(sortedLines);
