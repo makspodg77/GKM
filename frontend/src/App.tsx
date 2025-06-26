@@ -8,7 +8,6 @@ import LineStopTimetable from './components/lineStopTimetable/LineStopTimetable'
 import RealTimeDepartures from './components/realTimeDepartures/RealTimeDepartures';
 import StopGroup from './components/stopGroup/StopGroup';
 import LineRoute from './components/lineRoute/LineRoute';
-import { useState } from 'react';
 import StopTimetable from './components/stops/Stops';
 import News from './components/news/News';
 import About from './components/about/About';
@@ -30,7 +29,7 @@ const PageStructure = (props: any) => {
           <div>
             <Link
               style={
-                location == '/rozklad-jazdy-wedlug-linii'
+                location == '/rozklad-jazdy-wedlug-linii' || location == '/'
                   ? { backgroundColor: '#FACF00' }
                   : {}
               }
@@ -60,9 +59,7 @@ const PageStructure = (props: any) => {
           </Link>
           <Link
             style={
-              location == '/aktualnosci' || location == '/'
-                ? { backgroundColor: '#FACF00' }
-                : {}
+              location == '/aktualnosci' ? { backgroundColor: '#FACF00' } : {}
             }
             to="/aktualnosci"
           >
@@ -112,7 +109,7 @@ const App = () => {
           path="/"
           element={
             <PageStructure>
-              <News />
+              <Lines />
             </PageStructure>
           }
         />
@@ -148,7 +145,7 @@ const App = () => {
             </PageStructure>
           }
         />
-        <Route path="*" element={<>404 Nie znaleziono doris</>} />
+        <Route path="*" element={<>404 Nie znaleziono widoku</>} />
         <Route
           path="/zespol-przystankowy/:stopId"
           element={

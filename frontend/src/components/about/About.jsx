@@ -7,8 +7,8 @@ const About = () => {
       <p>
         Mieszkam w małej wsi o nazwie Kliniska Wielkie, około 10 minut
         samochodem od obrzeży Szczecina. Jeśli chciałem dostać się do Szczecina
-        czymś innym niż pociągiem, miałem dwie opcje: albo iść pieszo, albo
-        skorzystać z autobusu gminnego, który dojeżdża do najbliższego
+        (nie licząc pociągu), miałem dwie opcje: albo iść pieszo(około godziny),
+        albo skorzystać z autobusu gminnego, który dojeżdża do najbliższego
         przystanku ZDiTM… dwa razy dziennie. Zawsze zdumiewała mnie ta przepaść
         w komforcie podróżowania między jednym powiatem a drugim.
       </p>
@@ -53,7 +53,11 @@ const About = () => {
         <p>
           Panel zarządzania, do którego możesz przejść
           {'  '}{' '}
-          <a href="LINK_DO_PANELU" target="_blank" rel="noopener noreferrer">
+          <a
+            href="https://github.com/makspodg77/gkm-admin2.0"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             tutaj
           </a>
           , także istnieje w dwóch wersjach — nowsza umożliwia bardziej
@@ -99,7 +103,7 @@ const About = () => {
         stronie frontendu oraz <strong>Node.js</strong> na backendzie. W
         projekcie korzystam z darmowych hostingów baz danych{' '}
         <strong>SQL Server</strong>, które przechowują wszystkie informacje o
-        liniach, przystankach, brygadach i rozkładach jazdy.
+        liniach, przystankach i rozkładach jazdy.
       </p>
       <p>
         Cały system został zaprojektowany tak, aby odjazdy autobusów generowały
@@ -134,7 +138,7 @@ const About = () => {
       </p>
       <h4>Link do wszystkich linii naniesionych na jedną mape: </h4>
       <a href="https://metrodreamin.com/view/c1gyRGRtbXEyQmh4MzV3emhTZnV0dDIyQldYMnww">
-        https://metrodreamin.com/view/c1gyRGRtbXEyQmh4MzV3emhTZnV0dDIyQldYMnww
+        mapa na metrodreamin'
       </a>
       <h4>Struktura bazy danych</h4>
       <p>
@@ -161,7 +165,7 @@ const About = () => {
         <li>
           <strong>GitHub projektu:</strong>{' '}
           <a
-            href="https://github.com/elzbietagawickaLOVE/GKM"
+            href="https://github.com/makspodg77/GKM"
             target="_blank"
             rel="noopener noreferrer"
           >

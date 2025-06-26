@@ -144,15 +144,12 @@ const getLineRoutes = async (line_id, useCache = true) => {
     return { line, stops: processedStops };
   });
   const departureResults = await Promise.all(departurePromises);
-  console.log(departureResults);
   const enrichedRoutes = sortedRoutes.map((route) => {
-    // Set to track unique routes
     const processedRoutes = new Set();
     const getRouteKey = (first, last) => {
       return [first, last].sort().join("-");
     };
 
-    // Filter and map departures
     const uniqueLinePaths = departureResults
       .filter((result) => {
         if (!result.stops || result.stops.length < 2) return false;
@@ -161,7 +158,6 @@ const getLineRoutes = async (line_id, useCache = true) => {
         const lastStop = result.stops[result.stops.length - 1].name;
         const routeKey = getRouteKey(firstStop, lastStop);
 
-        // Filter duplicates
         if (processedRoutes.has(routeKey)) {
           return false;
         }

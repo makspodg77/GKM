@@ -85,14 +85,16 @@ const Stops = () => {
               aria-labelledby={`letter-${letter}`}
             >
               {filteredStops[letter].map((stop: Stop) => (
-                <Link
-                  key={stop.id}
-                  to={`/zespol-przystankowy/${stop.id}`}
-                  className="stop-link"
-                  role="listitem"
-                >
-                  {stop.name}
-                </Link>
+                <>
+                  <Link
+                    key={stop.id}
+                    to={`/zespol-przystankowy/${stop.id}`}
+                    className="stop-link"
+                    role="listitem"
+                  >
+                    {stop.name}
+                  </Link>
+                </>
               ))}
             </div>
           </div>

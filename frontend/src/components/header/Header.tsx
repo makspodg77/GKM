@@ -1,5 +1,5 @@
 import './Header.css';
-import Herb from '../../assets/Herb-Goleniowa.png';
+import Herb from '../../assets/Herb-Goleniowa-powiat.png';
 import { Link } from 'react-router-dom';
 
 const Header = () => {

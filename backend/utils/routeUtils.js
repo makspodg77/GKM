@@ -19,21 +19,17 @@ const getDepartureRoutes = async () => {
  * @returns {Array} Processed stops
  */
 const processRouteStops = (results, additionalStops = []) => {
-  // Normalize all stop numbers to numeric and sort by stop number
   let processedResults = results
     .map((result) => ({ ...result, stop_number: Number(result.stop_number) }))
     .sort((a, b) => a.stop_number - b.stop_number);
 
-  // Create a map of additional stops for efficient lookups
   const additionalStopMap = {};
   additionalStops.forEach((stop) => {
     additionalStopMap[Number(stop.stop_number)] = stop;
   });
 
-  // Get the one true first stop (the earliest first stop that's marked in additionalStops)
   let effectiveFirstStopNumber = null;
 
-  // First check additionalStops for a first stop
   const additionalFirstStops = additionalStops
     .filter((stop) => stop.is_first)
     .sort((a, b) => Number(a.stop_number) - Number(b.stop_number));
@@ -41,7 +37,6 @@ const processRouteStops = (results, additionalStops = []) => {
   if (additionalFirstStops.length > 0) {
     effectiveFirstStopNumber = Number(additionalFirstStops[0].stop_number);
   } else {
-    // If no first stop in additionalStops, use the default first stop
     const defaultFirstStops = processedResults
       .filter((stop) => stop.is_first && !stop.is_optional)
       .sort((a, b) => a.stop_number - b.stop_number);
@@ -51,21 +46,18 @@ const processRouteStops = (results, additionalStops = []) => {
     }
   }
 
-  // Now mark stops that should be included based on additional stops
   processedResults = processedResults.map((result) => {
     const stopNumber = Number(result.stop_number);
     const additionalStop = additionalStopMap[stopNumber];
 
-    // Special handling for first stops
     if (result.is_first && stopNumber === effectiveFirstStopNumber) {
       return {
         ...result,
         is_included: true,
-        is_effective_first: true, // Mark the effective first stop
+        is_effective_first: true,
       };
     }
 
-    // Prevent other first stops from being marked as first
     if (result.is_first && stopNumber !== effectiveFirstStopNumber) {
       return {
         ...result,
@@ -74,30 +66,24 @@ const processRouteStops = (results, additionalStops = []) => {
       };
     }
 
-    // If this is an additional stop, include it regardless of optional status
     if (additionalStop) {
       return {
         ...result,
         is_included: true,
-        // Override is_last if specified in additionalStop
         is_last: additionalStop.is_last || result.is_last,
       };
     }
 
-    // Include non-optional stops
     if (!result.is_optional) {
       return { ...result, is_included: true };
     }
 
-    // Exclude optional stops not in additionalStops
     return { ...result, is_included: false };
   });
 
-  // Find the effective last stops
   const includedStops = processedResults.filter((stop) => stop.is_included);
   const lastStops = includedStops.filter((stop) => stop.is_last);
 
-  // Use the last "last stop" if available
   const effectiveLastStop =
     lastStops.length > 0
       ? lastStops.reduce(
@@ -107,14 +93,11 @@ const processRouteStops = (results, additionalStops = []) => {
         )
       : { stop_number: Number.MAX_VALUE };
 
-  // Filter stops to include only those within range and explicitly included
   processedResults = processedResults.filter((result) => {
-    // Always include stops explicitly in additionalStops
     if (additionalStopMap[result.stop_number]) {
       return true;
     }
 
-    // Include non-optional stops within range
     if (effectiveFirstStopNumber !== null) {
       return (
         !result.is_optional &&
@@ -129,7 +112,6 @@ const processRouteStops = (results, additionalStops = []) => {
     }
   });
 
-  // Clean up temporary properties
   return processedResults.map(
     ({ is_included, is_effective_first, ...rest }) => rest
   );

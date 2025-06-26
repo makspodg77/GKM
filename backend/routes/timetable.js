@@ -247,7 +247,6 @@ router.get(
     }
 
     const departuresFlat = [];
-    // Track unique departures to prevent duplicates
     const uniqueDepartures = new Set();
 
     for (const route of departureRoutes) {
@@ -274,17 +273,11 @@ router.get(
           { timetable_id: departure.id, route_id: departure.route_id }
         );
 
-        // Find the requested stop
-        // Only include the actual stop for this route variation, filtering duplicates
         const relevantStop = calculatedStops
           .filter((item) => Number(item.stop_number) === Number(stop_number))
-          // If this is a route variation with a custom first stop, ensure we only include the actual first stop
           .filter((item, idx, arr) => {
-            // Keep all non-first stops
             if (!item.is_first) return true;
 
-            // For first stops, make sure we're not adding duplicates based on signature
-            // For each signature, we should have at most one stop entry
             const sameSignaturePrior = arr
               .slice(0, idx)
               .some((s) => s.is_first && s.signature === signature);
@@ -295,14 +288,12 @@ router.get(
             color,
             signature,
             signatureExplanation,
-            departure_id: departure.id, // Add the timetable_id for better tracking
-          }))[0]; // Take only the first matching stop (should be at most one)
+            departure_id: departure.id,
+          }))[0];
 
         if (relevantStop) {
-          // Create a unique key for this departure that takes into account route variations
           const departureKey = `${relevantStop.departure_time}_${signature}`;
 
-          // Check if this is a duplicate
           if (!uniqueDepartures.has(departureKey)) {
             uniqueDepartures.add(departureKey);
             departuresFlat.push(relevantStop);
@@ -311,7 +302,6 @@ router.get(
       }
     }
 
-    // Sort departures by time
     departuresFlat.sort((a, b) => {
       return a.departure_time.localeCompare(b.departure_time);
     });

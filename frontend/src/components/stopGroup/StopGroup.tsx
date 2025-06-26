@@ -153,7 +153,7 @@ const StopGroup = () => {
                 <h3>
                   Przystanek nr {stop.stop.group_id + '/' + stop.stop.stop_id}
                 </h3>
-                <h4>ulica: {stop.stop.street}</h4>
+                <h4>ulica/lokalizacja: {stop.stop.street}</h4>
                 <MiniRealTimeDepartures id={stop.stop.stop_id} />
                 <h3>Najbliższe odjazdy według rozkładu jazdy:</h3>
                 <div>

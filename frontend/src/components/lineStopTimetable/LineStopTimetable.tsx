@@ -514,20 +514,25 @@ const LineStopTimetable = () => {
               <div>
                 <div>
                   <span className="bold">Inne linie na tym przystanku:</span>
-                  {timetable.other_lines.map((line) => (
-                    <Link
-                      key={line.route_id}
-                      to={`/rozklad-jazdy-wedlug-linii/${line.route_id}/${line.stop_number}`}
-                    >
-                      <div className="otherLine nextDeparture" key={line.name}>
+                  {timetable.other_lines
+                    .sort((a, b) => Number(a.name) - Number(b.name))
+                    .map((line) => (
+                      <Link
+                        key={line.route_id}
+                        to={`/rozklad-jazdy-wedlug-linii/${line.route_id}/${line.stop_number}`}
+                      >
                         <div
-                          className="type-color"
-                          style={{ backgroundColor: line.color }}
-                        ></div>
-                        {line.name}
-                      </div>
-                    </Link>
-                  ))}
+                          className="otherLine nextDeparture"
+                          key={line.name}
+                        >
+                          <div
+                            className="type-color"
+                            style={{ backgroundColor: line.color }}
+                          ></div>
+                          {line.name}
+                        </div>
+                      </Link>
+                    ))}
                 </div>
               </div>
             )}
@@ -539,7 +544,7 @@ const LineStopTimetable = () => {
               <>
                 <Link
                   className="nextDeparture"
-                  to={`/rozklad-jazdy-wedlug-linii/kurs/${nextDeparture.timetable_id}`}
+                  to={`/rozklad-jazdy-wedlug-linii/kurs/${timetable?.line.id}/${nextDeparture.timetable_id}/${stopNumber}`}
                 >
                   {nextDeparture.departure_time}
                 </Link>
@@ -584,7 +589,7 @@ const LineStopTimetable = () => {
                 .map((signature) => (
                   <div style={{ color: signature.color }}>
                     {signature.signature +
-                      '  ' +
+                      ' - ' +
                       signature.signature_explanation}
                   </div>
                 ))}
@@ -593,7 +598,8 @@ const LineStopTimetable = () => {
         ) : (
           <></>
         )}
-        <br /> Operator: PKS Kamień Pomorski
+        <br /> <span className="bold">Operator</span>: PKS Sp. z o.o. Kamień
+        Pomorski
       </div>
       <StopsList
         stops={(timetable?.stops || []).map((stop) => ({

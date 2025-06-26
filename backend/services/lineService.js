@@ -1,6 +1,6 @@
 const { executeQuery } = require("../utils/sqlHelper");
 const { NotFoundError, ValidationError } = require("../utils/errorHandler");
-const { processRouteStops } = require("../utils/routeUtils"); // Import from utils, not service
+const { processRouteStops } = require("../utils/routeUtils");
 
 const {
   getLineDataByRouteId,
@@ -187,9 +187,6 @@ const getLinesFullRoutes = async (useCache = true) => {
   return reducedDepartures;
 };
 
-/**
- * Forces a refresh of the cache
- */
 const refreshCache = async () => {
   linesCache = null;
   linesFullRoutesCache = null;
@@ -213,7 +210,6 @@ const getOtherLinesAtStop = async (stopId, lineId) => {
     throw new ValidationError("line ID parameter is required");
   }
 
-  // Fix 1: Check if your SQL Helper expects exact casing
   const query = `
   SELECT DISTINCT lt.color, l.name, fr.stop_number, r.id AS route_id 
   FROM line l 
@@ -223,14 +219,11 @@ const getOtherLinesAtStop = async (stopId, lineId) => {
   WHERE l.id != @lineId AND fr.is_last != 1
   `;
 
-  // Fix 2: Check that the parameterized values match your SQL helper's expectations
   const results = await executeQuery(query, {
     stopId: parseInt(stopId),
     lineId: parseInt(lineId),
   });
 
-  // Fix 3: Add more detail to your log for debugging
-  console.log("Other lines at stop query results:", results);
   return results;
 };
 

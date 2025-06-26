@@ -205,7 +205,6 @@ const generateSignatureExplanation = (additionalStops, allStops) => {
   } else if (lastStops.length) {
     const lastStop = lastStops[0].name;
 
-    // Check if this last stop is optional and after the normal last stop
     const isOptionalExtension = additionalStopInfo.some(
       (stop) =>
         stop.is_last &&
@@ -218,7 +217,6 @@ const generateSignatureExplanation = (additionalStops, allStops) => {
         )
     );
 
-    // Use different wording based on the context
     explanation = isOptionalExtension
       ? `Kurs do przystanku "${lastStop}"`
       : `Kurs tylko do przystanku "${lastStop}"`;
@@ -294,14 +292,6 @@ const extractUniqueSignatures = (departures) => {
 };
 
 const getLinesFullRoutes = async (useCache = true) => {
-  if (
-    useCache &&
-    linesFullRoutesCache &&
-    Date.now() - linesFullRoutesCacheTime < 300000
-  ) {
-    //return linesFullRoutesCache;
-  }
-
   const allRouteIds = await executeQuery(`SELECT id FROM route`);
   const routeIds = allRouteIds.map((r) => r.id);
   const departureRoutes = await getDepartureRoutesByFullRouteIds(routeIds);
@@ -377,9 +367,6 @@ const getLinesFullRoutes = async (useCache = true) => {
   return reducedDepartures;
 };
 
-/**
- * Clear caches to force fresh data
- */
 const clearCache = () => {
   stopCacheByRoute = {};
   stopCacheTime = 0;
