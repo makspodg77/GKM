@@ -105,6 +105,7 @@ jobs:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_92E1CF6DB3E9420E8E88E5EFC9F2D6F4 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_3F72622A46E54F59BF3AD025D669D014 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_7997B80151FC40D4A5802EDCF15DA769 }}
+          auth-type: federated
 
       # Deploy to Azure Web App
       - name: Deploy to Azure Web App
