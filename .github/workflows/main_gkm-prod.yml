@@ -14,23 +14,16 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
-          lfs: false
 
-      - name: Set up Node.js version
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: "18.x"
 
-      - name: Install frontend dependencies
+      - name: Install and build frontend
         run: |
           cd frontend
           npm ci
-
-      - name: Build frontend
-        run: |
-          cd frontend
           npm run build
 
       - name: Install backend dependencies
@@ -38,44 +31,51 @@ jobs:
           cd backend
           npm ci
 
-      - name: Prepare deployment package
+      - name: Create simple deployment package
         run: |
-          # Create a deployment directory
+          # Create deployment directory
           mkdir -p deployment
 
-          # Copy backend files to deployment root (these will go to /home/site/wwwroot/)
+          # Copy backend files to deployment root
           cp -r backend/* deployment/
 
-          # Create frontend directory inside the deployment package
+          # Copy frontend files to expected location
           mkdir -p deployment/frontend/dist
           cp -r frontend/dist/* deployment/frontend/dist/
 
-          # Create a separate structure for the home/site/frontend/dist path
-          # This step avoids the copy error by creating a different directory structure
-          mkdir -p home/site/frontend/dist
-          cp -r frontend/dist/* home/site/frontend/dist/
+          # Add frontend path patch to index.js
+          echo '
+          // Check for frontend files at runtime
+          const fs = require("fs");
+          const originalResolve = path.resolve;
+          path.resolve = function(...args) {
+            const result = originalResolve.apply(this, args);
+            // If this looks like a frontend path and doesnt exist
+            if (result.includes("frontend/dist") && !fs.existsSync(result)) {
+              console.log("Path not found:", result);
+              // Try alternative path
+              const altPath = path.join(__dirname, "frontend", "dist");
+              if (fs.existsSync(altPath)) {
+                console.log("Using alternative path:", altPath);
+                return altPath;
+              }
+            }
+            return result;
+          };' > frontend-patch.js
 
-          # Copy the home directory into the zip
-          mkdir -p deployment/home
-          cp -r home deployment/
+          # Insert patch at beginning of index.js
+          cat frontend-patch.js deployment/index.js > temp.js
+          mv temp.js deployment/index.js
 
-          # Copy web.config for SPA routing
+          # Copy web.config
           cp frontend/web.config deployment/ || true
 
-          # Debug: List deployment directory contents
-          echo "Deployment directory contents:"
-          ls -la deployment
-          echo "Frontend dist directory contents:"
-          ls -la deployment/frontend/dist || true
-          echo "Home site frontend directory contents:"
-          ls -la deployment/home/site/frontend/dist || true
-
-      - name: Zip artifact for deployment
+      - name: Zip artifact
         run: |
           cd deployment
           zip -r ../release.zip ./*
 
-      - name: Upload artifact for deployment job
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: node-app
@@ -89,12 +89,12 @@ jobs:
       contents: read
 
     steps:
-      - name: Download artifact from build job
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: node-app
 
-      - name: Unzip artifact for deployment
+      - name: Unzip artifact
         run: unzip release.zip
 
       - name: Login to Azure
@@ -104,7 +104,7 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_9307DE28C63743BEBB9D134647EACE07 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_D7C0CB3450AD437DA9C55B9CD1F03A3B }}
 
-      - name: "Deploy to Azure Web App"
+      - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
