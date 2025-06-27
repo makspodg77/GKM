@@ -43,19 +43,24 @@ jobs:
           # Create a deployment directory
           mkdir -p deployment
 
-          # Copy backend files
+          # Copy backend files to deployment root (these will go to /home/site/wwwroot/)
           cp -r backend/* deployment/
 
-          # Create frontend directory inside deployment
+          # Create parent frontend directory at the same level as backend
+          # This ensures that path.resolve(__dirname, "..", "frontend", "dist") works
+          mkdir -p deployment/../frontend/dist
+          cp -r frontend/dist/* deployment/../frontend/dist/
+
+          # Make sure the frontend directory is included in the zip
           mkdir -p deployment/frontend
           cp -r frontend/dist deployment/frontend/
 
-          # Copy web.config for SPA routing if exists
+          # Copy web.config for SPA routing
           cp frontend/web.config deployment/ || true
 
           # Debug: List deployment directory contents
           ls -la deployment
-          ls -la deployment/frontend/dist || true
+          ls -la deployment/../frontend/dist || true
 
       - name: Zip artifact for deployment
         run: |
