@@ -164,3 +164,13 @@ jobs:
           package: .
         env:
           NODE_ENV: production
+
+      - name: Verify deployment files
+        run: |
+          echo "Deployment completed. Checking what was deployed..."
+          echo "Current directory contents:"
+          ls -la
+          echo "Checking if public folder exists:"
+          ls -la public/ || echo "No public folder found after deployment!"
+          echo "Searching for all HTML files:"
+          find . -name "*.html" -type f || echo "No HTML files found!"
