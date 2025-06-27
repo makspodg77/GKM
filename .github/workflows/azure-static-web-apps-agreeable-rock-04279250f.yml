@@ -28,10 +28,38 @@ jobs:
         with:
           node-version: "18"
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
         run: |
           cd frontend
           npm ci
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Prepare deployment package
+        run: |
+          # Create a temp directory for combined deployment
+          mkdir -p deployment
+
+          # Copy backend files
+          cp -r backend/* deployment/
+
+          # Ensure the frontend/dist directory exists relative to backend
+          mkdir -p deployment/frontend
+          cp -r frontend/dist deployment/frontend/
+
+          # Copy web.config for SPA routing if exists
+          cp frontend/web.config deployment/frontend/dist/ || true
+
+          # Create a routes.json file for Static Web Apps routing
+          echo '{ "routes": [{ "route": "/api/*", "methods": ["GET", "POST", "PUT", "DELETE"], "rewrite": "/api/$1" }, { "route": "/*", "serve": "/frontend/dist/index.html", "statusCode": 200 }] }' > deployment/staticwebapp.config.json
 
       - name: Install OIDC Client from Core Package
         run: npm install @actions/core@1.6.0 @actions/http-client
@@ -51,10 +79,11 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_AGREEABLE_ROCK_04279250F }}
           action: "upload"
-          app_location: "./frontend"
+          app_location: "./deployment"
           api_location: ""
-          output_location: "dist"
-          app_build_command: "npm run build"
+          output_location: ""
+          skip_app_build: true
+          skip_api_build: true
           github_id_token: ${{ steps.idtoken.outputs.result }}
 
   close_pull_request_job:
@@ -68,3 +97,4 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_AGREEABLE_ROCK_04279250F }}
           action: "close"
+          app_location: "./deployment"
