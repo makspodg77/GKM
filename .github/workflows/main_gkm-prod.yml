@@ -56,24 +56,62 @@ jobs:
             exit 1
           fi
 
+          echo "Contents of frontend/dist before copying:"
+          ls -la frontend/dist/
+
           echo "Creating public directory and copying frontend files..."
           mkdir -p deployment/public
           cp -r frontend/dist/* deployment/public/
-          echo "Frontend files copied to public. Contents:"
+          echo "Frontend files copied to deployment/public/. Contents:"
           ls -la deployment/public/
 
-          # Copy web.config if exists
-          if [ -f frontend/web.config ]; then
-            echo "Copying web.config..."
-            cp frontend/web.config deployment/web.config
+          echo "Verifying index.html was copied:"
+          if [ -f "deployment/public/index.html" ]; then
+            echo "✅ index.html successfully copied to deployment/public/"
+            echo "Size: $(du -h deployment/public/index.html)"
           else
-            echo "No web.config found in frontend"
+            echo "❌ ERROR: index.html NOT found in deployment/public/"
+            exit 1
+          fi
+
+          # Copy web.config to root for IIS compatibility
+          if [ -f frontend/web.config ]; then
+            echo "Copying web.config to deployment root..."
+            cp frontend/web.config deployment/web.config
           fi
 
           echo "Copying package.json to deployment root..."
           cp backend/package.json deployment/package.json
 
+          echo "Creating process.json for PM2..."
+          cat > deployment/process.json << 'EOF'
+          {
+            "script": "index.js",
+            "name": "gkm-app",
+            "env": {
+              "NODE_ENV": "production",
+              "PORT": "8000"
+            }
+          }
+          EOF
+
+          echo "Creating .deployment file..."
+          cat > deployment/.deployment << 'EOF'
+          [config]
+          SCM_DO_BUILD_DURING_DEPLOYMENT=false
+          EOF
+
+          echo "Creating startup.txt for debugging..."
+          echo "node index.js" > deployment/startup.txt
+
           echo "Final deployment structure:"
+          echo "Root files:"
+          ls -la deployment/
+          echo "Public files:"
+          ls -la deployment/public/
+          echo "All files count:"
+          find deployment -type f | wc -l
+          echo "First 20 files:"
           find deployment -type f | head -20
 
       - name: Zip artifact
@@ -101,7 +139,14 @@ jobs:
           name: node-app
 
       - name: Unzip artifact
-        run: unzip release.zip
+        run: |
+          unzip release.zip
+          echo "Unzipped artifact contents:"
+          ls -la
+          echo "Public folder contents:"
+          ls -la public/ || echo "No public folder found!"
+          echo "Checking for index.html:"
+          find . -name "index.html" -type f
 
       - name: Login to Azure
         uses: azure/login@v2
