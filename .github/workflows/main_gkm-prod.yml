@@ -65,12 +65,27 @@ jobs:
           echo "Frontend files copied to deployment/public/. Contents:"
           ls -la deployment/public/
 
+          echo "ALSO copying frontend files to frontend/dist for backward compatibility..."
+          mkdir -p deployment/frontend/dist
+          cp -r frontend/dist/* deployment/frontend/dist/
+          echo "Frontend files copied to deployment/frontend/dist/. Contents:"
+          ls -la deployment/frontend/dist/
+
           echo "Verifying index.html was copied:"
           if [ -f "deployment/public/index.html" ]; then
             echo "✅ index.html successfully copied to deployment/public/"
             echo "Size: $(du -h deployment/public/index.html)"
           else
             echo "❌ ERROR: index.html NOT found in deployment/public/"
+            exit 1
+          fi
+
+          echo "Verifying index.html was copied to frontend/dist:"
+          if [ -f "deployment/frontend/dist/index.html" ]; then
+            echo "✅ index.html successfully copied to deployment/frontend/dist/"
+            echo "Size: $(du -h deployment/frontend/dist/index.html)"
+          else
+            echo "❌ ERROR: index.html NOT found in deployment/frontend/dist/"
             exit 1
           fi
 

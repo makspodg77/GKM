@@ -180,48 +180,8 @@ app.use("/api/lines", linesRouter);
 app.use("/api/stops", stopsRouter);
 app.use("/api/news", newsRouter);
 
-// Determine frontend path based on environment
-const frontendPath =
-  process.env.NODE_ENV === "production"
-    ? path.resolve(__dirname, "public")
-    : path.resolve(__dirname, "..", "frontend", "dist");
+const frontendPath = path.resolve(__dirname, "public");
 
-console.log("=== FRONTEND DEBUGGING ===");
-console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
-console.log(`__dirname: ${__dirname}`);
-console.log(`Resolved frontend path: ${frontendPath}`);
-console.log(`Frontend path exists: ${require("fs").existsSync(frontendPath)}`);
-
-// Lista wszystkich plików w głównym katalogu
-console.log("Contents of main directory:");
-try {
-  const files = require("fs").readdirSync(__dirname);
-  files.forEach((file) => {
-    const stats = require("fs").statSync(path.join(__dirname, file));
-    console.log(`  ${file} ${stats.isDirectory() ? "(directory)" : "(file)"}`);
-  });
-} catch (error) {
-  console.log(`Error reading directory: ${error.message}`);
-}
-
-// Sprawdź czy folder public istnieje
-const publicPath = path.resolve(__dirname, "public");
-console.log(`Public folder path: ${publicPath}`);
-console.log(`Public folder exists: ${require("fs").existsSync(publicPath)}`);
-
-if (require("fs").existsSync(publicPath)) {
-  console.log("Contents of public directory:");
-  try {
-    const publicFiles = require("fs").readdirSync(publicPath);
-    publicFiles.forEach((file) => {
-      console.log(`  public/${file}`);
-    });
-  } catch (error) {
-    console.log(`Error reading public directory: ${error.message}`);
-  }
-}
-
-console.log("=== END FRONTEND DEBUGGING ===");
 console.log(`Serving static files from: ${frontendPath}`);
 app.use(express.static(frontendPath));
 
