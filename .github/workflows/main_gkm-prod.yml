@@ -1,6 +1,3 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
 name: Build and deploy Node.js app to Azure Web App - gkm-prod
 
 on:
@@ -13,24 +10,57 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: false
 
       - name: Set up Node.js version
         uses: actions/setup-node@v3
         with:
-          node-version: '22.x'
+          node-version: "18.x"
 
-      - name: npm install, build, and test
+      - name: Install frontend dependencies
         run: |
-          npm install
-          npm run build --if-present
-          npm run test --if-present
+          cd frontend
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Prepare deployment package
+        run: |
+          # Create a deployment directory
+          mkdir -p deployment
+
+          # Copy backend files
+          cp -r backend/* deployment/
+
+          # Create frontend directory inside deployment
+          mkdir -p deployment/frontend
+          cp -r frontend/dist deployment/frontend/
+
+          # Copy web.config for SPA routing if exists
+          cp frontend/web.config deployment/ || true
+
+          # Debug: List deployment directory contents
+          ls -la deployment
+          ls -la deployment/frontend/dist || true
 
       - name: Zip artifact for deployment
-        run: zip release.zip ./* -r
+        run: |
+          cd deployment
+          zip -r ../release.zip ./*
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -42,8 +72,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
+      id-token: write
+      contents: read
 
     steps:
       - name: Download artifact from build job
@@ -53,7 +83,7 @@ jobs:
 
       - name: Unzip artifact for deployment
         run: unzip release.zip
-      
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -61,11 +91,10 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_9307DE28C63743BEBB9D134647EACE07 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_D7C0CB3450AD437DA9C55B9CD1F03A3B }}
 
-      - name: 'Deploy to Azure Web App'
+      - name: "Deploy to Azure Web App"
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'gkm-prod'
-          slot-name: 'Production'
+          app-name: "gkm-prod"
+          slot-name: "Production"
           package: .
-          
