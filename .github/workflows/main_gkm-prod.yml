@@ -39,29 +39,110 @@ jobs:
           # Copy backend files to deployment root
           cp -r backend/* deployment/
 
-          # Copy frontend files to expected location
+          # Copy frontend files to expected location inside deployment
           mkdir -p deployment/frontend/dist
           cp -r frontend/dist/* deployment/frontend/dist/
 
-          # Add frontend path patch to index.js
+          # Create the exact path structure mentioned in the error
+          mkdir -p deployment/home/site/frontend/dist
+          cp -r frontend/dist/* deployment/home/site/frontend/dist/
+
+          # Create a more robust frontend path patch
           echo '
-          // Check for frontend files at runtime
+          // Comprehensive patch for frontend path resolution
           const fs = require("fs");
-          const originalResolve = path.resolve;
-          path.resolve = function(...args) {
-            const result = originalResolve.apply(this, args);
-            // If this looks like a frontend path and doesnt exist
-            if (result.includes("frontend/dist") && !fs.existsSync(result)) {
-              console.log("Path not found:", result);
-              // Try alternative path
-              const altPath = path.join(__dirname, "frontend", "dist");
-              if (fs.existsSync(altPath)) {
-                console.log("Using alternative path:", altPath);
-                return altPath;
+          const path = require("path");
+
+          // Save original function
+          const originalPathResolve = path.resolve;
+          const originalPathJoin = path.join;
+
+          // Get list of directories to try
+          const getPossibleFrontendPaths = () => [
+            "/home/site/frontend/dist",               // The exact path from your error
+            path.join(__dirname, "frontend", "dist"), // Relative to current script
+            path.join(__dirname, "..", "frontend", "dist"), // Original expected path
+            "/home/site/wwwroot/frontend/dist",       // Another possible Azure path
+            process.cwd() + "/frontend/dist"          // Current working directory
+          ];
+
+          // Helper to find first valid path
+          const findFirstValidPath = (paths) => {
+            for (const p of paths) {
+              try {
+                if (fs.existsSync(p)) {
+                  console.log(`✅ Found valid frontend path: ${p}`);
+                  return p;
+                }
+              } catch (err) {
+                console.log(`❌ Error checking path ${p}: ${err.message}`);
               }
             }
-            return result;
-          };' > frontend-patch.js
+            
+            console.warn("⚠️ No valid frontend paths found!");
+            return null;
+          };
+
+          // Cache result for performance
+          let VALID_FRONTEND_PATH = null;
+
+          // Override path.resolve
+          path.resolve = function(...args) {
+            const original = originalPathResolve.apply(this, args);
+            
+            // Is this trying to resolve frontend path?
+            if ((args.includes("frontend") && args.includes("dist")) || 
+                original.includes("frontend/dist")) {
+              
+              console.log(`🔍 Path resolution intercepted: ${original}`);
+              
+              // Lazily initialize the valid path
+              if (!VALID_FRONTEND_PATH) {
+                VALID_FRONTEND_PATH = findFirstValidPath(getPossibleFrontendPaths());
+              }
+              
+              // If we found a valid path, return it
+              if (VALID_FRONTEND_PATH) {
+                return VALID_FRONTEND_PATH;
+              }
+            }
+            
+            return original;
+          };
+
+          // Also override path.join for safety
+          path.join = function(...args) {
+            const original = originalPathJoin.apply(this, args);
+            
+            // Is this trying to join path to index.html in frontend?
+            if (original.includes("frontend/dist/index.html")) {
+              console.log(`🔍 Path join intercepted: ${original}`);
+              
+              // Lazily initialize the valid path
+              if (!VALID_FRONTEND_PATH) {
+                VALID_FRONTEND_PATH = findFirstValidPath(getPossibleFrontendPaths());
+              }
+              
+              // If we found a valid path, return path to index.html
+              if (VALID_FRONTEND_PATH) {
+                return path.join(VALID_FRONTEND_PATH, "index.html");
+              }
+            }
+            
+            return original;
+          };
+
+          // Log available directories to help debugging
+          console.log("📂 Current directory:", __dirname);
+          console.log("📂 Directory contents:");
+          try {
+            fs.readdirSync(__dirname).forEach(file => {
+              console.log(` - ${file}`);
+            });
+          } catch (err) {
+            console.log(` Error reading directory: ${err.message}`);
+          }
+          ' > frontend-patch.js
 
           # Insert patch at beginning of index.js
           cat frontend-patch.js deployment/index.js > temp.js
