@@ -180,7 +180,12 @@ app.use("/api/lines", linesRouter);
 app.use("/api/stops", stopsRouter);
 app.use("/api/news", newsRouter);
 
-const frontendPath = path.resolve(__dirname, "..", "frontend", "dist");
+// Determine frontend path based on environment
+const frontendPath =
+  process.env.NODE_ENV === "production"
+    ? path.resolve(__dirname, "public")
+    : path.resolve(__dirname, "..", "frontend", "dist");
+
 console.log(`Serving static files from: ${frontendPath}`);
 app.use(express.static(frontendPath));
 
