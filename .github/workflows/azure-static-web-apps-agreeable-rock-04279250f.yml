@@ -45,21 +45,37 @@ jobs:
 
       - name: Prepare deployment package
         run: |
-          # Create a temp directory for combined deployment
+          # Create a deployment directory
           mkdir -p deployment
 
-          # Copy backend files
-          cp -r backend/* deployment/
+          # Copy the frontend build to the root of deployment
+          cp -r frontend/dist/* deployment/
 
-          # Ensure the frontend/dist directory exists relative to backend
-          mkdir -p deployment/frontend
-          cp -r frontend/dist deployment/frontend/
+          # Create an api folder for the backend
+          mkdir -p deployment/api
+          cp -r backend/* deployment/api/
 
-          # Copy web.config for SPA routing if exists
-          cp frontend/web.config deployment/frontend/dist/ || true
+          # Create a staticwebapp.config.json file
+          echo '{
+            "navigationFallback": {
+              "rewrite": "/index.html",
+              "exclude": ["/images/*", "/css/*", "/js/*", "/api/*"]
+            },
+            "routes": [
+              {
+                "route": "/api/*",
+                "methods": ["GET", "POST", "PUT", "DELETE"],
+                "rewrite": "/api/index.js"
+              }
+            ]
+          }' > deployment/staticwebapp.config.json
 
-          # Create a routes.json file for Static Web Apps routing
-          echo '{ "routes": [{ "route": "/api/*", "methods": ["GET", "POST", "PUT", "DELETE"], "rewrite": "/api/$1" }, { "route": "/*", "serve": "/frontend/dist/index.html", "statusCode": 200 }] }' > deployment/staticwebapp.config.json
+          # Ensure web.config is in the root if it exists
+          cp frontend/web.config deployment/ || true
+
+          # Debug: List deployment directory contents
+          ls -la deployment
+          ls -la deployment/api || true
 
       - name: Install OIDC Client from Core Package
         run: npm install @actions/core@1.6.0 @actions/http-client
@@ -79,8 +95,8 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_AGREEABLE_ROCK_04279250F }}
           action: "upload"
-          app_location: "./deployment"
-          api_location: ""
+          app_location: "deployment"
+          api_location: "api"
           output_location: ""
           skip_app_build: true
           skip_api_build: true
@@ -97,4 +113,3 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_AGREEABLE_ROCK_04279250F }}
           action: "close"
-          app_location: "./deployment"
