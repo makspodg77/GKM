@@ -46,21 +46,29 @@ jobs:
           # Copy backend files to deployment root (these will go to /home/site/wwwroot/)
           cp -r backend/* deployment/
 
-          # Create parent frontend directory at the same level as backend
-          # This ensures that path.resolve(__dirname, "..", "frontend", "dist") works
-          mkdir -p deployment/../frontend/dist
-          cp -r frontend/dist/* deployment/../frontend/dist/
+          # Create frontend directory inside the deployment package
+          mkdir -p deployment/frontend/dist
+          cp -r frontend/dist/* deployment/frontend/dist/
 
-          # Make sure the frontend directory is included in the zip
-          mkdir -p deployment/frontend
-          cp -r frontend/dist deployment/frontend/
+          # Create a separate structure for the home/site/frontend/dist path
+          # This step avoids the copy error by creating a different directory structure
+          mkdir -p home/site/frontend/dist
+          cp -r frontend/dist/* home/site/frontend/dist/
+
+          # Copy the home directory into the zip
+          mkdir -p deployment/home
+          cp -r home deployment/
 
           # Copy web.config for SPA routing
           cp frontend/web.config deployment/ || true
 
           # Debug: List deployment directory contents
+          echo "Deployment directory contents:"
           ls -la deployment
-          ls -la deployment/../frontend/dist || true
+          echo "Frontend dist directory contents:"
+          ls -la deployment/frontend/dist || true
+          echo "Home site frontend directory contents:"
+          ls -la deployment/home/site/frontend/dist || true
 
       - name: Zip artifact for deployment
         run: |
