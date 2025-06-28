@@ -23,111 +23,23 @@ jobs:
       - name: Install and build frontend
         run: |
           cd frontend
-          echo "Installing frontend dependencies..."
           npm ci --prefer-offline --no-audit
-          echo "Building frontend..."
           npm run build
-          echo "Frontend build completed. Contents of dist:"
-          ls -la dist/
-          echo "Checking if index.html exists:"
-          test -f dist/index.html && echo "index.html found" || echo "index.html NOT found"
 
       - name: Install backend dependencies
         run: |
           cd backend
-          echo "Installing backend dependencies..."
           npm ci
-          echo "Backend dependencies installed. Contents:"
-          ls -la
 
       - name: Create simple deployment package
         run: |
-          echo "Creating deployment directory..."
           mkdir -p deployment
-
-          echo "Copying backend files..."
           cp -r backend/* deployment/
-          echo "Backend files copied. Contents:"
-          ls -la deployment/
-
-          echo "Checking if frontend/dist exists..."
-          if [ ! -d "frontend/dist" ]; then
-            echo "ERROR: frontend/dist directory does not exist!"
-            exit 1
-          fi
-
-          echo "Contents of frontend/dist before copying:"
-          ls -la frontend/dist/
-
-          echo "Creating public directory and copying frontend files..."
           mkdir -p deployment/public
           cp -r frontend/dist/* deployment/public/
-          echo "Frontend files copied to deployment/public/. Contents:"
-          ls -la deployment/public/
-
-          echo "ALSO copying frontend files to frontend/dist for backward compatibility..."
           mkdir -p deployment/frontend/dist
           cp -r frontend/dist/* deployment/frontend/dist/
-          echo "Frontend files copied to deployment/frontend/dist/. Contents:"
-          ls -la deployment/frontend/dist/
-
-          echo "Verifying index.html was copied:"
-          if [ -f "deployment/public/index.html" ]; then
-            echo "✅ index.html successfully copied to deployment/public/"
-            echo "Size: $(du -h deployment/public/index.html)"
-          else
-            echo "❌ ERROR: index.html NOT found in deployment/public/"
-            exit 1
-          fi
-
-          echo "Verifying index.html was copied to frontend/dist:"
-          if [ -f "deployment/frontend/dist/index.html" ]; then
-            echo "✅ index.html successfully copied to deployment/frontend/dist/"
-            echo "Size: $(du -h deployment/frontend/dist/index.html)"
-          else
-            echo "❌ ERROR: index.html NOT found in deployment/frontend/dist/"
-            exit 1
-          fi
-
-          # Copy web.config to root for IIS compatibility
-          if [ -f frontend/web.config ]; then
-            echo "Copying web.config to deployment root..."
-            cp frontend/web.config deployment/web.config
-          fi
-
-          echo "Copying package.json to deployment root..."
           cp backend/package.json deployment/package.json
-
-          echo "Creating process.json for PM2..."
-          cat > deployment/process.json << 'EOF'
-          {
-            "script": "index.js",
-            "name": "gkm-app",
-            "env": {
-              "NODE_ENV": "production",
-              "PORT": "8000"
-            }
-          }
-          EOF
-
-          echo "Creating .deployment file..."
-          cat > deployment/.deployment << 'EOF'
-          [config]
-          SCM_DO_BUILD_DURING_DEPLOYMENT=false
-          EOF
-
-          echo "Creating startup.txt for debugging..."
-          echo "node index.js" > deployment/startup.txt
-
-          echo "Final deployment structure:"
-          echo "Root files:"
-          ls -la deployment/
-          echo "Public files:"
-          ls -la deployment/public/
-          echo "All files count:"
-          find deployment -type f | wc -l
-          echo "First 20 files:"
-          find deployment -type f | head -20
 
       - name: Zip artifact
         run: |
@@ -154,14 +66,7 @@ jobs:
           name: node-app
 
       - name: Unzip artifact
-        run: |
-          unzip release.zip
-          echo "Unzipped artifact contents:"
-          ls -la
-          echo "Public folder contents:"
-          ls -la public/ || echo "No public folder found!"
-          echo "Checking for index.html:"
-          find . -name "index.html" -type f
+        run: unzip release.zip
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -179,13 +84,3 @@ jobs:
           package: .
         env:
           NODE_ENV: production
-
-      - name: Verify deployment files
-        run: |
-          echo "Deployment completed. Checking what was deployed..."
-          echo "Current directory contents:"
-          ls -la
-          echo "Checking if public folder exists:"
-          ls -la public/ || echo "No public folder found after deployment!"
-          echo "Searching for all HTML files:"
-          find . -name "*.html" -type f || echo "No HTML files found!"

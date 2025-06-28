@@ -549,8 +549,12 @@ const LineStopTimetable = () => {
                   {nextDeparture.departure_time}
                 </Link>
                 {nextDeparture.isToday
-                  ? ` (za ${countdown} minut)`
-                  : ` (za ${countdown} minut, jutro)`}
+                  ? Number(countdown) > 60
+                    ? ` (za ${Math.floor(Number(countdown) / 60)} godzin ${Number(countdown) % 60} minut)`
+                    : ` (za ${countdown} minut)`
+                  : Number(countdown) > 60
+                    ? ` (za ${Math.floor(Number(countdown) / 60)} godzin ${Number(countdown) % 60} minut, jutro)`
+                    : ` (za ${countdown} minut, jutro)`}
               </>
             ) : (
               <>
