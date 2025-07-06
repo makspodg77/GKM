@@ -111,56 +111,98 @@ const TransportLines = () => {
       </div>
 
       <div className="line-categories">
-        {Object.entries(transportLines).map(([lineType, lineTypeData]) => {
-          if (!lineTypeData || Array.isArray(lineTypeData)) return null;
-          console.log(lineTypeData);
-          const color = lineTypeData.color || '#056b89';
+        {Object.entries(transportLines)
+          .sort(([lineTypeA], [lineTypeB]) => {
+            const lineTypeALower = lineTypeA.toLowerCase();
+            const lineTypeBLower = lineTypeB.toLowerCase();
 
-          return (
-            <section key={lineType} className="line-category">
-              <h2 id={`category-${lineType}`}>{lineType}</h2>
+            const isDzienneA = lineTypeALower.includes('dzienne');
+            const isNocneA = lineTypeALower.includes('nocne');
+            const isDzienneB = lineTypeBLower.includes('dzienne');
+            const isNocneB = lineTypeBLower.includes('nocne');
 
-              <div
-                className="line-list"
-                role="list"
-                aria-labelledby={`category-${lineType}`}
-              >
-                {Object.entries(lineTypeData)
-                  .filter(([key]) => key !== 'color' && key !== 'routes')
-                  .map(([lineName, routes]) => {
-                    const lineId =
-                      Array.isArray(routes) && routes.length > 0
-                        ? routes[0].id
-                        : lineName;
+            if (isDzienneA && isNocneB) return -1;
+            if (isNocneA && isDzienneB) return 1;
 
-                    return (
-                      <article
-                        key={lineName}
-                        className="line-item"
-                        role="listitem"
-                      >
-                        <LineBadge
-                          name={lineName}
-                          color={color}
-                          to={`/rozklad-jazdy-wedlug-linii/${lineId}`}
-                        />
+            return lineTypeA.localeCompare(lineTypeB, 'pl', {
+              numeric: true,
+              sensitivity: 'base',
+            });
+          })
+          .map(([lineType, lineTypeData]) => {
+            if (!lineTypeData || Array.isArray(lineTypeData)) return null;
+            const color = lineTypeData.color || '#056b89';
 
-                        <div className="routes">
-                          {Array.isArray(routes) &&
-                            routes.map((route, idx) => (
-                              <LineRoute
-                                key={`${lineName}-${idx}`}
-                                route={route}
-                              />
-                            ))}
-                        </div>
-                      </article>
-                    );
-                  })}
-              </div>
-            </section>
-          );
-        })}
+            return (
+              <section key={lineType} className="line-category">
+                <h2 id={`category-${lineType}`}>{lineType}</h2>
+
+                <div
+                  className="line-list"
+                  role="list"
+                  aria-labelledby={`category-${lineType}`}
+                >
+                  {Object.entries(lineTypeData)
+                    .filter(([key]) => key !== 'color' && key !== 'routes')
+                    .sort(([lineNameA], [lineNameB]) => {
+                      const aIsNumber = !isNaN(Number(lineNameA));
+                      const bIsNumber = !isNaN(Number(lineNameB));
+
+                      if (aIsNumber && bIsNumber) {
+                        return Number(lineNameA) - Number(lineNameB);
+                      }
+
+                      if (!aIsNumber && !bIsNumber) {
+                        return lineNameA.localeCompare(lineNameB, 'pl', {
+                          numeric: true,
+                          sensitivity: 'base',
+                        });
+                      }
+
+                      if (aIsNumber && !bIsNumber) {
+                        return -1;
+                      }
+
+                      if (!aIsNumber && bIsNumber) {
+                        return 1;
+                      }
+
+                      return 0;
+                    })
+                    .map(([lineName, routes]) => {
+                      const lineId =
+                        Array.isArray(routes) && routes.length > 0
+                          ? routes[0].id
+                          : lineName;
+
+                      return (
+                        <article
+                          key={lineName}
+                          className="line-item"
+                          role="listitem"
+                        >
+                          <LineBadge
+                            name={lineName}
+                            color={color}
+                            to={`/rozklad-jazdy-wedlug-linii/${lineId}`}
+                          />
+
+                          <div className="routes">
+                            {Array.isArray(routes) &&
+                              routes.map((route, idx) => (
+                                <LineRoute
+                                  key={`${lineName}-${idx}`}
+                                  route={route}
+                                />
+                              ))}
+                          </div>
+                        </article>
+                      );
+                    })}
+                </div>
+              </section>
+            );
+          })}
       </div>
     </div>
   );

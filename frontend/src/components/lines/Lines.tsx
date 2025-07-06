@@ -59,11 +59,21 @@ const Lines = () => {
         <section className="LineTimetable">
           {Object.entries(lines)
             .sort(([lineTypeA], [lineTypeB]) => {
-              const isNightB = lineTypeB.toLowerCase().includes('nocne');
+              const lineTypeALower = lineTypeA.toLowerCase();
+              const lineTypeBLower = lineTypeB.toLowerCase();
 
-              if (isNightB) return -1;
+              const isDzienneA = lineTypeALower.includes('dzienne');
+              const isNocneA = lineTypeALower.includes('nocne');
+              const isDzienneB = lineTypeBLower.includes('dzienne');
+              const isNocneB = lineTypeBLower.includes('nocne');
 
-              return lineTypeA.localeCompare(lineTypeB);
+              if (isDzienneA && isNocneB) return -1;
+              if (isNocneA && isDzienneB) return 1;
+
+              return lineTypeA.localeCompare(lineTypeB, 'pl', {
+                numeric: true,
+                sensitivity: 'base',
+              });
             })
             .map(([lineType, lineInfoArray]: [string, LineInfo[]]) => (
               <div key={lineType} className="line-category">
