@@ -68,14 +68,14 @@
 .LineTimetable .routeStop {
   display: flex;
   align-items: center;
-  height: 30px;
+  height: 35px;
   width: 100%;
 }
 
 .LineTimetable .stopName {
   text-decoration: underline;
   display: flex;
-  height: 30px;
+  height: 35px;
   align-items: center;
   justify-content: flex-start;
   gap: 10px;
