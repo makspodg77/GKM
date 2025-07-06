@@ -16,9 +16,28 @@ const Lines = () => {
       .then((data: LineCategoryListing) => {
         const sortedLines: LineCategoryListing = {};
         Object.entries(data).forEach(([category, lines]) => {
-          sortedLines[category] = [...lines].sort(
-            (a, b) => Number(a.name) - Number(b.name)
-          );
+          sortedLines[category] = [...lines].sort((a, b) => {
+            const aIsNumber = !isNaN(Number(a.name));
+            const bIsNumber = !isNaN(Number(b.name));
+
+            if (aIsNumber && bIsNumber) {
+              return Number(a.name) - Number(b.name);
+            }
+
+            if (!aIsNumber && !bIsNumber) {
+              return a.name.localeCompare(b.name);
+            }
+
+            if (aIsNumber && !bIsNumber) {
+              return -1;
+            }
+
+            if (!aIsNumber && bIsNumber) {
+              return 1;
+            }
+
+            return 0;
+          });
         });
         setLines(sortedLines);
         setLoading(false);
