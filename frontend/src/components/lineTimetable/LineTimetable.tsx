@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import service, { LineDetailCategory, Stop } from '../../services/db';
 import displayIcon from '../../assets/tablica.png';
 import LoadingScreen from '../common/loadingScreen/LoadingScreen';
-import MapRouteDisplay from '../mapDisplay/MapRouteDisplay'; // Import the new component
+import MapRouteDisplay from '../mapDisplay/MapRouteDisplay';
 import firstIcon from '../../assets/first.png';
 import optionalIcon from '../../assets/optional.png';
 import lastIcon from '../../assets/last.png';

@@ -172,6 +172,7 @@ const getLinesFullRoutes = async (useCache = true) => {
     }
 
     acc[line.name_plural][line.name].push({
+      id: line.id,
       first_stop: firstStop.name,
       last_stop: lastStop.name,
       streets: stops,

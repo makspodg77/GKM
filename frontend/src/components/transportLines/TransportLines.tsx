@@ -10,6 +10,8 @@ import herbMaszewo from '../../assets/Herb-Maszewa.png';
 import herbOsina from '../../assets/Herb-Osiny.png';
 import herbPrzybiernow from '../../assets/Herb-Przybiernowa.png';
 import herbStepnica from '../../assets/Herb-Stepnicy.png';
+import { Link } from 'react-router-dom';
+
 const LineRoute: React.FC<{ route: RouteInfo }> = ({ route }) => (
   <div className="route-container">
     <div className="route-endpoints">
@@ -21,11 +23,31 @@ const LineRoute: React.FC<{ route: RouteInfo }> = ({ route }) => (
   </div>
 );
 
-const LineBadge = ({ name, color }: { name: string; color: string }) => (
-  <div className="line-badge" style={{ background: color }}>
-    {name}
-  </div>
-);
+const LineBadge = ({
+  name,
+  color,
+  to,
+}: {
+  name: string;
+  color: string;
+  to?: string;
+}) => {
+  const badgeContent = (
+    <div className="line-badge" style={{ background: color }}>
+      {name}
+    </div>
+  );
+
+  if (to) {
+    return (
+      <Link to={to} style={{ textDecoration: 'none', color: 'inherit' }}>
+        {badgeContent}
+      </Link>
+    );
+  }
+
+  return badgeContent;
+};
 
 const TransportLines = () => {
   const [loading, setLoading] = useState<boolean>(true);
@@ -39,7 +61,6 @@ const TransportLines = () => {
     service
       .getLinesRoutes()
       .then((data: TransportLinesGrouped) => {
-        console.log(data);
         setTransportLines(data);
         setLoading(false);
       })
@@ -92,7 +113,7 @@ const TransportLines = () => {
       <div className="line-categories">
         {Object.entries(transportLines).map(([lineType, lineTypeData]) => {
           if (!lineTypeData || Array.isArray(lineTypeData)) return null;
-
+          console.log(lineTypeData);
           const color = lineTypeData.color || '#056b89';
 
           return (
@@ -106,25 +127,36 @@ const TransportLines = () => {
               >
                 {Object.entries(lineTypeData)
                   .filter(([key]) => key !== 'color' && key !== 'routes')
-                  .map(([lineName, routes]) => (
-                    <article
-                      key={lineName}
-                      className="line-item"
-                      role="listitem"
-                    >
-                      <LineBadge name={lineName} color={color} />
+                  .map(([lineName, routes]) => {
+                    const lineId =
+                      Array.isArray(routes) && routes.length > 0
+                        ? routes[0].id
+                        : lineName;
 
-                      <div className="routes">
-                        {Array.isArray(routes) &&
-                          routes.map((route, idx) => (
-                            <LineRoute
-                              key={`${lineName}-${idx}`}
-                              route={route}
-                            />
-                          ))}
-                      </div>
-                    </article>
-                  ))}
+                    return (
+                      <article
+                        key={lineName}
+                        className="line-item"
+                        role="listitem"
+                      >
+                        <LineBadge
+                          name={lineName}
+                          color={color}
+                          to={`/rozklad-jazdy-wedlug-linii/${lineId}`}
+                        />
+
+                        <div className="routes">
+                          {Array.isArray(routes) &&
+                            routes.map((route, idx) => (
+                              <LineRoute
+                                key={`${lineName}-${idx}`}
+                                route={route}
+                              />
+                            ))}
+                        </div>
+                      </article>
+                    );
+                  })}
               </div>
             </section>
           );

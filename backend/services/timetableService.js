@@ -148,7 +148,7 @@ const getStopWithGroupData = async (stopId) => {
  */
 const getLineDataByRouteId = async (routeId) => {
   return executeQuery(
-    `SELECT name, name_singular, name_plural, color FROM route JOIN line ON line.id = route.line_id JOIN line_type ON line_type.id = line.line_type_id WHERE route.id = @routeId`,
+    `SELECT line.id, name, name_singular, name_plural, color FROM route JOIN line ON line.id = route.line_id JOIN line_type ON line_type.id = line.line_type_id WHERE route.id = @routeId`,
     { routeId: routeId }
   );
 };

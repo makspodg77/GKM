@@ -203,7 +203,17 @@ const formatCountdown = (countdown: string, isToday: boolean) => {
   if (minutes <= 0) return '(teraz)';
 
   if (minutes <= 60) {
-    return isToday ? ` (za ${minutes} minut)` : ` (za ${minutes} minut, jutro)`;
+    let minuteText;
+    if (minutes === 1) {
+      minuteText = 'minutę';
+    } else if (minutes >= 2 && minutes <= 4) {
+      minuteText = 'minuty';
+    } else {
+      minuteText = 'minut';
+    }
+    return isToday
+      ? ` (za ${minutes} ${minuteText})`
+      : ` (za ${minutes} ${minuteText}, jutro)`;
   }
 
   const hours = Math.floor(minutes / 60);
@@ -212,23 +222,26 @@ const formatCountdown = (countdown: string, isToday: boolean) => {
   let hourText;
   if (hours === 1) {
     hourText = 'godzinę';
-  } else if (hours < 5) {
+  } else if (hours >= 2 && hours <= 4) {
     hourText = 'godziny';
   } else {
     hourText = 'godzin';
   }
 
+  if (remainingMinutes === 0) {
+    return ` (za ${hours} ${hourText}${isToday ? '' : ', jutro'})`;
+  }
+
   let minuteText;
-  if (remainingMinutes == 1) {
+  if (remainingMinutes === 1) {
     minuteText = 'minutę';
-  } else if (remainingMinutes < 5) {
+  } else if (remainingMinutes >= 2 && remainingMinutes <= 4) {
     minuteText = 'minuty';
   } else {
     minuteText = 'minut';
   }
 
-  const timeText = ` (za ${hours} ${hourText} ${remainingMinutes} ${minuteText}${isToday ? '' : ', jutro'})`;
-  return timeText;
+  return ` (za ${hours} ${hourText} i ${remainingMinutes} ${minuteText}${isToday ? '' : ', jutro'})`;
 };
 
 const calculateTimeDifference = (
