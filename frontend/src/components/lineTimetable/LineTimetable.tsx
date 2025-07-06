@@ -11,6 +11,8 @@ import optionalIcon from '../../assets/optional.png';
 import lastIcon from '../../assets/last.png';
 import onRequestIcon from '../../assets/on_request.png';
 import PageTitle from '../common/pageTitle/PageTitle';
+import OptionalStop from '../common/symbols/OptionalStop';
+import OnRequest from '../common/symbols/OnRequest';
 
 const LineTimetable = () => {
   const { lineId } = useParams<{ lineId: string }>();
@@ -144,13 +146,13 @@ const Route: React.FC<RouteProps> = ({ stops, lineId }) => {
 };
 
 const StopDisplay: React.FC<{ stop: Stop; lineId: string }> = ({ stop }) => {
-  const stopIconType =
+  const stopType =
     stop.is_first && stop.is_optional
-      ? firstIcon
+      ? 'first'
       : stop.is_last && stop.is_optional
-        ? lastIcon
+        ? 'last'
         : stop.is_optional
-          ? optionalIcon
+          ? 'stop'
           : null;
 
   return (
@@ -176,19 +178,17 @@ const StopDisplay: React.FC<{ stop: Stop; lineId: string }> = ({ stop }) => {
         <div className="stopName">
           <div
             className={
-              stop.is_first ? 'first-stop' : stop.is_last ? 'last-stop' : ''
+              stop.is_first
+                ? 'io first-stop'
+                : stop.is_last
+                  ? 'io last-stop'
+                  : 'io'
             }
           >
-            {stopIconType && <img src={stopIconType} alt="Typ przystanku" />}
+            {stopType && <OptionalStop type={stopType} />}
             {stop.name}{' '}
           </div>
-          {stop.is_on_request && (
-            <img
-              src={onRequestIcon}
-              title="Przystanek na żądanie"
-              alt="Przystanek na żądanie"
-            />
-          )}
+          {stop.is_on_request && <OnRequest />}
         </div>
       </Link>
     </div>

@@ -1,0 +1,18 @@
+.OnRequest {
+  width: 16px;
+  height: 16px;
+  background-color: #056a88;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 1;
+  border-radius: 50%;
+  border: 2px solid #056a88;
+  color: white;
+  text-decoration: none;
+  box-sizing: border-box;
+  user-select: none;
+  flex-shrink: 0;
+}

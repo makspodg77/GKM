@@ -11,8 +11,9 @@ import lastIcon from '../../assets/last.png';
 import routeIcon from '../../assets/route.svg';
 import locationIcon from '../../assets/location.svg';
 import SingleStopMap from '../singleStopMap/SingleStopMap';
-import onRequestIcon from '../../assets/on_request.png';
 import PageTitle from '../common/pageTitle/PageTitle';
+import OnRequest from '../common/symbols/OnRequest';
+import OptionalStop from '../common/symbols/OptionalStop';
 
 interface HourlyDepartureTableProps {
   fromHour: number;
@@ -175,7 +176,7 @@ const StopsList = ({
               ) : stop.is_last && stop.is_optional ? (
                 <img src={lastIcon} />
               ) : stop.is_optional ? (
-                <img src={optionalIcon} />
+                <OptionalStop />
               ) : (
                 ''
               )}
@@ -184,11 +185,7 @@ const StopsList = ({
               ) : (
                 stop.name
               )}
-              {stop.is_on_request ? (
-                <img src={onRequestIcon} title="Przystanek na żądanie" />
-              ) : (
-                ''
-              )}
+              {stop.is_on_request ? <OnRequest /> : ''}
             </Link>
           </div>
         </div>

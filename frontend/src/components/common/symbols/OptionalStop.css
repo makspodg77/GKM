@@ -1,0 +1,26 @@
+.OptionalStop {
+  width: 20px;
+  display: inline-block;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.OptionalStop .rod {
+  background-color: rgb(61, 61, 61);
+  width: 2px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.OptionalStop .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 100%;
+  background-color: rgb(61, 61, 61);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
