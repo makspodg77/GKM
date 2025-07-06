@@ -7,6 +7,7 @@
 .News .news-item {
   border: 2px solid #d0d0d0;
   padding: 0 1rem 1rem 1rem;
+  border-left: #facf00 10px solid;
 }
 
 .News .news-item h2 {
