@@ -157,9 +157,15 @@ const StopGroup = () => {
                 <MiniRealTimeDepartures id={stop.stop.stop_id} />
                 <h3>Najbliższe odjazdy według rozkładu jazdy:</h3>
                 <div>
-                  {stop.departures.slice(0, 20).map((departure, idx) => (
-                    <Departure key={idx} departure={departure} />
-                  ))}
+                  {stop.departures && stop.departures.length > 0 ? (
+                    stop.departures
+                      .slice(0, 20)
+                      .map((departure, idx) => (
+                        <Departure key={idx} departure={departure} />
+                      ))
+                  ) : (
+                    <div>Brak najbliższych odjazdów z tego przystanku</div>
+                  )}
                 </div>
               </div>
             ))}

@@ -113,11 +113,6 @@
   font-weight: 600;
 }
 
-.RealTimeDepartures .tomorrow {
-  color: #777;
-  font-style: italic;
-}
-
 .RealTimeDepartures .scheduled {
   color: #333;
 }

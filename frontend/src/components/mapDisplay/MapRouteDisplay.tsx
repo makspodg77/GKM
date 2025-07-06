@@ -34,16 +34,13 @@ const MapRouteDisplay = ({
   const map = useRef<maplibregl.Map | null>(null);
   const [mapLoaded, setMapLoaded] = useState<boolean>(false);
 
-  // Extract coordinates from a stop
   const getCoordinates = (stop: Stop): [number, number] => {
     if (!stop.map) return [0, 0];
 
-    // Parse coordinates from the map property (format: "14.772366427918241, 53.459639038129296")
     const parts = stop.map.split(',').map((part) => parseFloat(part.trim()));
     return [parts[0], parts[1]];
   };
 
-  // Initialize map
   useEffect(() => {
     if (!mapContainer.current) return;
 
@@ -51,7 +48,7 @@ const MapRouteDisplay = ({
       map.current = new maplibregl.Map({
         container: mapContainer.current,
         style: 'https://tiles.openfreemap.org/styles/liberty',
-        center: [14.77, 53.46], // Default center (Goleniów)
+        center: [14.77, 53.46],
         zoom: 12,
       });
 
@@ -60,7 +57,6 @@ const MapRouteDisplay = ({
       });
     }
 
-    // Cleanup
     return () => {
       if (map.current) {
         map.current.remove();
@@ -69,11 +65,9 @@ const MapRouteDisplay = ({
     };
   }, [mapContainer]);
 
-  // Add routes to map when it's loaded
   useEffect(() => {
     if (!mapLoaded || !map.current || !routes.length) return;
 
-    // Clear existing layers and sources
     const layerIds =
       map.current.getStyle().layers?.map((layer) => layer.id) || [];
     layerIds.forEach((id) => {
@@ -89,7 +83,6 @@ const MapRouteDisplay = ({
       }
     });
 
-    // Process each route
     const bounds = new maplibregl.LngLatBounds();
 
     routes.forEach((route, routeIndex) => {
@@ -97,15 +90,13 @@ const MapRouteDisplay = ({
 
       const routeColor = colors[routeIndex % colors.length];
       const routeCoordinates = route
-        .filter((stop) => stop.map) // Only include stops with map coordinates
+        .filter((stop) => stop.map)
         .map((stop) => getCoordinates(stop));
 
-      // Extend bounds with all coordinates
       routeCoordinates.forEach((coord) => {
         bounds.extend(coord as maplibregl.LngLatLike);
       });
 
-      // Add route line
       map.current?.addSource(`route-${routeIndex}`, {
         type: 'geojson',
         data: {
@@ -132,20 +123,17 @@ const MapRouteDisplay = ({
         },
       });
 
-      // Add stops
       route.forEach((stop, stopIndex) => {
         if (!stop.map) return;
 
         const coordinates = getCoordinates(stop);
 
-        // Create marker for each stop
         const marker = new maplibregl.Marker({
           color: routeColor,
         })
           .setLngLat(coordinates)
           .addTo(map.current!);
 
-        // Create popup
         const popup = new maplibregl.Popup({
           closeButton: false,
           closeOnClick: false,
@@ -157,7 +145,6 @@ const MapRouteDisplay = ({
           </div>
         `);
 
-        // Add hover effect
         marker.getElement().addEventListener('mouseenter', () => {
           popup.setLngLat(coordinates).addTo(map.current!);
         });
@@ -168,7 +155,6 @@ const MapRouteDisplay = ({
       });
     });
 
-    // Fit the map to include all markers if requested
     if (fitBounds && !bounds.isEmpty()) {
       map.current.fitBounds(bounds, {
         padding: 70,

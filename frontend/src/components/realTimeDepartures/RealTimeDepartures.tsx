@@ -1,5 +1,5 @@
 import './RealTimeDepartures.css';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import LoadingScreen from '../common/loadingScreen/LoadingScreen';
 import { useRealTimeDepartures } from '../../utils/departureUtils';
 
@@ -22,7 +22,6 @@ interface StopInfo {
   stop_id: string | number;
 }
 
-// Create a separate component for each departure
 const DepartureItem = ({
   departure,
   index,
@@ -35,8 +34,6 @@ const DepartureItem = ({
       <span className="departing-now">{departure.departure_text}</span>
     ) : departure.minutesUntil && departure.minutesUntil <= 30 ? (
       <span className="countdown">{departure.countdownText}</span>
-    ) : departure.isPast ? (
-      <span className="tomorrow">{departure.formattedTime}</span>
     ) : (
       <span className="scheduled">{departure.formattedTime}</span>
     );

@@ -119,9 +119,12 @@ export const processDepartures = (departuresArray: any[]): DepartureInfo[] => {
 export const useRealTimeDepartures = (stopId: string | number | null) => {
   const [departures, setDepartures] = useState<DepartureInfo[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [time, setTime] = useState<{ hours: string; minutes: string }>({
-    hours: '00',
-    minutes: '00',
+  const [time, setTime] = useState<{ hours: string; minutes: string }>(() => {
+    const now = new Date();
+    return {
+      hours: now.getHours().toString().padStart(2, '0'),
+      minutes: now.getMinutes().toString().padStart(2, '0'),
+    };
   });
   const [stop, setStop] = useState<any>({});
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
