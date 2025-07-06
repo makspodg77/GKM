@@ -38,34 +38,42 @@ const Lines = () => {
       <PageTitle title="Rozkłady jazdy według linii" />
       {hasLines ? (
         <section className="LineTimetable">
-          {Object.entries(lines).map(([lineType, lineInfoArray]) => (
-            <div key={lineType} className="line-category">
-              <h2 id={`category-${lineType}`}>{lineType}</h2>
-              <div
-                className="line-container"
-                role="list"
-                aria-labelledby={`category-${lineType}`}
-              >
-                {lineInfoArray.map((line) => (
-                  <Link
-                    key={line.id}
-                    to={`/rozklad-jazdy-wedlug-linii/${line.id}`}
-                    className="line-link"
-                    aria-label={`Line ${line.name}`}
-                  >
-                    <div className="line-wrapper" role="listitem">
-                      <div
-                        className="line"
-                        style={{ backgroundColor: line.color }}
-                      >
-                        {line.name}
+          {Object.entries(lines)
+            .sort(([lineTypeA], [lineTypeB]) => {
+              const isNightB = lineTypeB.toLowerCase().includes('nocne');
+
+              if (isNightB) return -1;
+
+              return lineTypeA.localeCompare(lineTypeB);
+            })
+            .map(([lineType, lineInfoArray]: [string, LineInfo[]]) => (
+              <div key={lineType} className="line-category">
+                <h2 id={`category-${lineType}`}>{lineType}</h2>
+                <div
+                  className="line-container"
+                  role="list"
+                  aria-labelledby={`category-${lineType}`}
+                >
+                  {lineInfoArray.map((line: LineInfo) => (
+                    <Link
+                      key={line.id}
+                      to={`/rozklad-jazdy-wedlug-linii/${line.id}`}
+                      className="line-link"
+                      aria-label={`Line ${line.name}`}
+                    >
+                      <div className="line-wrapper" role="listitem">
+                        <div
+                          className="line"
+                          style={{ backgroundColor: line.color }}
+                        >
+                          {line.name}
+                        </div>
                       </div>
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
         </section>
       ) : (
         <div className="no-lines">Brak dostępnych linii</div>

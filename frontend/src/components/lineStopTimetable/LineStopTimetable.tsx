@@ -197,6 +197,40 @@ const StopsList = ({
   );
 };
 
+const formatCountdown = (countdown: string, isToday: boolean) => {
+  const minutes = Number(countdown);
+
+  if (minutes <= 0) return '(teraz)';
+
+  if (minutes <= 60) {
+    return isToday ? ` (za ${minutes} minut)` : ` (za ${minutes} minut, jutro)`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  let hourText;
+  if (hours === 1) {
+    hourText = 'godzinę';
+  } else if (hours < 5) {
+    hourText = 'godziny';
+  } else {
+    hourText = 'godzin';
+  }
+
+  let minuteText;
+  if (remainingMinutes == 1) {
+    minuteText = 'minutę';
+  } else if (remainingMinutes < 5) {
+    minuteText = 'minuty';
+  } else {
+    minuteText = 'minut';
+  }
+
+  const timeText = ` (za ${hours} ${hourText} ${remainingMinutes} ${minuteText}${isToday ? '' : ', jutro'})`;
+  return timeText;
+};
+
 const calculateTimeDifference = (
   departureTime: {
     timetable_id?: number;
@@ -548,13 +582,7 @@ const LineStopTimetable = () => {
                 >
                   {nextDeparture.departure_time}
                 </Link>
-                {nextDeparture.isToday
-                  ? Number(countdown) > 60
-                    ? ` (za ${Math.floor(Number(countdown) / 60)} godzin ${Number(countdown) % 60} minut)`
-                    : ` (za ${countdown} minut)`
-                  : Number(countdown) > 60
-                    ? ` (za ${Math.floor(Number(countdown) / 60)} godzin ${Number(countdown) % 60} minut, jutro)`
-                    : ` (za ${countdown} minut, jutro)`}
+                {formatCountdown(countdown, nextDeparture.isToday || false)}
               </>
             ) : (
               <>
