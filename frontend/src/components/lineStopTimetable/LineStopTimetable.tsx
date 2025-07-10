@@ -45,7 +45,7 @@ const HourlyDepartureTable = ({
 
   const hoursArray = isNightRoute
     ? [
-        ...Array.from({ length: 24 - fromHour + 1 }, (_, i) => fromHour + i),
+        ...Array.from({ length: 23 - fromHour + 1 }, (_, i) => fromHour + i),
         ...Array.from({ length: toHour + 1 }, (_, i) => i),
       ]
     : Array.from({ length: toHour - fromHour + 1 }, (_, i) => fromHour + i);
