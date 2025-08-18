@@ -1,6 +1,6 @@
 # 🚌 GKM – Goleniowska Komunikacja Miejska
 
-Aplikacja webowa symulująca wyimaginowany system komunikacji miejskiej. Zbudowana w **Vite + Express + MS SQL**.
+Aplikacja webowa symulująca fikcyjny system komunikacji miejskiej. Zbudowana w **Vite + Express + MS SQL**.
 
 ## 🔧 Technologie
 
