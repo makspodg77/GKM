@@ -7,10 +7,11 @@ const About = () => {
       <p>
         Mieszkam w małej wsi o nazwie Kliniska Wielkie, około 10 minut
         samochodem od obrzeży Szczecina. Jeśli chciałem dostać się do Szczecina
-        (nie licząc pociągu), miałem dwie opcje: albo iść pieszo(około godziny),
-        albo skorzystać z autobusu gminnego, który dojeżdża do najbliższego
-        przystanku ZDiTM… dwa razy dziennie. Zawsze zdumiewała mnie ta przepaść
-        w komforcie podróżowania między jednym powiatem a drugim.
+        (nie licząc pociągu), miałem dwie opcje: albo iść pieszo (około
+        godziny), albo skorzystać z autobusu gminnego, który dojeżdża do
+        najbliższego przystanku ZDiTM… dwa razy dziennie EDIT: 3 razy od
+        września 2025. Zawsze zdumiewała mnie ta przepaść w komforcie
+        podróżowania między jednym powiatem a drugim.
       </p>
       <p>
         Pomysł na projekt narodził się podczas treningu w grudniu 2023 roku,
@@ -19,7 +20,7 @@ const About = () => {
         idealnie odpowiadała moim potrzebom – mogłaby być także ważnym środkiem
         transportu w całej gminie i powiecie. Była to linia 95 (która istnieje
         do dziś, w nieco zmienionej formie). W mojej wizji miała kursować między
-        Kliniskami Rzemieślniczą (głównym węzłem przesiadkowym rejonu) a ulicą
+        Kliniska Rzemieślnicza (głównym węzłem przesiadkowym rejonu) a ulicą
         Wolińską przy Kauflandzie w Goleniowie.
       </p>
       <p>

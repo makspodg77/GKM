@@ -93,7 +93,7 @@ const Lines = () => {
                       <div className="line-wrapper" role="listitem">
                         <div
                           className="line"
-                          style={{ backgroundColor: line.color }}
+                          style={{ borderTop: `${line.color} 3px solid` }}
                         >
                           {line.name}
                         </div>

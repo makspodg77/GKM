@@ -108,6 +108,8 @@ const LinePathInfo: React.FC<{ path: LinePath }> = ({ path }) => (
       {path.first_stop}
       {'  '}↔{'  '}
       {path.last_stop}
+      {'  '}
+      {path.first_stop == path.last_stop ? '🔁 (Trasa okrężna)' : ''}
     </div>
     <div className="streets">
       {path.streets.map((street, index) => (

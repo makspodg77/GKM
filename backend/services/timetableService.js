@@ -3,6 +3,10 @@ const { NotFoundError, ValidationError } = require("../utils/errorHandler");
 
 let stopCacheByRoute = {};
 let stopCacheTime = Date.now();
+let lineCacheByRoute = {};
+let lineCacheTime = Date.now();
+let additionalStopsCache = {};
+let additionalStopsCacheTime = Date.now();
 const CACHE_TIMEOUT = 300000;
 
 /**
@@ -72,10 +76,22 @@ const getStopsForRoute = async (full_route_id) => {
  * @returns {Promise<Array>} Additional stops data
  */
 const getAdditionalStops = async (departureRouteId) => {
-  return executeQuery(
+  if (
+    additionalStopsCache[departureRouteId] &&
+    Date.now() - additionalStopsCacheTime < CACHE_TIMEOUT
+  ) {
+    return additionalStopsCache[departureRouteId];
+  }
+
+  const results = await executeQuery(
     `SELECT stop_number FROM additional_stop WHERE route_id = @route_id;`,
     { route_id: departureRouteId }
   );
+
+  additionalStopsCache[departureRouteId] = results;
+  additionalStopsCacheTime = Date.now();
+
+  return results;
 };
 
 /**
@@ -147,10 +163,64 @@ const getStopWithGroupData = async (stopId) => {
  * @returns {Promise<object>} Line
  */
 const getLineDataByRouteId = async (routeId) => {
-  return executeQuery(
+  if (lineCacheByRoute[routeId] && Date.now() - lineCacheTime < CACHE_TIMEOUT) {
+    return lineCacheByRoute[routeId];
+  }
+
+  const results = await executeQuery(
     `SELECT line.id, name, name_singular, name_plural, color FROM route JOIN line ON line.id = route.line_id JOIN line_type ON line_type.id = line.line_type_id WHERE route.id = @routeId`,
     { routeId: routeId }
   );
+
+  lineCacheByRoute[routeId] = results;
+  lineCacheTime = Date.now();
+
+  return results;
+};
+
+/**
+ * Gets line data for multiple routes
+ * @param {Array<number>} routeIds - Array of route IDs
+ * @returns {Promise<Object>} Object with routeId as key and line data as value
+ */
+const getLineDataForRoutes = async (routeIds) => {
+  if (!routeIds.length) return {};
+
+  const uncachedIds = routeIds.filter(
+    (id) => !lineCacheByRoute[id] || Date.now() - lineCacheTime >= CACHE_TIMEOUT
+  );
+
+  if (uncachedIds.length > 0) {
+    const params = uncachedIds.reduce(
+      (acc, id, i) => ({ ...acc, [`id${i}`]: id }),
+      {}
+    );
+    const placeholders = uncachedIds.map((_, i) => `@id${i}`).join(",");
+
+    const results = await executeQuery(
+      `SELECT r.id AS route_id, line.id, name, name_singular, name_plural, color 
+       FROM route r 
+       JOIN line ON line.id = r.line_id 
+       JOIN line_type ON line_type.id = line.line_type_id 
+       WHERE r.id IN (${placeholders})`,
+      params
+    );
+
+    const resultsByRouteId = {};
+    results.forEach((result) => {
+      resultsByRouteId[result.route_id] = [result];
+      lineCacheByRoute[result.route_id] = [result];
+    });
+
+    lineCacheTime = Date.now();
+  }
+
+  const allResults = {};
+  routeIds.forEach((id) => {
+    allResults[id] = lineCacheByRoute[id] || [];
+  });
+
+  return allResults;
 };
 
 const generateSignatureExplanation = (additionalStops, allStops) => {
@@ -380,6 +450,7 @@ module.exports = {
   getTimetableDataForRoutes,
   getDepartureRoutesByFullRouteIds,
   getLineDataByRouteId,
+  getLineDataForRoutes,
   getStopWithGroupData,
   formatDeparturesByHour,
   getAdditionalStops,

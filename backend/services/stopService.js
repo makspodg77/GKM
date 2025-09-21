@@ -2,6 +2,10 @@ const { executeQuery } = require("../utils/sqlHelper");
 const { NotFoundError } = require("../utils/errorHandler");
 const { getDeparturesForStop } = require("./departureService");
 
+let stopGroupCache = {};
+let stopGroupCacheTime = Date.now();
+const CACHE_TIMEOUT_MS = 300000;
+
 /**
  * Get all stops in a group
  * @param {number} groupId - Group ID
@@ -38,6 +42,13 @@ const getStopsByGroupId = async (groupId) => {
  * @returns {Promise<Object>} Group data with stops and departures
  */
 const getStopGroupWithDepartures = async (groupId) => {
+  if (
+    stopGroupCache[groupId] &&
+    Date.now() - stopGroupCacheTime < CACHE_TIMEOUT_MS
+  ) {
+    return stopGroupCache[groupId];
+  }
+
   const groupData = await executeQuery(
     `SELECT 
       stop_group.id AS group_id, 
@@ -86,7 +97,12 @@ const getStopGroupWithDepartures = async (groupId) => {
     })
   );
 
-  return stopsWithDepartures.filter(Boolean);
+  const result = stopsWithDepartures.filter(Boolean);
+
+  stopGroupCache[groupId] = result;
+  stopGroupCacheTime = Date.now();
+
+  return result;
 };
 
 module.exports = {

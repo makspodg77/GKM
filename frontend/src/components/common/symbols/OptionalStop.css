@@ -7,12 +7,12 @@
 }
 
 .OptionalStop .rod {
+  height: 50px;
   background-color: rgb(61, 61, 61);
   width: 2px;
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  top: 0;
+  transform: translateY(-60%);
 }
 
 .OptionalStop .dot {

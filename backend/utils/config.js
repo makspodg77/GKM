@@ -2,22 +2,17 @@ require("dotenv").config();
 
 const config = {
   database: {
-    server: process.env.DB_SERVER,
-    authentication: {
-      type: "default",
-      options: {
-        userName: process.env.DB_USERNAME,
-        password: process.env.DB_PASSWORD,
-      },
-    },
-    options: {
-      database: process.env.DB_NAME,
-      encrypt: true,
-      trustServerCertificate: true,
-      pool: {
-        max: parseInt(process.env.DB_POOL_MAX) || 10,
-        min: parseInt(process.env.DB_POOL_MIN) || 0,
-      },
+    host: process.env.DB_HOST || "localhost",
+    port: Number(process.env.DB_PORT) || 5432,
+    database: process.env.DB_NAME,
+    user: process.env.DB_USERNAME,
+    password: process.env.DB_PASSWORD,
+    max: parseInt(process.env.DB_POOL_MAX) || 10,
+    min: parseInt(process.env.DB_POOL_MIN) || 0,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+    ssl: {
+      rejectUnauthorized: false,
     },
   },
 };

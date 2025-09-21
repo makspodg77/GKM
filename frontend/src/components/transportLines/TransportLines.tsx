@@ -33,7 +33,7 @@ const LineBadge = ({
   to?: string;
 }) => {
   const badgeContent = (
-    <div className="line-badge" style={{ background: color }}>
+    <div className="line-badge" style={{ borderLeft: `10px solid ${color}` }}>
       {name}
     </div>
   );

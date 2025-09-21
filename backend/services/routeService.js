@@ -12,6 +12,8 @@ const { processRouteStops } = require("../utils/routeUtils");
 
 let lineRoutesCache = {};
 let lineRoutesCacheTime = {};
+let fullRoutesByStopCache = {};
+let fullRoutesByStopCacheTime = Date.now();
 const CACHE_TIMEOUT_MS = 300000;
 
 /**
@@ -192,10 +194,23 @@ const getLineRoutes = async (line_id, useCache = true) => {
  * @returns {Promise<Array>} List of full route IDs
  */
 const getFullRoutesByStopId = async (stopId) => {
-  return executeQuery(
+  if (
+    fullRoutesByStopCache[stopId] &&
+    Date.now() - fullRoutesByStopCacheTime < CACHE_TIMEOUT_MS
+  ) {
+    return fullRoutesByStopCache[stopId];
+  }
+
+  const results = await executeQuery(
     `SELECT route_id FROM full_route WHERE stop_id = @stopId`,
     { stopId }
-  ).then((results) => results.map((r) => r.route_id));
+  );
+  const routeIds = results.map((r) => r.route_id);
+
+  fullRoutesByStopCache[stopId] = routeIds;
+  fullRoutesByStopCacheTime = Date.now();
+
+  return routeIds;
 };
 
 /**

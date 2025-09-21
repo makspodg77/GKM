@@ -4,12 +4,14 @@ const {
   getFullRoutesByStopId,
   processRouteStops,
   calculateDepartureTimes,
+  getAdditionalStopsForRoutes,
 } = require("./routeService");
 const {
   getTimetableDataForRoutes,
   getStopWithGroupData,
   getDepartureRoutesByFullRouteIds,
   getLineDataByRouteId,
+  getLineDataForRoutes,
   getStopsForRoute,
   getAdditionalStops,
 } = require("./timetableService");
@@ -67,8 +69,22 @@ const getDeparturesForStop = async (stopId, get_base_data = true) => {
   const fullRouteIds = await getFullRoutesByStopId(stopId);
   const departureRoutes = await getDepartureRoutesByFullRouteIds(fullRouteIds);
 
+  const routeIds = departureRoutes.map((route) => route.route_id);
+  const departureRouteIds = departureRoutes.map((route) => route.id);
+
+  const linesData = await getLineDataForRoutes(routeIds);
+  const additionalStopsRaw = await getAdditionalStopsForRoutes(
+    departureRouteIds
+  );
+  const additionalStopsData = additionalStopsRaw.reduce((acc, stop) => {
+    if (!acc[stop.route_id]) acc[stop.route_id] = [];
+    acc[stop.route_id].push({ stop_number: stop.stop_number });
+    return acc;
+  }, {});
+  const timetableData = await getTimetableDataForRoutes(departureRouteIds);
+
   const departurePromises = departureRoutes.map(async (route) => {
-    const line = (await getLineDataByRouteId(route.route_id))[0];
+    const line = (linesData[route.route_id] || [])[0];
     if (!line) {
       return [];
     }
@@ -77,7 +93,7 @@ const getDeparturesForStop = async (stopId, get_base_data = true) => {
       .map((result) => ({ ...result, stop_number: Number(result.stop_number) }))
       .sort((a, b) => a.stop_number - b.stop_number);
 
-    const additionalStops = await getAdditionalStops(route.id);
+    const additionalStops = additionalStopsData[route.id] || [];
 
     const processedStops = processRouteStops(allStops, additionalStops);
     if (processedStops.length === 0) {
@@ -86,7 +102,9 @@ const getDeparturesForStop = async (stopId, get_base_data = true) => {
 
     const lastStop = processedStops[processedStops.length - 1];
 
-    const timetableEntries = await getTimetableDataForRoutes([route.id]);
+    const timetableEntries = timetableData.filter(
+      (entry) => entry.route_id === route.id
+    );
 
     return timetableEntries.flatMap((entry) => {
       try {

@@ -41,7 +41,7 @@ h1 {
 
 .menu {
   width: 25%;
-  height: 800px;
+  height: 675px;
   padding: var(--space-md);
   box-sizing: border-box;
   display: flex;
@@ -93,10 +93,10 @@ h1 {
 footer {
   width: 100%;
   min-height: 200px;
-  background-color: var(--color-footer);
+  background-color: #056b89;
   display: flex;
   box-sizing: border-box;
-  border-top: 2px solid var(--color-border);
+  color: white;
 }
 
 footer > div {

@@ -58,7 +58,9 @@ const getLinesCategorized = async (useCache = true) => {
   const lines = await getAllLines(useCache);
 
   const groupedLines = lines.reduce((acc, line) => {
-    const { name_plural, name, color, id } = line;
+    let { name_plural, name, color, id } = line;
+    if (name_plural == "Linie autobusowe dzienne dodatkowe")
+      name_plural = "Linie autobusowe dzienne";
     if (!acc[name_plural]) {
       acc[name_plural] = [];
     }
@@ -100,39 +102,92 @@ const getLinesFullRoutes = async (useCache = true) => {
   ) {
     return linesFullRoutesCache;
   }
-
+  // Batch approach: reduce N+1 DB queries by fetching related data in a few queries
   const departureRoutes = await getDepartureRoutesDirectly();
   if (!departureRoutes || !departureRoutes.length) {
     throw new NotFoundError("No departure routes found");
   }
 
-  const departurePromises = departureRoutes.map(async (route) => {
-    try {
-      const line = (await getLineDataByRouteId(route.route_id))[0];
-      if (!line) {
-        return null;
-      }
+  const routeIds = Array.from(new Set(departureRoutes.map((r) => r.route_id)));
+  const departureIds = departureRoutes.map((r) => r.id);
 
-      const allStops = (await getStopsForRoute(route.route_id))
-        .map((result) => ({
-          ...result,
-          stop_number: Number(result.stop_number),
-        }))
-        .sort((a, b) => a.stop_number - b.stop_number);
+  // prepare params for IN (...) placeholders
+  const makeParams = (ids, prefix = "id") =>
+    ids.reduce((acc, id, i) => ({ ...acc, [`${prefix}${i}`]: id }), {});
+  const makePlaceholders = (ids, prefix = "id") =>
+    ids.map((_, i) => `@${prefix}${i}`).join(",");
 
-      if (!allStops || !allStops.length) {
-        return null;
-      }
+  // fetch lines for all routeIds in one query
+  let linesByRouteId = {};
+  if (routeIds.length) {
+    const params = makeParams(routeIds, "rid");
+    const placeholders = makePlaceholders(routeIds, "rid");
+    const linesResults = await executeQuery(
+      `SELECT r.id AS route_id, line.id, name, name_singular, name_plural, color FROM route r JOIN line ON line.id = r.line_id JOIN line_type ON line_type.id = line.line_type_id WHERE r.id IN (${placeholders})`,
+      params
+    );
+    linesResults.forEach((row) => {
+      linesByRouteId[row.route_id] = row;
+    });
+  }
 
-      const additionalStops = await getAdditionalStops(route.id);
+  // fetch all stops for those routes in one query
+  let fullRouteByRoute = {};
+  if (routeIds.length) {
+    const params = makeParams(routeIds, "rid");
+    const placeholders = makePlaceholders(routeIds, "rid");
+    const fullRows = await executeQuery(
+      `SELECT fr.route_id, s.stop_group_id, s.street, fr.stop_id, fr.travel_time, fr.stop_number, sg.name, fr.is_on_request, s.map, fr.is_optional, fr.is_first, fr.is_last
+       FROM full_route fr
+       JOIN stop s ON s.id = fr.stop_id
+       JOIN stop_group sg ON sg.id = s.stop_group_id
+       WHERE fr.route_id IN (${placeholders})`,
+      params
+    );
+
+    fullRows.forEach((row) => {
+      const rid = row.route_id;
+      if (!fullRouteByRoute[rid]) fullRouteByRoute[rid] = [];
+      fullRouteByRoute[rid].push({
+        ...row,
+        stop_number: Number(row.stop_number),
+      });
+    });
+
+    // sort each route's stops
+    Object.keys(fullRouteByRoute).forEach((rid) => {
+      fullRouteByRoute[rid].sort((a, b) => a.stop_number - b.stop_number);
+    });
+  }
+
+  // fetch additional stops for all departure route ids
+  let additionalByDeparture = {};
+  if (departureIds.length) {
+    const params = makeParams(departureIds, "did");
+    const placeholders = makePlaceholders(departureIds, "did");
+    const addRows = await executeQuery(
+      `SELECT route_id, stop_number FROM additional_stop WHERE route_id IN (${placeholders})`,
+      params
+    );
+    addRows.forEach((r) => {
+      if (!additionalByDeparture[r.route_id])
+        additionalByDeparture[r.route_id] = [];
+      additionalByDeparture[r.route_id].push(r);
+    });
+  }
+
+  // assemble departure results
+  const departureResults = departureRoutes
+    .map((route) => {
+      const line = linesByRouteId[route.route_id];
+      if (!line) return null;
+      const allStops = fullRouteByRoute[route.route_id] || [];
+      if (!allStops.length) return null;
+      const additionalStops = additionalByDeparture[route.id] || [];
       const processedStops = processRouteStops(allStops, additionalStops);
-
       return { line, stops: processedStops };
-    } catch (error) {
-      console.error(`Error processing departure route ${route.id}:`, error);
-      return null;
-    }
-  });
+    })
+    .filter(Boolean);
 
   const getRouteKey = (first, last) => {
     if (!first || !last || !first.name || !last.name) {
@@ -143,33 +198,22 @@ const getLinesFullRoutes = async (useCache = true) => {
   };
 
   const usedRoutes = new Set();
-  const departureResults = (await Promise.all(departurePromises)).filter(
-    Boolean
-  );
-
   const reducedDepartures = departureResults.reduce((acc, obj) => {
     if (!obj || !obj.line || !obj.stops || !obj.stops.length) {
       return acc;
     }
 
     const { line, stops } = obj;
-
-    if (stops.length < 2) {
-      return acc;
-    }
+    if (stops.length < 2) return acc;
 
     const firstStop = stops[0];
     const lastStop = stops[stops.length - 1];
     const routeKey = getRouteKey(firstStop, lastStop);
-
-    if (!routeKey || usedRoutes.has(routeKey)) {
-      return acc;
-    }
+    if (!routeKey || usedRoutes.has(routeKey)) return acc;
 
     if (!acc[line.name_plural]) acc[line.name_plural] = { color: line.color };
-    if (!acc[line.name_plural][line.name]) {
+    if (!acc[line.name_plural][line.name])
       acc[line.name_plural][line.name] = [];
-    }
 
     acc[line.name_plural][line.name].push({
       id: line.id,
@@ -217,7 +261,7 @@ const getOtherLinesAtStop = async (stopId, lineId) => {
   JOIN route r ON l.id = r.line_id
   JOIN full_route fr ON r.id = fr.route_id AND fr.stop_id = @stopId
   JOIN line_type lt ON lt.id = l.line_type_id
-  WHERE l.id != @lineId AND fr.is_last != 1
+  WHERE l.id != @lineId AND fr.is_last != true
   `;
 
   const results = await executeQuery(query, {

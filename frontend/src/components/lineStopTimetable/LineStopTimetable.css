@@ -5,7 +5,7 @@
 }
 
 .LineStopTimetable .left {
-  flex: 0 0 55%;
+  flex: 0 0 60%;
 }
 
 .LineStopTimetable .right {
@@ -53,7 +53,7 @@
 
 .LineStopTimetable button {
   border: 0;
-  background-color: #056b89;
+  background-color: #009788;
   display: grid;
   place-content: center;
   padding: 7px;
@@ -180,6 +180,7 @@
 
 .LineStopTimetable th {
   text-align: center;
+  padding: 2px;
 }
 
 @media only screen and (max-width: 1200px) {
