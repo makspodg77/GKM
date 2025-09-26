@@ -30,6 +30,7 @@
   padding: 5px 10px;
   width: 30%;
   color: #056b89;
+  box-sizing: border-box;
   text-decoration: none;
   border-radius: 4px;
 }

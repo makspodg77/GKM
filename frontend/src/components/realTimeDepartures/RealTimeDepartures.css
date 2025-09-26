@@ -1,46 +1,73 @@
+html {
+  background-color: #212c3f;
+}
+
 .RealTimeDepartures {
   display: flex;
   flex-direction: column;
-  padding: 1rem;
-  transform-style: preserve-3d;
+  justify-content: center;
+  height: 100%;
+  align-items: center;
+  background-color: #212c3f;
+  padding: 3rem 2.25rem 4.75rem 3rem;
+}
+
+.RealTimeDepartures .munip {
+  width: 80px;
+}
+
+.background {
+  width: 100%;
+  background-size: cover;
+  background-color: #343b4b;
+}
+
+.legend {
+  width: 100%;
+  box-sizing: border-box;
+  height: 125px;
+  background-color: #364761;
+  display: flex;
+  justify-content: space-between;
+  padding-left: 3vh;
+  padding-right: 3vh;
+  color: white;
+  font-size: 6vh;
+  align-items: center;
 }
 
 .RealTimeDepartures .stop-header {
   display: flex;
   justify-content: space-between;
-  font-size: larger;
+  font-size: large;
   align-items: center;
+  text-align: center;
   height: 125px;
-  width: 90%;
-  margin: 0 auto;
-  border-bottom: 2px solid #d0d0d0;
+  width: 100%;
 }
 
+.RealTimeDepartures .stop-info {
+  display: flex;
+  justify-content: center;
+  gap: 5vh;
+  align-items: center;
+  height: 100%;
+  width: 80%;
+}
 .RealTimeDepartures .stop-header h1 {
-  font-size: 3rem;
-  margin-bottom: 0;
+  font-size: 8vh;
+  color: white;
+  margin: 0;
 }
 
 .RealTimeDepartures .stop-header h2 {
-  font-size: 3rem;
-  margin-bottom: 0;
+  font-size: 8vh;
+  margin: 0;
 }
 
 .RealTimeDepartures .stop-id {
   font-size: 1.5rem;
-  color: #555;
   margin-left: 10px;
-}
-
-.RealTimeDepartures .back-button {
-  margin: 1rem 0;
-  display: inline-block;
-  padding: 8px 16px;
-  background-color: #f5f5f5;
-  color: #056b89;
-  text-decoration: none;
-  border-radius: 4px;
-  font-weight: 500;
 }
 
 .RealTimeDepartures .back-button:hover {
@@ -48,16 +75,31 @@
 }
 
 .RealTimeDepartures .departures-container {
-  width: 90%;
+  width: 98%;
   margin: 0 auto;
+}
+
+.current-time {
+  width: 20%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.departures-container,
+.column-time,
+.countdown,
+.current-time {
+  color: orange;
+  -webkit-text-stroke: 2px orange;
 }
 
 .RealTimeDepartures .table-header {
   display: flex;
   font-weight: 700;
   border-bottom: 2px solid #d0d0d0;
-  padding: 10px 0;
-  font-size: 1.2rem;
 }
 
 .RealTimeDepartures .column-line {
@@ -76,8 +118,8 @@
 
 .RealTimeDepartures .departure-row {
   display: flex;
-  padding: 8px 0;
-  font-size: 2rem;
+  padding: 4px 0;
+  font-size: 5vh;
 }
 
 .RealTimeDepartures .departure-row:last-child {
@@ -104,36 +146,12 @@
   animation: fadeInOut 1s infinite;
 }
 
-.RealTimeDepartures .departing-now {
-  color: #e74c3c;
-  font-weight: bold;
-}
-
-.RealTimeDepartures .countdown {
-  color: #009788;
-  font-weight: 600;
-}
-
-.RealTimeDepartures .scheduled {
-  color: #333;
-}
-
 .RealTimeDepartures .no-departures {
   text-align: center;
   padding: 40px 0;
   color: #777;
   font-style: italic;
   font-size: 1.5rem;
-}
-
-.RealTimeDepartures .error-container {
-  padding: 40px;
-  text-align: center;
-  background-color: #fde2e2;
-  border-radius: 4px;
-  color: #c53030;
-  margin: 2rem auto;
-  max-width: 90%;
 }
 
 .RealTimeDepartures .error-container button {
@@ -163,17 +181,39 @@
 @media only screen and (max-width: 1200px) {
   .RealTimeDepartures {
     display: block;
+    padding: 3vh;
+  }
+
+  .RealTimeDepartures .stop-id {
+    font-size: 1rem;
+    margin-left: 10px;
+  }
+
+  .legend {
+    font-size: 3.5vh;
+    padding-left: 1vh;
+    padding-right: 1vh;
+    height: 62px;
+  }
+
+  .departures-container,
+  .column-time,
+  .countdown,
+  .current-time {
+    color: orange;
+    -webkit-text-stroke: 0;
   }
 
   .RealTimeDepartures .stop-header {
-    height: auto;
-    flex-direction: row;
-    align-items: flex-start;
+    height: 100px;
+  }
+
+  .RealTimeDepartures .munip {
+    width: 50px;
   }
 
   .RealTimeDepartures .stop-header h1 {
-    font-size: 1.5rem;
-    margin-bottom: 10px;
+    font-size: 1rem;
   }
 
   .RealTimeDepartures .stop-header h2 {
@@ -201,8 +241,14 @@
 
 @media only screen and (max-width: 768px) {
   .RealTimeDepartures .departure-row {
-    font-size: 1rem;
     padding: 5px 0;
+  }
+
+  .RealTimeDepartures .stop-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: larger;
+    align-items: center;
   }
 
   .RealTimeDepartures .departures-container,
@@ -212,5 +258,14 @@
 
   .RealTimeDepartures .line-name {
     min-width: 45px;
+  }
+
+  .RealTimeDepartures {
+    padding: 0;
+  }
+
+  .RealTimeDepartures .munip {
+    width: 50px;
+    margin-left: 10px;
   }
 }

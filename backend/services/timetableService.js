@@ -149,7 +149,8 @@ const getStopWithGroupData = async (stopId) => {
       stop.map,
       stop.id AS stop_id, 
       stop_group.id AS group_id, 
-      stop_group.name 
+      stop_group.name,
+      stop_group.municipality
     FROM stop 
     JOIN stop_group ON stop_group.id = stop.stop_group_id 
     WHERE stop.id = @stopId`,

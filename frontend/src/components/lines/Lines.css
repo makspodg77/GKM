@@ -46,7 +46,30 @@
   }
 
   .LineTimetable .line-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-content: flex-start;
+    column-gap: 12px;
+    row-gap: 10px;
+    margin: 0 auto 20px;
+    max-width: 420px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .LineTimetable .line-wrapper {
+    padding: 2px;
+    flex: 0 0 auto; /* keep item intrinsic width */
+    display: flex;
+    justify-content: center;
+  }
+
+  .LineTimetable .line-container {
     gap: 8px;
+    max-width: 360px;
+    column-gap: 8px;
+    row-gap: 8px;
   }
 
   .LineTimetable .line-category h2 {
