@@ -118,6 +118,7 @@ interface Stop {
   is_last: boolean;
   is_on_request: boolean;
   name: string;
+  alias?: string | null;
 }
 
 const StopsList = ({
@@ -543,7 +544,7 @@ const LineStopTimetable = () => {
         >
           <SingleStopMap
             coordinates={timetable?.stop.map || '14.77, 53.46'}
-            name={timetable?.stop.alias || timetable?.stop.name}
+            name={timetable?.stop.alias ?? timetable?.stop.name ?? ''}
             street={timetable?.stop.street}
             stopId={timetable?.stop.stop_id}
             color="#e74c3c"

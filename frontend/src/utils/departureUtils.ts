@@ -9,6 +9,13 @@ export interface DepartureInfo {
   last_stop?: string;
   departure_text?: string | null;
   departure_time?: string;
+  alias?: string | null;
+  name?: string;
+  line?: {
+    name: string;
+    color?: string;
+    custom_headsign?: string;
+  };
 }
 
 const calculateMinutesToDeparture = (departureTime: string): number => {

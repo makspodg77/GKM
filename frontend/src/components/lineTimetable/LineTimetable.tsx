@@ -1,11 +1,10 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import './LineTimetable.css';
 import { useParams } from 'react-router-dom';
 import { Link } from 'react-router-dom';
-import service, { LineDetailCategory, Stop } from '../../services/db';
+import service, { Stop } from '../../services/db';
 import displayIcon from '../../assets/tablica.png';
 import LoadingScreen from '../common/loadingScreen/LoadingScreen';
-import MapRouteDisplay from '../mapDisplay/MapRouteDisplay';
 import PageTitle from '../common/pageTitle/PageTitle';
 import OptionalStop from '../common/symbols/OptionalStop';
 import OnRequest from '../common/symbols/OnRequest';
@@ -32,15 +31,18 @@ const LineTimetable = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const lastRefreshRef = useRef<number>(0); // Use ref instead of state to avoid rerenders
-  const [activeBuses, setActiveBuses] = useState([]);
-  const [stops, setStops] = useState([]);
-  const [routes, setRoutes] = useState([]);
+  const [activeBuses, setActiveBuses] = useState<any[]>([]);
+  const [stops, setStops] = useState<any[]>([]);
+  const [routes, setRoutes] = useState<any[]>([]);
   const [seconds, setSeconds] = useState(0);
   useEffect(() => {
+    if (!lineId) return;
+
+    const resolvedLineId = lineId;
     const fetchData = async () => {
       setSeconds(0);
       try {
-        const result = await service.getAllActiveBusesForALine(lineId);
+        const result = await service.getAllActiveBusesForALine(resolvedLineId);
         setActiveBuses(result);
       } catch (error) {
         console.error('Error fetching vehicles:', error);
@@ -51,41 +53,49 @@ const LineTimetable = () => {
 
     const interval = setInterval(fetchData, 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [lineId]);
 
   useEffect(() => {
+    if (!lineId) return;
+
+    const resolvedLineId = lineId;
     service
-      .getLineRoutes(lineId)
+      .getLineRoutes(resolvedLineId)
       .then((data) => {
-        setLine(data);
-        service.getAllRoutesForALine(lineId).then((data) => {
-          const standardizedStops = data.map((obj: any) =>
-            (obj.stops || []).map((stop: any) => {
-              let lat = null,
-                lon = null;
-              if (typeof stop.map === 'string' && stop.map.trim().length > 0) {
-                let parts = stop.map.trim().split(/[ ,]+/);
-                if (parts.length === 2) {
-                  let n1 = parseFloat(parts[1]);
-                  let n2 = parseFloat(parts[0]);
-                  if (Math.abs(n1) > 90 && Math.abs(n2) <= 90) {
-                    lon = n1;
-                    lat = n2;
-                  } else {
-                    lat = n1;
-                    lon = n2;
+        setLine(data as unknown as LineTimetableData[]);
+        service
+          .getAllRoutesForALine(resolvedLineId)
+          .then((routeData: Array<{ map_routes: any; stops: any[] }>) => {
+            const standardizedStops = routeData.map((routeItem) =>
+              (routeItem.stops || []).map((stop: any) => {
+                let lat = null,
+                  lon = null;
+                if (
+                  typeof stop.map === 'string' &&
+                  stop.map.trim().length > 0
+                ) {
+                  let parts = stop.map.trim().split(/[ ,]+/);
+                  if (parts.length === 2) {
+                    let n1 = parseFloat(parts[1]);
+                    let n2 = parseFloat(parts[0]);
+                    if (Math.abs(n1) > 90 && Math.abs(n2) <= 90) {
+                      lon = n1;
+                      lat = n2;
+                    } else {
+                      lat = n1;
+                      lon = n2;
+                    }
                   }
                 }
-              }
-              return { ...stop, lat, lon };
-            })
-          );
-          setStops(standardizedStops.flat());
-          setRoutes(data.map((obj) => obj.map_routes));
-        });
+                return { ...stop, lat, lon };
+              })
+            );
+            setStops(standardizedStops.flat());
+            setRoutes(routeData.map((routeItem) => routeItem.map_routes));
+          });
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [lineId]);
 
   useEffect(() => {
     const addSecond = () => {

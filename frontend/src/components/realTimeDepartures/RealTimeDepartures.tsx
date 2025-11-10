@@ -90,7 +90,7 @@ const DepartureItem = ({
     <div className="departure-row" key={`${index}`}>
       <div className="line-name">{departure.line?.name}</div>
       <div className="destination">
-        {departure.line.custom_headsign ||
+        {departure.line?.custom_headsign ||
           departure.alias ||
           departure.last_stop}
       </div>

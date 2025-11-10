@@ -21,7 +21,7 @@ const StopGroup = () => {
     service
       .getStopGroup(Number(stopId))
       .then((data) => {
-        if (!Array.isArray(data) || data.length === 0) {
+        if (!data || data.length === 0) {
           setError('Nie znaleziono przystanków w tej grupie');
           return;
         }
@@ -55,7 +55,10 @@ const StopGroup = () => {
           </h4>
           <div className="stopContainer">
             {stopGroup.map((stop, index) => (
-              <StopCard stop_={stop} />
+              <StopCard
+                key={stop.stop.stop_id ?? `stop-${index}`}
+                stop_={stop}
+              />
             ))}
           </div>
         </div>
@@ -67,33 +70,46 @@ const StopGroup = () => {
 };
 
 const StopCard = ({ stop_ }: { stop_: StopData }) => {
-  const { departures, stop, loading } = useRealTimeDepartures(
-    stop_.stop.stop_id
-  );
+  const { stop, loading } = useRealTimeDepartures(stop_.stop.stop_id);
 
   if (loading) return <Loading />;
 
+  const fallbackStop = stop_.stop;
+  const stopName =
+    stop.alias ||
+    stop.name ||
+    fallbackStop.alias ||
+    fallbackStop.group_name ||
+    fallbackStop.street ||
+    '';
+  const stopStreet = stop.street || fallbackStop.street || '';
+  const stopMap = stop.map ?? fallbackStop.map ?? '';
+  const stopId = stop.stop_id ?? fallbackStop.stop_id;
+  const stopGroupId = stop.group_id ?? fallbackStop.group_id;
+
   return (
-    <div key={stop.stop_id} className="stop">
+    <div key={stopId} className="stop">
       <SingleStopMap
-        coordinates={stop.map}
-        name={stop.name}
-        street={stop.street}
-        stopId={stop.stop_id}
+        coordinates={stopMap}
+        name={stopName}
+        street={stopStreet}
+        stopId={stopId}
         color="#e74c3c"
       />
-      <h3>Przystanek nr {stop.group_id + '/' + stop.stop_id}</h3>
-      {stop.alias ? (
-        <h4 style={{ margin: '0' }}>Nazwa poboczna: {stop.alias}</h4>
+      <h3>Przystanek nr {stopGroupId + '/' + stopId}</h3>
+      {stop.alias || fallbackStop.alias ? (
+        <h4 style={{ margin: '0' }}>
+          Nazwa poboczna: {stop.alias || fallbackStop.alias}
+        </h4>
       ) : (
         ''
       )}
-      <h4>ulica/lokalizacja: {stop.street}</h4>
-      <MiniRealTimeDepartures id={stop.stop_id} />
+      <h4>ulica/lokalizacja: {stopStreet}</h4>
+      <MiniRealTimeDepartures id={stopId} />
       <h3>Najbliższe odjazdy według rozkładu jazdy:</h3>
 
-      {departures && departures.length > 0 ? (
-        departures
+      {stop_.departures && stop_.departures.length > 0 ? (
+        stop_.departures
           .slice(0, 20)
           .map((departure, idx) => (
             <Departure key={idx} departure={departure} />

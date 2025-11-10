@@ -12,6 +12,7 @@ interface Stop {
   stop_number: number;
   stop_group_id: string;
   name: string;
+  alias?: string | null;
   is_on_request: boolean;
   route_id: string;
   travel_time: number;

@@ -3,17 +3,18 @@ import { ROUTES } from './config';
 
 export interface Stop {
   street: string;
-  map: null;
-  is_on_request: any;
-  stop_number: any;
-  route_id: any;
-  travel_time: number;
-  is_last: any;
-  is_optional: any;
-  is_first: any;
-  group_id: string;
-  id: string;
+  map: string | null;
+  is_on_request: boolean | number | string;
+  stop_number: string | number;
+  route_id: string | number;
+  travel_time: number | string;
+  is_last: boolean | number | string;
+  is_optional: boolean | number | string;
+  is_first: boolean | number | string;
+  group_id: string | number;
+  id: string | number;
   name: string;
+  alias?: string | null;
 }
 
 export interface StopLetterListing {
@@ -27,9 +28,10 @@ export interface LineInfo {
 }
 
 export interface RouteInfo {
+  id?: string | number;
   first_stop: string;
   last_stop: string;
-  streets: { street: string; name: string }[];
+  streets: { street: string; name: string; alias?: string | null }[];
 }
 
 export interface LineDetailCategory {
@@ -71,11 +73,12 @@ export interface DepartureTime {
     stop_number: number;
     name: string;
     is_on_request: boolean;
-    map: string;
+    map: string | null;
     is_optional: boolean;
     is_first: boolean;
     is_last: boolean;
     route_id: string;
+    alias?: string | null;
   }[];
   stop: {
     stop_group_id: string;
@@ -85,11 +88,12 @@ export interface DepartureTime {
     stop_number: number;
     name: string;
     is_on_request: boolean;
-    map: string;
+    map: string | null;
     is_optional: boolean;
     is_first: boolean;
     is_last: boolean;
     route_id: string;
+    alias?: string | null;
   };
   other_lines: {
     color: string;
@@ -117,11 +121,12 @@ export interface Inews {
 
 export interface StopData {
   stop: {
-    stop_id: number;
-    group_id: number;
+    stop_id: number | string;
+    group_id: number | string;
     group_name: string;
     street: string;
-    map?: string;
+    map?: string | null;
+    alias?: string | null;
   };
   departures: DepartureData[];
 }
@@ -129,12 +134,13 @@ export interface StopData {
 export interface DepartureData {
   departure_time: string;
   last_stop: string;
+  alias?: string | null;
   line: {
     name: string;
     color: string;
   };
-  route_id: number;
-  stop_number: number;
+  route_id: number | string;
+  stop_number: number | string;
 }
 
 const getLines = async (): Promise<LineCategoryListing> => {
@@ -147,7 +153,9 @@ const getLinesRoutes = async (): Promise<TransportLinesGrouped> => {
   return response.data;
 };
 
-const getLineRoutes = async (id: number): Promise<LineDetailCategory> => {
+const getLineRoutes = async (
+  id: number | string
+): Promise<LineDetailCategory> => {
   const response = await axios.get<LineDetailCategory>(ROUTES.LINE_ROUTES(id));
   return response.data;
 };
@@ -167,8 +175,8 @@ const getNews = async (): Promise<Inews[]> => {
   return response.data;
 };
 
-const getStopGroup = async (groupId: number): Promise<StopData> => {
-  const response = await axios.get<StopData>(ROUTES.STOP_GROUP(groupId));
+const getStopGroup = async (groupId: number): Promise<StopData[]> => {
+  const response = await axios.get<StopData[]>(ROUTES.STOP_GROUP(groupId));
   return response.data;
 };
 
