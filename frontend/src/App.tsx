@@ -25,8 +25,8 @@ const PageStructure = (props: any) => {
     <>
       <Header />
       <div className="container">
-        <section className="menu">
-          Rozklady jazdy
+        <nav className="menu" aria-label="Główne skróty serwisu">
+          <h2>Rozkłady jazdy</h2>
           <div>
             <Link
               style={
@@ -86,7 +86,7 @@ const PageStructure = (props: any) => {
           >
             O projekcie
           </Link>
-        </section>
+        </nav>
         <section className="content">{props.children}</section>
       </div>
       <footer>

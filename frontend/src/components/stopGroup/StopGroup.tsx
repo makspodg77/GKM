@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import service, { DepartureData, StopData } from '../../services/db';
 import MiniRealTimeDepartures from '../miniRealTimeDepartures/MiniRealTimeDepartures';
@@ -6,8 +6,12 @@ import './StopGroup.css';
 import LoadingScreen from '../common/loadingScreen/LoadingScreen';
 import SingleStopMap from '../singleStopMap/SingleStopMap';
 import PageTitle from '../common/pageTitle/PageTitle';
-import { useRealTimeDepartures } from '../../utils/departureUtils';
+import {
+  useRealTimeDepartures,
+  type DepartureInfo,
+} from '../../utils/departureUtils';
 import Loading from '../common/loadingScreen/Loading';
+import { usePageMetadata } from '../../utils/usePageMetadata';
 
 const StopGroup = () => {
   const { stopId } = useParams<{ stopId: string }>();
@@ -38,6 +42,35 @@ const StopGroup = () => {
       });
   }, [stopId]);
 
+  const groupName = stopGroup[0]?.stop?.group_name ?? '';
+  const stopStreet = stopGroup[0]?.stop?.street ?? '';
+  const servedLines = useMemo(() => {
+    const lines = new Set<string>();
+    stopGroup.forEach((item) => {
+      (item.departures || []).forEach((departure) => {
+        if (departure.line?.name) {
+          lines.add(departure.line.name);
+        }
+      });
+    });
+    return Array.from(lines).slice(0, 6);
+  }, [stopGroup]);
+
+  usePageMetadata({
+    title: groupName
+      ? `Zespół przystankowy ${groupName} – rozkład jazdy`
+      : 'Zespół przystankowy – rozkład jazdy',
+    description: groupName
+      ? `Aktualne odjazdy autobusów z zespołu przystankowego ${groupName}${
+          stopStreet ? ` przy ${stopStreet}` : ''
+        }. Obsługiwane linie: ${
+          servedLines.length > 0
+            ? servedLines.join(', ')
+            : 'sprawdź listę najbliższych odjazdów.'
+        }`
+      : 'Sprawdź najbliższe odjazdy autobusów z wybranego zespołu przystankowego GKM.',
+  });
+
   if (error) {
     return <div className="error-message">{error}</div>;
   }
@@ -46,9 +79,7 @@ const StopGroup = () => {
     <>
       {!isLoading ? (
         <div className="StopGroup" aria-live="polite">
-          <PageTitle
-            title={`Zespół przystankowy "${stopGroup[0]?.stop?.group_name || ''}"`}
-          />
+          <PageTitle title={`Zespół przystankowy "${groupName || ''}"`} />
           <h4>
             Ten zespół składa się z {stopGroup.length}{' '}
             {stopGroup.length > 1 ? 'przystanków' : 'przystanku'}
@@ -69,23 +100,56 @@ const StopGroup = () => {
   );
 };
 
+type CombinedDeparture = DepartureData & Partial<DepartureInfo>;
+
+const buildDepartureKey = (departure: any = {}) => {
+  const time = departure?.departure_time ?? '';
+  const stopNumber = departure?.stop_number ?? '';
+  const lineName = departure?.line?.name ?? departure?.line_name ?? '';
+  const destination =
+    departure?.last_stop ?? departure?.alias ?? departure?.name ?? '';
+  return `${time}|${stopNumber}|${lineName}|${destination}`;
+};
+
 const StopCard = ({ stop_ }: { stop_: StopData }) => {
-  const { stop, loading } = useRealTimeDepartures(stop_.stop.stop_id);
-
-  if (loading) return <Loading />;
-
+  const { stop, departures, loading } = useRealTimeDepartures(
+    stop_.stop.stop_id
+  );
   const fallbackStop = stop_.stop;
+  const activeStop = stop || {};
   const stopName =
-    stop.alias ||
-    stop.name ||
+    activeStop.alias ||
+    activeStop.name ||
     fallbackStop.alias ||
     fallbackStop.group_name ||
     fallbackStop.street ||
     '';
-  const stopStreet = stop.street || fallbackStop.street || '';
-  const stopMap = stop.map ?? fallbackStop.map ?? '';
-  const stopId = stop.stop_id ?? fallbackStop.stop_id;
-  const stopGroupId = stop.group_id ?? fallbackStop.group_id;
+  const stopStreet = activeStop.street || fallbackStop.street || '';
+  const stopMap = activeStop.map ?? fallbackStop.map ?? '';
+  const stopId = activeStop.stop_id ?? fallbackStop.stop_id;
+  const stopGroupId = activeStop.group_id ?? fallbackStop.group_id;
+  const scheduleDepartures = stop_.departures ?? [];
+
+  const scheduleMap = useMemo(() => {
+    const map = new Map<string, DepartureData>();
+    scheduleDepartures.forEach((dep) => {
+      map.set(buildDepartureKey(dep), dep);
+    });
+    return map;
+  }, [scheduleDepartures]);
+
+  const displayDepartures = useMemo<CombinedDeparture[]>(() => {
+    const source = departures.length > 0 ? departures : scheduleDepartures;
+    return source.map((dep) => {
+      const fallback = scheduleMap.get(buildDepartureKey(dep));
+      return {
+        ...(fallback ?? {}),
+        ...(dep as Partial<DepartureInfo>),
+      } as CombinedDeparture;
+    });
+  }, [departures, scheduleDepartures, scheduleMap]);
+
+  if (loading) return <Loading />;
 
   return (
     <div key={stopId} className="stop">
@@ -97,9 +161,9 @@ const StopCard = ({ stop_ }: { stop_: StopData }) => {
         color="#e74c3c"
       />
       <h3>Przystanek nr {stopGroupId + '/' + stopId}</h3>
-      {stop.alias || fallbackStop.alias ? (
+      {activeStop.alias || fallbackStop.alias ? (
         <h4 style={{ margin: '0' }}>
-          Nazwa poboczna: {stop.alias || fallbackStop.alias}
+          Nazwa poboczna: {activeStop.alias || fallbackStop.alias}
         </h4>
       ) : (
         ''
@@ -108,11 +172,14 @@ const StopCard = ({ stop_ }: { stop_: StopData }) => {
       <MiniRealTimeDepartures id={stopId} />
       <h3>Najbliższe odjazdy według rozkładu jazdy:</h3>
 
-      {stop_.departures && stop_.departures.length > 0 ? (
-        stop_.departures
+      {displayDepartures.length > 0 ? (
+        displayDepartures
           .slice(0, 20)
           .map((departure, idx) => (
-            <Departure key={idx} departure={departure} />
+            <Departure
+              key={`${buildDepartureKey(departure)}|${idx}`}
+              departure={departure}
+            />
           ))
       ) : (
         <div>Brak najbliższych odjazdów z tego przystanku</div>
@@ -121,22 +188,33 @@ const StopCard = ({ stop_ }: { stop_: StopData }) => {
   );
 };
 
-const Departure = ({ departure }: { departure: DepartureData }) => {
+const Departure = ({ departure }: { departure: CombinedDeparture }) => {
+  const lineName = departure.line?.name ?? departure.line_name ?? '';
+  const lineColor = departure.line?.color ?? '#056b89';
+  const destination =
+    departure.alias ??
+    departure.line?.custom_headsign ??
+    departure.last_stop ??
+    '';
+  const routeId = departure.route_id ?? '';
+  const stopNumber = departure.stop_number ?? '';
+  const timetableLink =
+    routeId !== '' && stopNumber !== ''
+      ? `/rozklad-jazdy-wedlug-linii/${routeId}/${stopNumber}`
+      : '#';
+
   return (
     <div className="route">
       <div className="line-name">
         <div
           className="type-color"
-          style={{ backgroundColor: departure.line.color }}
+          style={{ backgroundColor: lineColor }}
         ></div>
-        {departure.line.name}
+        {lineName}
       </div>
       <div>
-        <Link
-          to={`/rozklad-jazdy-wedlug-linii/${departure.route_id}/${departure.stop_number}`}
-          className="destination-link"
-        >
-          {departure.alias || departure.last_stop}
+        <Link to={timetableLink} className="destination-link">
+          {destination}
         </Link>
       </div>
       <div>{departure.departure_time}</div>

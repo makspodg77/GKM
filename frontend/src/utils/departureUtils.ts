@@ -5,14 +5,16 @@ const ONE_DAY_MS = 86400000;
 const ONE_MINUTE_MS = 60000;
 
 export interface DepartureInfo {
-  line_name?: string;
+  departure_time: string;
   last_stop?: string;
   departure_text?: string | null;
-  departure_time?: string;
   alias?: string | null;
+  line_name?: string;
+  route_id?: string | number;
+  stop_number?: string | number;
   name?: string;
   line?: {
-    name: string;
+    name?: string;
     color?: string;
     custom_headsign?: string;
   };

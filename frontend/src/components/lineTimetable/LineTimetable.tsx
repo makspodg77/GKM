@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './LineTimetable.css';
 import { useParams } from 'react-router-dom';
 import { Link } from 'react-router-dom';
@@ -11,6 +11,7 @@ import OnRequest from '../common/symbols/OnRequest';
 import MapOneLineDisplay from '../mapDisplay/MapDisplay';
 import busIcon from '../../assets/bus.svg';
 import refreshIcon from '../../assets/refresh.svg';
+import { usePageMetadata } from '../../utils/usePageMetadata';
 const LineTimetable = () => {
   const { lineId } = useParams<{ lineId: string }>();
   interface LineTimetableData {
@@ -105,7 +106,44 @@ const LineTimetable = () => {
     const interval = setInterval(addSecond, 1000);
     return () => clearInterval(interval);
   }, []);
-  console.log(line);
+  const lineName = line[0]?.line.name ?? '';
+  const lineTypeSingle = line[0]?.line.name_singular ?? '';
+  const lineColor = line[0]?.line.color ?? '';
+  const directions = useMemo(() => {
+    const directionSet = new Set<string>();
+    line.forEach((entry) => {
+      (entry.linePath || []).forEach((path) => {
+        const firstStop = (path.first_stop || '').trim();
+        const lastStop = (path.last_stop || '').trim();
+        const label =
+          firstStop && lastStop
+            ? `${firstStop} ↔ ${lastStop}`
+            : firstStop || lastStop;
+        if (label) {
+          directionSet.add(label);
+        }
+      });
+    });
+    return Array.from(directionSet).slice(0, 4);
+  }, [line]);
+
+  const primaryDirection = directions[0] ?? '';
+
+  usePageMetadata({
+    title: lineName
+      ? `Linia ${lineName}${primaryDirection ? `: ${primaryDirection}` : ''}`
+      : 'Rozkład jazdy linii autobusowej',
+    description: lineName
+      ? `Sprawdź aktualny rozkład jazdy linii ${lineName}${
+          lineTypeSingle ? ` (${lineTypeSingle})` : ''
+        }. Trasy: ${
+          directions.length > 0
+            ? directions.join('; ')
+            : 'pełna lista przystanków i kursów.'
+        }`
+      : 'Aktualny rozkład jazdy autobusów Goleniowskiej Komunikacji Miejskiej.',
+  });
+
   useEffect(() => {
     const counterId = setInterval(() => {
       lastRefreshRef.current = lastRefreshRef.current + 1;
@@ -121,9 +159,9 @@ const LineTimetable = () => {
   return (
     <div className="LineTimetable responsive-container">
       <PageTitle
-        type={line[0]?.line.name_singular}
-        color={line[0]?.line.color}
-        title={`Rozkład jazdy linii ${line[0]?.line.name}`}
+        type={lineTypeSingle}
+        color={lineColor}
+        title={`Rozkład jazdy linii ${lineName}`}
       />
 
       <h2>Przebieg linii</h2>
