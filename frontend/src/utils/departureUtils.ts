@@ -1,44 +1,17 @@
-const ONE_DAY_MS = 86400000; // 24h w milisekundach
-const ONE_MINUTE_MS = 60000; // 1 minuta w milisekundach
-const TWO_MINUTES_MS = 120000; // 2 minuty w milisekundach
-
 import { useRef, useState, useEffect, useCallback } from 'react';
 import service from '../services/db';
 
+const ONE_DAY_MS = 86400000;
+const ONE_MINUTE_MS = 60000;
+
 export interface DepartureInfo {
   line_name?: string;
-  line?: { name: string; color?: string };
-  last_stop_name?: string;
   last_stop?: string;
-  departure_time: string;
-  departure_text?: string;
-  isPast?: boolean;
-  time?: Date;
-  formattedTime?: string;
-  minutesUntil?: number;
-  countdownText?: string | null;
+  departure_text?: string | null;
+  departure_time?: string;
 }
 
-export const processTimeInfo = (timeString: string) => {
-  const now = new Date();
-  now.setSeconds(0, 0);
-
-  const [hours, minutes] = timeString.split(':').map(Number);
-  const time = new Date();
-  time.setHours(hours, minutes, 0, 0);
-
-  const diffMs = time.getTime() - now.getTime();
-  const justPassedTime = now.getTime() - TWO_MINUTES_MS;
-
-  return {
-    time,
-    isPast: diffMs < 0,
-    justPassed: time.getTime() >= justPassedTime && diffMs < 0,
-    formattedTime: timeString,
-  };
-};
-
-export const calculateMinutesToDeparture = (departureTime: string): number => {
+const calculateMinutesToDeparture = (departureTime: string): number => {
   const now = new Date();
   const [hours, minutes] = departureTime.split(':').map(Number);
 
@@ -57,7 +30,7 @@ export const calculateMinutesToDeparture = (departureTime: string): number => {
   return Math.max(0, Math.round((timestamp - now.getTime()) / ONE_MINUTE_MS));
 };
 
-export const sortDepartures = (data: any[]): any[] => {
+const sortDepartures = (data: any[]): any[] => {
   if (!Array.isArray(data)) {
     console.error('Sort function expected an array but received:', data);
     return [];
@@ -82,7 +55,7 @@ export const sortDepartures = (data: any[]): any[] => {
   });
 };
 
-export const processDepartures = (departuresArray: any[]): DepartureInfo[] => {
+const processDepartures = (departuresArray: any[]): DepartureInfo[] => {
   if (!Array.isArray(departuresArray)) {
     console.error('Expected departures to be an array, got:', departuresArray);
     return [];
@@ -91,7 +64,6 @@ export const processDepartures = (departuresArray: any[]): DepartureInfo[] => {
   const now = new Date();
 
   return sortDepartures(departuresArray).map((dep) => {
-    const timeInfo = processTimeInfo(dep.departure_time);
     const minutesUntil = calculateMinutesToDeparture(dep.departure_time);
 
     const [depHours, depMinutes] = dep.departure_time.split(':').map(Number);
@@ -104,14 +76,11 @@ export const processDepartures = (departuresArray: any[]): DepartureInfo[] => {
 
     return {
       ...dep,
-      ...timeInfo,
-      minutesUntil,
-      departure_text: isDeparting ? '>>>' : undefined,
-      countdownText:
-        minutesUntil > 0 && minutesUntil <= 30
+      departure_text: isDeparting
+        ? '>>>'
+        : minutesUntil > 0 && minutesUntil <= 30
           ? `za ${minutesUntil} min`
           : null,
-      isPast: secondsUntil < 0,
     };
   });
 };
@@ -141,28 +110,7 @@ export const useRealTimeDepartures = (stopId: string | number | null) => {
 
     setDepartures((prevDepartures) => {
       if (prevDepartures.length === 0) return prevDepartures;
-
-      const updated = prevDepartures.map((dep) => {
-        const minutesUntil = calculateMinutesToDeparture(dep.departure_time);
-        const [h, m] = dep.departure_time.split(':').map(Number);
-
-        const depTimestamp = new Date().setHours(h, m, 0, 0);
-        const secondsUntil = (depTimestamp - now.getTime()) / 1000;
-        const isDeparting = secondsUntil >= 0 && secondsUntil <= 30;
-
-        return {
-          ...dep,
-          minutesUntil,
-          departure_text: isDeparting ? '>>>' : undefined,
-          countdownText:
-            minutesUntil > 0 && minutesUntil <= 30
-              ? `za ${minutesUntil} min`
-              : null,
-          isPast: secondsUntil < 0,
-        };
-      });
-
-      return sortDepartures(updated);
+      return processDepartures(prevDepartures);
     });
   }, []);
 
@@ -199,18 +147,7 @@ export const useRealTimeDepartures = (stopId: string | number | null) => {
 
     fetchData();
 
-    intervalRef.current = setInterval(() => {
-      updateDepartures();
-
-      const now = new Date();
-      if (
-        now.getHours() === 0 &&
-        now.getMinutes() === 0 &&
-        now.getSeconds() < 2
-      ) {
-        fetchData();
-      }
-    }, 1000);
+    intervalRef.current = setInterval(() => updateDepartures(), 1000);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);

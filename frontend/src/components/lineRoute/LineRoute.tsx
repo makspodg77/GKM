@@ -74,7 +74,7 @@ const LineRoute = () => {
     route.stops,
     stopNumber
   );
-
+  console.log(route);
   return (
     <div className="LineRoute">
       <PageTitle
@@ -103,7 +103,7 @@ const LineRoute = () => {
                 <Link
                   to={`/zespol-przystankowy/${stop.stop_group_id}`}
                   title="Wszystkie linie zatrzymujące się przy tym zespole przystankowym"
-                  aria-label={`Tablica odjazdów dla przystanku ${stop.name}`}
+                  aria-label={`Tablica odjazdów dla przystanku ${stop.alias || stop.name}`}
                 >
                   <img src={arrowFart} width="100%" alt="Tablica odjazdów" />
                 </Link>
@@ -113,7 +113,7 @@ const LineRoute = () => {
                   className="stop-info"
                   to={`/rozklad-jazdy-wedlug-linii/${stop.route_id}/${stop.stop_number}`}
                 >
-                  <span>{stop.name}</span>
+                  <span>{stop.alias || stop.name}</span>
                   {stop.is_on_request && (
                     <img
                       width={'15px'}

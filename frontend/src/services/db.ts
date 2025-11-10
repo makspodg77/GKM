@@ -33,6 +33,7 @@ export interface RouteInfo {
 }
 
 export interface LineDetailCategory {
+  line: any;
   color?: string;
   routes?: {
     [lineNumber: string]: RouteInfo[];
@@ -186,6 +187,52 @@ const getStops = async (): Promise<StopLetterListing> => {
   return response.data;
 };
 
+const getAllRoutes = async (): Promise<any> => {
+  const response = await axios.get<any>(ROUTES.ALL_ROUTES);
+  return response.data;
+};
+
+const getAllRoutesForALine = async (lineId: string | number): Promise<any> => {
+  const response = await axios.get<any>(ROUTES.ALL_ROUTES_ONE_LINE(lineId));
+  return response.data;
+};
+
+const getAllActiveBusesForALine = async (
+  lineId: string | number
+): Promise<any> => {
+  const response = await axios.get<any>(ROUTES.ACTIVE_BUSES_ONE_LINE(lineId));
+  return response.data;
+};
+
+const getRouteMap = async (lineName: string) => {
+  const response = await axios.get<any>(
+    ROUTES.SINGULAR_REAL_LINE_MAP(lineName),
+    {
+      headers: {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+      params: {
+        _t: Date.now(),
+      },
+    }
+  );
+  return response.data;
+};
+
+const getEveryRouteMap = async () => {
+  const response = await axios.get<any>(ROUTES.REAL_LINE_MAP, {
+    headers: {
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+    },
+    params: {
+      _t: Date.now(),
+    },
+  });
+  return response.data;
+};
+
 export default {
   getLines,
   getStopGroup,
@@ -196,4 +243,9 @@ export default {
   getLinesRoutes,
   getRoute,
   getStopDepartures,
+  getRouteMap,
+  getEveryRouteMap,
+  getAllRoutes,
+  getAllActiveBusesForALine,
+  getAllRoutesForALine,
 };

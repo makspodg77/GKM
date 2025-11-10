@@ -172,18 +172,18 @@ const StopsList = ({
               to={`/rozklad-jazdy-wedlug-linii/${timetable.stop.route_id}/${index + 1}`}
             >
               {stop.is_first && stop.is_optional ? (
-                <img src={firstIcon} />
+                <OptionalStop type="first" />
               ) : stop.is_last && stop.is_optional ? (
-                <img src={lastIcon} />
+                <OptionalStop type="last" />
               ) : stop.is_optional ? (
                 <OptionalStop />
               ) : (
                 ''
               )}
               {stop.is_first || stop.is_last ? (
-                <span className="finalStops">{stop.name}</span>
+                <span className="finalStops">{stop.alias || stop.name}</span>
               ) : (
-                stop.name
+                stop.alias || stop.name
               )}
               {stop.is_on_request ? <OnRequest /> : ''}
             </Link>
@@ -532,7 +532,8 @@ const LineStopTimetable = () => {
             </Link>
           </div>
           <span>
-            <span className="bold">Przystanek</span>: {timetable?.stop.name} (
+            <span className="bold">Przystanek</span>:{' '}
+            {timetable?.stop.alias || timetable?.stop.name} (
             {timetable?.stop.stop_group_id}/{timetable?.stop.stop_id})
           </span>
         </div>
@@ -542,7 +543,7 @@ const LineStopTimetable = () => {
         >
           <SingleStopMap
             coordinates={timetable?.stop.map || '14.77, 53.46'}
-            name={timetable?.stop.name || 'doris'}
+            name={timetable?.stop.alias || timetable?.stop.name}
             street={timetable?.stop.street}
             stopId={timetable?.stop.stop_id}
             color="#e74c3c"

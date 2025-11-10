@@ -1,12 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { executeQuery } = require("../utils/sqlHelper");
-const {
-  asyncHandler,
-  NotFoundError,
-  ValidationError,
-} = require("../utils/errorHandler");
-const { getDeparturesForStop } = require("../services/departureService");
+const { asyncHandler } = require("../utils/errorHandler");
 const { getStopGroupWithDepartures } = require("../services/stopService");
 
 /**
@@ -43,19 +38,40 @@ router.get(
     res.set("Cache-Control", "public, max-age=3600");
 
     const query = `
-    SELECT MIN(id) as id, name
+    SELECT DISTINCT
+      stop_group.id AS id,
+      stop_group.name AS name,
+      stop.alias AS alias
     FROM stop_group
-    GROUP BY name
-    ORDER BY name;
+    LEFT JOIN stop ON stop.stop_group_id = stop_group.id
+    ORDER BY stop_group.name, stop.alias;
     `;
 
     const results = await executeQuery(query);
+    const seenEntries = new Set();
     const groupedResults = results.reduce((acc, result) => {
-      const { id, name } = result;
-      if (!acc[name[0]]) {
-        acc[name[0]] = [];
-      }
-      acc[name[0]].push({ name, id });
+      const { id, name, alias } = result;
+      const baseKey = `${id}|`;
+
+      const addEntry = (label) => {
+        const trimmed = label ? label.trim() : "";
+        if (!trimmed) return;
+        const firstChar = trimmed[0]?.toUpperCase();
+        if (!firstChar) return;
+
+        const uniqueKey = `${baseKey}${trimmed.toLowerCase()}`;
+        if (seenEntries.has(uniqueKey)) return;
+        seenEntries.add(uniqueKey);
+
+        if (!acc[firstChar]) {
+          acc[firstChar] = [];
+        }
+        acc[firstChar].push({ name: trimmed, id });
+      };
+
+      addEntry(name);
+      addEntry(alias);
+
       return acc;
     }, {});
 

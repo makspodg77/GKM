@@ -5,23 +5,8 @@ import fullscreenIcon from '../../assets/tablica2.png';
 import './MiniRealTimeDepartures.css';
 import { useRealTimeDepartures } from '../../utils/departureUtils';
 
-// Add more specific types for the departure data
-interface Departure {
-  line?: {
-    name: string;
-    color?: string;
-  } | null;
-  line_name?: string;
-  last_stop?: string;
-  last_stop_name?: string;
-  departure_time: string;
-  departure_text?: string;
-  minutesUntil?: number;
-  countdownText?: string | null;
-  formattedTime?: string;
-}
+import { DepartureInfo as Departure } from '../../utils/departureUtils';
 
-// Use string | number for id since it could be either
 interface MiniRealTimeDeparturesProps {
   id: string | number;
 }
@@ -31,22 +16,20 @@ const DepartureItem: React.FC<{ departure: Departure; index: number }> = ({
   index,
 }) => (
   <div
-    key={`${departure.line?.name || departure.line_name}-${departure.departure_time}-${index}`}
+    key={`${departure.name || departure.line_name}-${departure.departure_time}-${index}`}
     className="departure-item"
   >
     <div className="line-name">
       {departure.line?.name || departure.line_name}
     </div>
-    <div className="destination">
-      {departure.last_stop || departure.last_stop_name}
-    </div>
+    <div className="destination">{departure.alias || departure.last_stop}</div>
     <div className="time">
       {departure.departure_text === '>>>' ? (
         <span className="arriving-now">{departure.departure_text}</span>
-      ) : departure.minutesUntil && departure.minutesUntil <= 30 ? (
-        <span>{departure.countdownText}</span>
+      ) : departure.departure_text ? (
+        <span>{departure.departure_text}</span>
       ) : (
-        <span>{departure.formattedTime}</span>
+        <span>{departure.departure_time}</span>
       )}
     </div>
   </div>
@@ -57,7 +40,7 @@ const MiniRealTimeDepartures: React.FC<MiniRealTimeDeparturesProps> = memo(
     const [areRealTimeDeparturesOpened, setAreRealTimeDeparturesOpened] =
       useState<boolean>(false);
     const { departures, loading } = useRealTimeDepartures(id);
-
+    console.log(departures);
     return (
       <div className="MiniRealTimeDepartures">
         {loading ? (

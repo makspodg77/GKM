@@ -11,6 +11,7 @@ import LineRoute from './components/lineRoute/LineRoute';
 import StopTimetable from './components/stops/Stops';
 import News from './components/news/News';
 import About from './components/about/About';
+import Vehicles from './components/vehicles/Vehicles';
 
 const PageStructure = (props: any) => {
   const getPathAfterHost = () => {
@@ -49,6 +50,18 @@ const PageStructure = (props: any) => {
               to={`/rozklady-jazdy/wedlug-przystankow`}
             >
               Rozkłady jazdy według przystanków
+            </Link>
+          </div>
+          <div>
+            <Link
+              style={
+                location == '/mapa-pojazdow-i-przystankow'
+                  ? { backgroundColor: '#FACF00' }
+                  : {}
+              }
+              to={`/mapa-pojazdow-i-przystankow`}
+            >
+              Mapa pojazdów i przystanków
             </Link>
           </div>
           <Link
@@ -175,6 +188,14 @@ const App = () => {
           element={
             <PageStructure>
               <News />
+            </PageStructure>
+          }
+        />
+        <Route
+          path="/mapa-pojazdow-i-przystankow"
+          element={
+            <PageStructure>
+              <Vehicles />
             </PageStructure>
           }
         />

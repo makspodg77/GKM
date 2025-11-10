@@ -325,7 +325,9 @@ router.get(
       other_lines,
       last_stops: Array.from(
         new Set(
-          allStops.filter((stop) => stop.is_last).map((stop) => stop.name)
+          allStops
+            .filter((stop) => stop.is_last)
+            .map((stop) => stop.alias || stop.name)
         )
       ),
     });

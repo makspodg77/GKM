@@ -55,7 +55,7 @@ const getStopsForRoute = async (full_route_id) => {
 
   const results = await executeQuery(
     `SELECT s.stop_group_id, s.street, fr.stop_id, fr.travel_time, 
-           fr.stop_number, sg.name, fr.is_on_request, s.map,
+           fr.stop_number, sg.name, fr.is_on_request, s.map, s.alias,
            fr.is_optional, fr.is_first, fr.is_last, fr.route_id
      FROM full_route fr
      JOIN stop s ON s.id = fr.stop_id
@@ -109,7 +109,7 @@ const getDepartureRoutesByFullRouteIds = async (fullRouteIds) => {
   const placeholders = fullRouteIds.map((_, i) => `@id${i}`).join(",");
 
   return executeQuery(
-    `SELECT id, route_id, color, signature FROM departure_route WHERE route_id IN (${placeholders})`,
+    `SELECT id, route_id, color, custom_headsign, signature FROM departure_route WHERE route_id IN (${placeholders})`,
     params
   );
 };
@@ -147,6 +147,7 @@ const getStopWithGroupData = async (stopId) => {
     `SELECT 
       stop.street,
       stop.map,
+      stop.alias,
       stop.id AS stop_id, 
       stop_group.id AS group_id, 
       stop_group.name,
@@ -199,7 +200,7 @@ const getLineDataForRoutes = async (routeIds) => {
     const placeholders = uncachedIds.map((_, i) => `@id${i}`).join(",");
 
     const results = await executeQuery(
-      `SELECT r.id AS route_id, line.id, name, name_singular, name_plural, color 
+      `SELECT r.id AS route_id, line.id, name, name_singular, name_plural, color
        FROM route r 
        JOIN line ON line.id = r.line_id 
        JOIN line_type ON line_type.id = line.line_type_id 
@@ -239,8 +240,9 @@ const generateSignatureExplanation = (additionalStops, allStops) => {
         ? {
             ...addStop,
             ...stopDetails,
+            name: stopDetails.alias || stopDetails.name,
           }
-        : addStop;
+        : { ...addStop, name: addStop.alias || addStop.name };
     })
     .filter((stop) => stop);
 
@@ -289,21 +291,21 @@ const generateSignatureExplanation = (additionalStops, allStops) => {
     );
 
     explanation = isOptionalExtension
-      ? `Kurs do przystanku "${lastStop}"`
-      : `Kurs tylko do przystanku "${lastStop}"`;
+      ? `Kurs do przystanku ${lastStop}`
+      : `Kurs tylko do przystanku ${lastStop}`;
 
     if (middleStops.length) {
       const middleStopNames = middleStops
-        .map((stop) => `"${stop.name}"`)
+        .map((stop) => `${stop.name}`)
         .join(", ");
       explanation += ` przez ${middleStopNames}`;
     }
   } else if (middleStops.length) {
     if (middleStops.length === 1) {
-      explanation = `Kurs z obsługą przystanku "${middleStops[0].name}"`;
+      explanation = `Kurs z obsługą przystanku ${middleStops[0].name}`;
     } else {
       const middleStopNames = middleStops
-        .map((stop) => `"${stop.name}"`)
+        .map((stop) => `${stop.name}`)
         .join(", ");
       explanation = `Kurs z obsługą przystanków: ${middleStopNames}`;
     }

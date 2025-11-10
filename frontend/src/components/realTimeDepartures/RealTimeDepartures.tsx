@@ -9,12 +9,12 @@ import herbOsina from '../../assets/Herb-Osiny.png';
 import herbPrzybiernow from '../../assets/Herb-Przybiernowa.png';
 import herbStepnica from '../../assets/Herb-Stepnicy.png';
 import herbSzczecin from '../../assets/Herb-Szczecina.png';
+
 const municipalities = [
   {
     id: 1,
     style: {
-      background:
-        'linear-gradient(90deg,rgba(10, 63, 137, 1) 0%, rgba(250, 207, 0, 1) 100%)',
+      background: `linear-gradient(135deg, hsla(49, 100%, 65%, 1) 20%, hsla(213, 50%, 38%, 1) 67%, hsla(213, 82%, 28%, 1) 100%)`,
     },
     emblem: herbGoleniow,
   },
@@ -54,7 +54,7 @@ const municipalities = [
     id: 6,
     style: {
       background:
-        'linear-gradient(145deg,rgba(254, 255, 254, 1) 0%, rgba(254, 250, 127, 1) 35%, rgba(254, 248, 64, 1) 100%)',
+        'linear-gradient(270deg,rgba(1, 147, 221, 1) 0%, rgba(0, 146, 63, 1) 21%, rgba(15, 153, 75, 1) 79%, rgba(255, 255, 255, 1) 100%)',
     },
     emblem: herbOsina,
   },
@@ -68,24 +68,7 @@ const municipalities = [
   },
 ];
 
-interface Departure {
-  line?: { name: string };
-  line_name?: string;
-  last_stop?: string;
-  last_stop_name?: string;
-  departure_time: string;
-  departure_text?: string;
-  minutesUntil?: number;
-  countdownText?: string | null;
-  formattedTime?: string;
-  isPast?: boolean;
-}
-
-interface StopInfo {
-  name: string;
-  group_id: string | number;
-  stop_id: string | number;
-}
+import { DepartureInfo as Departure } from '../../utils/departureUtils';
 
 const DepartureItem = ({
   departure,
@@ -97,22 +80,19 @@ const DepartureItem = ({
   const departureTime =
     departure.departure_text === '>>>' ? (
       <span className="departing-now">{departure.departure_text}</span>
-    ) : departure.minutesUntil && departure.minutesUntil <= 30 ? (
-      <span className="countdown">{departure.countdownText}</span>
+    ) : departure.departure_text ? (
+      <span className="countdown">{departure.departure_text}</span>
     ) : (
-      <span className="scheduled">{departure.formattedTime}</span>
+      <span className="scheduled">{departure.departure_time}</span>
     );
 
   return (
-    <div
-      className="departure-row"
-      key={`${departure.line?.name || departure.line_name}-${departure.departure_time}-${index}`}
-    >
-      <div className="line-name">
-        {departure.line?.name || departure.line_name}
-      </div>
+    <div className="departure-row" key={`${index}`}>
+      <div className="line-name">{departure.line?.name}</div>
       <div className="destination">
-        {departure.last_stop || departure.last_stop_name}
+        {departure.line.custom_headsign ||
+          departure.alias ||
+          departure.last_stop}
       </div>
       <div className={departure.departure_text === '>>>' ? 'departing' : ''}>
         {departureTime}
@@ -127,7 +107,8 @@ const RealTimeDepartures: React.FC = () => {
     stopId ?? null
   );
   if (loading) return <LoadingScreen />;
-
+  console.log(stop);
+  console.log(departures);
   return (
     <div className="RealTimeDepartures">
       <div className="background">
@@ -148,7 +129,7 @@ const RealTimeDepartures: React.FC = () => {
                 }
               />
               <h1>
-                {stop.name}
+                {stop.alias || stop.name}
                 <span className="stop-id">
                   ({stop.group_id}/{stop.stop_id})
                 </span>
@@ -156,8 +137,7 @@ const RealTimeDepartures: React.FC = () => {
             </div>
             <div className="current-time">
               <h2>
-                {currentTime.hours}:
-                {currentTime.minutes.toString().padStart(2, '0')}
+                {currentTime.hours}:{currentTime.minutes}
               </h2>
             </div>
           </header>

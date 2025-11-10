@@ -102,7 +102,6 @@ const getLinesFullRoutes = async (useCache = true) => {
   ) {
     return linesFullRoutesCache;
   }
-  // Batch approach: reduce N+1 DB queries by fetching related data in a few queries
   const departureRoutes = await getDepartureRoutesDirectly();
   if (!departureRoutes || !departureRoutes.length) {
     throw new NotFoundError("No departure routes found");
@@ -111,13 +110,11 @@ const getLinesFullRoutes = async (useCache = true) => {
   const routeIds = Array.from(new Set(departureRoutes.map((r) => r.route_id)));
   const departureIds = departureRoutes.map((r) => r.id);
 
-  // prepare params for IN (...) placeholders
   const makeParams = (ids, prefix = "id") =>
     ids.reduce((acc, id, i) => ({ ...acc, [`${prefix}${i}`]: id }), {});
   const makePlaceholders = (ids, prefix = "id") =>
     ids.map((_, i) => `@${prefix}${i}`).join(",");
 
-  // fetch lines for all routeIds in one query
   let linesByRouteId = {};
   if (routeIds.length) {
     const params = makeParams(routeIds, "rid");
@@ -131,13 +128,12 @@ const getLinesFullRoutes = async (useCache = true) => {
     });
   }
 
-  // fetch all stops for those routes in one query
   let fullRouteByRoute = {};
   if (routeIds.length) {
     const params = makeParams(routeIds, "rid");
     const placeholders = makePlaceholders(routeIds, "rid");
     const fullRows = await executeQuery(
-      `SELECT fr.route_id, s.stop_group_id, s.street, fr.stop_id, fr.travel_time, fr.stop_number, sg.name, fr.is_on_request, s.map, fr.is_optional, fr.is_first, fr.is_last
+      `SELECT fr.route_id, s.stop_group_id, s.street, fr.stop_id, fr.travel_time, fr.stop_number, sg.name, fr.is_on_request, s.map, fr.is_optional, fr.is_first, fr.is_last, s.alias
        FROM full_route fr
        JOIN stop s ON s.id = fr.stop_id
        JOIN stop_group sg ON sg.id = s.stop_group_id
@@ -154,13 +150,11 @@ const getLinesFullRoutes = async (useCache = true) => {
       });
     });
 
-    // sort each route's stops
     Object.keys(fullRouteByRoute).forEach((rid) => {
       fullRouteByRoute[rid].sort((a, b) => a.stop_number - b.stop_number);
     });
   }
 
-  // fetch additional stops for all departure route ids
   let additionalByDeparture = {};
   if (departureIds.length) {
     const params = makeParams(departureIds, "did");
@@ -176,7 +170,6 @@ const getLinesFullRoutes = async (useCache = true) => {
     });
   }
 
-  // assemble departure results
   const departureResults = departureRoutes
     .map((route) => {
       const line = linesByRouteId[route.route_id];
@@ -205,7 +198,6 @@ const getLinesFullRoutes = async (useCache = true) => {
 
     const { line, stops } = obj;
     if (stops.length < 2) return acc;
-
     const firstStop = stops[0];
     const lastStop = stops[stops.length - 1];
     const routeKey = getRouteKey(firstStop, lastStop);
@@ -217,8 +209,8 @@ const getLinesFullRoutes = async (useCache = true) => {
 
     acc[line.name_plural][line.name].push({
       id: line.id,
-      first_stop: firstStop.name,
-      last_stop: lastStop.name,
+      first_stop: firstStop.alias || firstStop.name,
+      last_stop: lastStop.alias || lastStop.name,
       streets: stops,
     });
 

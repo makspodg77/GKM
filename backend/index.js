@@ -146,7 +146,16 @@ app.use((req, res, next) => {
 
 app.use((req, res, next) => {
   if (req.method === "GET") {
-    res.set("Cache-Control", "public, max-age=300");
+    if (req.path.includes("/map-route/")) {
+      res.set(
+        "Cache-Control",
+        "no-store, no-cache, must-revalidate, proxy-revalidate"
+      );
+      res.set("Pragma", "no-cache");
+      res.set("Expires", "0");
+    } else {
+      res.set("Cache-Control", "public, max-age=300");
+    }
   }
   next();
 });

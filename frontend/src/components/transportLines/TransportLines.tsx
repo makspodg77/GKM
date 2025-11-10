@@ -18,7 +18,9 @@ const LineRoute: React.FC<{ route: RouteInfo }> = ({ route }) => (
       {route.first_stop} ↔ {route.last_stop}
     </div>
     <p className="route-streets">
-      {route.streets.map((stop) => `${stop.name} (${stop.street})`).join(' - ')}
+      {route.streets
+        .map((stop) => `${stop.alias || stop.name} (${stop.street})`)
+        .join(' - ')}
     </p>
   </div>
 );

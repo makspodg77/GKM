@@ -84,7 +84,11 @@ const getDeparturesForStop = async (stopId, get_base_data = true) => {
   const timetableData = await getTimetableDataForRoutes(departureRouteIds);
 
   const departurePromises = departureRoutes.map(async (route) => {
-    const line = (linesData[route.route_id] || [])[0];
+    let line = (linesData[route.route_id] || [])[0];
+    line = {
+      ...line,
+      custom_headsign: route.custom_headsign,
+    };
     if (!line) {
       return [];
     }
@@ -120,6 +124,7 @@ const getDeparturesForStop = async (stopId, get_base_data = true) => {
             timetable_id: entry.id,
             stop_number: stop.stop_number,
             is_last: stop.is_last,
+            alias: lastStop.alias,
           }));
       } catch (error) {
         console.error(`Error calculating times for entry ${entry.id}:`, error);

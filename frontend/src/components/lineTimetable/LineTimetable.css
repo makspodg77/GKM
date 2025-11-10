@@ -81,6 +81,31 @@
   gap: 10px;
 }
 
+.LineTimetable .container .info {
+  background-color: rgba(255, 255, 255, 0.792);
+  position: absolute;
+  width: 100px;
+  padding: 5px;
+}
+
+.LineTimetable .container {
+  width: 100%;
+  position: relative;
+}
+
+.info > div {
+  display: flex;
+}
+
+.LineTimetable .info .bus-icon {
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+  width: 20px;
+  height: 20px;
+  filter: brightness(0);
+}
+
 .LineTimetable .stopName .io {
   display: flex;
   align-items: center;
@@ -101,7 +126,6 @@
 .LineTimetable .map-container {
   width: 100%;
   height: 400px;
-  margin: 20px 0;
 }
 
 .LineTimetable .error-message {

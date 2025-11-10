@@ -1,7 +1,14 @@
 const express = require("express");
 const router = express.Router();
 const { asyncHandler } = require("../utils/errorHandler");
-const { getLineRoutes, getRoute } = require("../services/routeService");
+const {
+  getLineRoutes,
+  getRoute,
+  getMapRouteEveryVehicle,
+  getAllRoutes,
+  getActiveBusesForASpecificLine,
+  getAllRoutesForASpecificLine,
+} = require("../services/routeService");
 
 /**
  * @swagger
@@ -52,6 +59,21 @@ const { getLineRoutes, getRoute } = require("../services/routeService");
  *       500:
  *         description: Server error
  */
+
+router.get(
+  "/anja",
+  asyncHandler(async (req, res) => {
+    res.json(await getMapRouteEveryVehicle());
+  })
+);
+
+router.get(
+  "/waypoints",
+  asyncHandler(async (req, res) => {
+    res.json(await getAllRoutes());
+  })
+);
+
 router.get(
   "/:line_id",
   asyncHandler(async (req, res) => {
@@ -205,6 +227,116 @@ router.get(
     const { departure_id, line_id } = req.params;
 
     res.json(await getRoute(departure_id, line_id));
+  })
+);
+
+/**
+ * @swagger
+ * /api/routes/map-route/{line_id}:
+ *   get:
+ *     tags: [Routes]
+ *     summary: Get map-ready route geometry for a line
+ *     description: Returns all coordinate points for every available route of the requested line.
+ *     parameters:
+ *       - in: path
+ *         name: line_id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Identifier of the line whose map routes should be returned
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved map route geometry for the line
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     departure_route_id:
+ *                       type: string
+ *                     id:
+ *                       type: integer
+ *                     lat:
+ *                       type: number
+ *                     lon:
+ *                       type: number
+ *                     stop_nearby:
+ *                       type: boolean
+ *                     stop_number:
+ *                       type: integer
+ *       404:
+ *         description: Line not found
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  "/map-route/:line_id",
+  asyncHandler(async (req, res) => {
+    const { line_id } = req.params;
+
+    res.json(await getAllRoutesForASpecificLine(line_id));
+  })
+);
+
+/**
+ * @swagger
+ * /api/routes/map-route/{line_id}/buses:
+ *   get:
+ *     tags: [Routes]
+ *     summary: Get active vehicles for a line on the map
+ *     description: Returns the list of vehicles currently running on a specific line, ready to be displayed on the map.
+ *     parameters:
+ *       - in: path
+ *         name: line_id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Identifier of the line whose active vehicles should be returned
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved active vehicles for the line
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   departure_route_id:
+ *                     type: string
+ *                   line_name:
+ *                     type: string
+ *                   direction:
+ *                     type: string
+ *                   previous_stop:
+ *                     type: string
+ *                   next_stop:
+ *                     type: string
+ *                   vehicle_type_id:
+ *                     type: integer
+ *                   bus_latitude:
+ *                     type: string
+ *                   bus_longitude:
+ *                     type: string
+ *                   start_time:
+ *                     type: string
+ *                   color:
+ *                     type: string
+ *       404:
+ *         description: Line not found
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  "/map-route/:line_id/buses",
+  asyncHandler(async (req, res) => {
+    const { line_id } = req.params;
+
+    res.json(await getActiveBusesForASpecificLine(line_id));
   })
 );
 

@@ -1,45 +1,81 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './MapRouteDisplay.css';
-
-interface Stop {
-  map: string;
-  street: string;
-  is_on_request: boolean;
-  name: string;
-  stop_number: string;
-}
+import busIcon from '../../assets/bus.svg';
+import tramIcon from '../../assets/tram.svg';
+import trainIcon from '../../assets/train.svg';
+import stopIcon from '../../assets/stop.svg';
+import fullScreenIcon from '../../assets/fullscreen.svg';
+import {
+  getMarkerScale,
+  useBusMarkers,
+  parseBusKey,
+  type ActiveBus,
+  type BusMarkerEntry,
+} from '../../utils/mapUtils';
+import MapControls from './MapControls';
+import { useRoutesLayer } from './hooks/useRoutesLayer';
+import { useStopsLayer } from './hooks/useStopsLayer';
+import { type RouteCoordinate, type Stop } from './types';
 
 interface MapRouteDisplayProps {
-  routes: Stop[][];
-  colors?: string[];
+  routes?: RouteCoordinate[][];
+  activeBuses?: ActiveBus[];
   fitBounds?: boolean;
+  stops?: Stop[];
 }
 
-/**
- * MapRouteDisplay - Renders a map with route waypoints and connecting lines
- *
- * @param {MapRouteDisplayProps} props - Component properties
- * @param {Stop[][]} props.routes - Array of routes (each route is an array of stops)
- * @param {string[]} props.colors - Array of colors for each route (defaults to ["#e74c3c", "#3498db"])
- * @param {boolean} props.fitBounds - Whether to fit the map bounds to the routes (default: true)
- */
+const ROUTE_ARROW_IMAGE_ID = 'route-arrow-icon';
+
 const MapRouteDisplay = ({
   routes,
-  colors = ['#e74c3c', '#3498db'],
+  activeBuses,
   fitBounds = true,
+  stops,
 }: MapRouteDisplayProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [mapLoaded, setMapLoaded] = useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [showStops, setShowStops] = useState<boolean>(false);
+  const busMarkersRef = useRef<Map<string, BusMarkerEntry>>(new Map());
+  const stopMarkersRef = useRef<maplibregl.Marker[]>([]);
 
-  const getCoordinates = (stop: Stop): [number, number] => {
-    if (!stop.map) return [0, 0];
+  const [selectedBusKey, setSelectedBusKey] = useState<string | null>(null);
+  const [popupOpenBusId, setPopupOpenBusId] = useState<string | null>(null);
+  const stopBoundsFittedRef = useRef<boolean>(false);
 
-    const parts = stop.map.split(',').map((part) => parseFloat(part.trim()));
-    return [parts[0], parts[1]];
-  };
+  const selectedBusKeyParts = useMemo(() => {
+    if (!selectedBusKey) return null;
+    return parseBusKey(selectedBusKey);
+  }, [selectedBusKey]);
+
+  const selectedRouteId = selectedBusKeyParts?.routeId ?? null;
+  const vehicleIcons = useMemo(
+    () => ({
+      bus: busIcon,
+      tram: tramIcon,
+      train: trainIcon,
+    }),
+    []
+  );
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const container = mapContainer.current?.parentElement;
+      const isActive =
+        !!document.fullscreenElement &&
+        document.fullscreenElement === container;
+      setIsFullscreen(isActive);
+      map.current?.resize();
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -47,13 +83,27 @@ const MapRouteDisplay = ({
     if (!map.current) {
       map.current = new maplibregl.Map({
         container: mapContainer.current,
-        style: 'https://tiles.openfreemap.org/styles/liberty',
-        center: [14.77, 53.46],
-        zoom: 12,
+        style:
+          'https://api.jawg.io/styles/jawg-streets.json?access-token=2JuoTyW8QomKB24hXnmmq0giE7T03W4VkDYT33u4AvKTnNSNGC6UOkTCA7COJafq',
+        center: [14.828291270757882, 53.56385849757642],
+        zoom: 10,
       });
 
       map.current.on('load', () => {
         setMapLoaded(true);
+      });
+
+      map.current.on('click', (event) => {
+        const features = map.current?.queryRenderedFeatures(event.point);
+        const clickedOnMarker = features?.some(
+          (feature) =>
+            feature.layer.id === 'polyline-' || feature.layer.id === 'arrows-'
+        );
+
+        if (!clickedOnMarker) {
+          setSelectedBusKey(null);
+          setPopupOpenBusId(null);
+        }
       });
     }
 
@@ -65,106 +115,103 @@ const MapRouteDisplay = ({
     };
   }, [mapContainer]);
 
-  useEffect(() => {
-    if (!mapLoaded || !map.current || !routes.length) return;
+  const toggleFullscreen = () => {
+    const container = mapContainer.current?.parentElement as HTMLElement | null;
+    if (!container) return;
 
-    const layerIds =
-      map.current.getStyle().layers?.map((layer) => layer.id) || [];
-    layerIds.forEach((id) => {
-      if (id.startsWith('route-') || id.startsWith('stops-')) {
-        map.current?.removeLayer(id);
+    if (!document.fullscreenElement) {
+      if (container.requestFullscreen) {
+        void container.requestFullscreen();
       }
-    });
-
-    const sourceIds = Object.keys(map.current.getStyle().sources || {});
-    sourceIds.forEach((id) => {
-      if (id.startsWith('route-') || id.startsWith('stops-')) {
-        map.current?.removeSource(id);
-      }
-    });
-
-    const bounds = new maplibregl.LngLatBounds();
-
-    routes.forEach((route, routeIndex) => {
-      if (!route.length) return;
-
-      const routeColor = colors[routeIndex % colors.length];
-      const routeCoordinates = route
-        .filter((stop) => stop.map)
-        .map((stop) => getCoordinates(stop));
-
-      routeCoordinates.forEach((coord) => {
-        bounds.extend(coord as maplibregl.LngLatLike);
-      });
-
-      map.current?.addSource(`route-${routeIndex}`, {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          properties: {},
-          geometry: {
-            type: 'LineString',
-            coordinates: routeCoordinates,
-          },
-        },
-      });
-
-      map.current?.addLayer({
-        id: `route-${routeIndex}`,
-        type: 'line',
-        source: `route-${routeIndex}`,
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round',
-        },
-        paint: {
-          'line-color': routeColor,
-          'line-width': 4,
-        },
-      });
-
-      route.forEach((stop, stopIndex) => {
-        if (!stop.map) return;
-
-        const coordinates = getCoordinates(stop);
-
-        const marker = new maplibregl.Marker({
-          color: routeColor,
-        })
-          .setLngLat(coordinates)
-          .addTo(map.current!);
-
-        const popup = new maplibregl.Popup({
-          closeButton: false,
-          closeOnClick: false,
-        }).setHTML(`
-          <div class="stop-popup">
-            <strong>${stop.name}</strong>
-            ${stop.is_on_request ? '<div class="on-request">Na żądanie</div>' : ''}
-            <div class="stop-number">Przystanek #${stop.stop_number}</div>
-          </div>
-        `);
-
-        marker.getElement().addEventListener('mouseenter', () => {
-          popup.setLngLat(coordinates).addTo(map.current!);
-        });
-
-        marker.getElement().addEventListener('mouseleave', () => {
-          popup.remove();
-        });
-      });
-    });
-
-    if (fitBounds && !bounds.isEmpty()) {
-      map.current.fitBounds(bounds, {
-        padding: 70,
-        maxZoom: 15,
-      });
+      return;
     }
-  }, [mapLoaded, routes, colors, fitBounds]);
+
+    if (document.fullscreenElement === container) {
+      void document.exitFullscreen();
+      return;
+    }
+
+    void document.exitFullscreen();
+    if (container.requestFullscreen) {
+      void container.requestFullscreen();
+    }
+  };
+
+  const toggleShowStops = () => {
+    setShowStops((previous) => !previous);
+  };
+
+  useEffect(() => {
+    stopBoundsFittedRef.current = false;
+  }, [stops]);
+
+  useBusMarkers({
+    mapLoaded,
+    mapRef: map,
+    activeBuses,
+    busMarkersRef,
+    selectedBusKey,
+    setSelectedBusKey,
+    popupOpenBusId,
+    setPopupOpenBusId,
+    vehicleIcons,
+  });
+
+  useRoutesLayer({
+    mapLoaded,
+    mapRef: map,
+    routes,
+    selectedRouteId,
+    routeArrowImageId: ROUTE_ARROW_IMAGE_ID,
+  });
+
+  useStopsLayer({
+    mapLoaded,
+    mapRef: map,
+    stops,
+    showStops,
+    selectedBusKey,
+    fitBounds,
+    stopBoundsFittedRef,
+    stopMarkersRef,
+    stopIcon,
+  });
+
+  useEffect(() => {
+    if (!mapLoaded || !map.current) return;
+
+    const updateMarkerViewProps = () => {
+      if (!map.current) return;
+      const zoom = map.current.getZoom();
+      const scale = getMarkerScale(zoom);
+      const mapBearing = map.current.getBearing();
+
+      busMarkersRef.current.forEach(({ marker }) => {
+        const element = marker.getElement();
+        element.style.setProperty('--marker-scale', `${scale}`);
+        element.style.setProperty('--map-bearing', `${mapBearing}deg`);
+      });
+    };
+
+    map.current.on('zoom', updateMarkerViewProps);
+    map.current.on('rotate', updateMarkerViewProps);
+    updateMarkerViewProps();
+
+    return () => {
+      map.current?.off('zoom', updateMarkerViewProps);
+      map.current?.off('rotate', updateMarkerViewProps);
+    };
+  }, [mapLoaded]);
 
   return (
     <div className="map-container">
+      <MapControls
+        showStops={showStops}
+        onToggleStops={toggleShowStops}
+        onToggleFullscreen={toggleFullscreen}
+        fullscreenIcon={fullScreenIcon}
+        stopIcon={stopIcon}
+      />
       <div ref={mapContainer} className="map" />
     </div>
   );

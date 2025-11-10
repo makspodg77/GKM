@@ -55,6 +55,7 @@ const getStopGroupWithDepartures = async (groupId) => {
       stop_group.name AS group_name, 
       stop.id AS stop_id, 
       stop.map,
+      stop.alias,
       stop.street
     FROM stop_group
     LEFT JOIN stop ON stop.stop_group_id = stop_group.id

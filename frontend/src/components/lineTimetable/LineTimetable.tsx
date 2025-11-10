@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import './LineTimetable.css';
 import { useParams } from 'react-router-dom';
 import { Link } from 'react-router-dom';
@@ -6,14 +6,12 @@ import service, { LineDetailCategory, Stop } from '../../services/db';
 import displayIcon from '../../assets/tablica.png';
 import LoadingScreen from '../common/loadingScreen/LoadingScreen';
 import MapRouteDisplay from '../mapDisplay/MapRouteDisplay';
-import firstIcon from '../../assets/first.png';
-import optionalIcon from '../../assets/optional.png';
-import lastIcon from '../../assets/last.png';
-import onRequestIcon from '../../assets/on_request.png';
 import PageTitle from '../common/pageTitle/PageTitle';
 import OptionalStop from '../common/symbols/OptionalStop';
 import OnRequest from '../common/symbols/OnRequest';
-
+import MapOneLineDisplay from '../mapDisplay/MapDisplay';
+import busIcon from '../../assets/bus.svg';
+import refreshIcon from '../../assets/refresh.svg';
 const LineTimetable = () => {
   const { lineId } = useParams<{ lineId: string }>();
   interface LineTimetableData {
@@ -33,30 +31,78 @@ const LineTimetable = () => {
   const [line, setLine] = useState<LineTimetableData[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const lastRefreshRef = useRef<number>(0); // Use ref instead of state to avoid rerenders
+  const [activeBuses, setActiveBuses] = useState([]);
+  const [stops, setStops] = useState([]);
+  const [routes, setRoutes] = useState([]);
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const fetchData = async () => {
+      setSeconds(0);
+      try {
+        const result = await service.getAllActiveBusesForALine(lineId);
+        setActiveBuses(result);
+      } catch (error) {
+        console.error('Error fetching vehicles:', error);
+      }
+    };
+
+    fetchData();
+
+    const interval = setInterval(fetchData, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
-    if (lineId) {
-      setLoading(true);
-      service
-        .getLineRoutes(Number(lineId))
-        .then((data: LineDetailCategory | LineDetailCategory[]) => {
-          if (!data || (Array.isArray(data) && data.length === 0)) {
-            setError('Nie znaleziono danych dla tej linii');
-            return;
-          }
-          const formattedData = Array.isArray(data) ? data : [data];
-          setLine(formattedData as LineTimetableData[]);
-          setError(null);
-        })
-        .catch((error) => {
-          console.error('Error fetching route:', error);
-          setError('Wystąpił problem podczas ładowania danych linii');
-        })
-        .finally(() => {
-          setLoading(false);
+    service
+      .getLineRoutes(lineId)
+      .then((data) => {
+        setLine(data);
+        service.getAllRoutesForALine(lineId).then((data) => {
+          const standardizedStops = data.map((obj: any) =>
+            (obj.stops || []).map((stop: any) => {
+              let lat = null,
+                lon = null;
+              if (typeof stop.map === 'string' && stop.map.trim().length > 0) {
+                let parts = stop.map.trim().split(/[ ,]+/);
+                if (parts.length === 2) {
+                  let n1 = parseFloat(parts[1]);
+                  let n2 = parseFloat(parts[0]);
+                  if (Math.abs(n1) > 90 && Math.abs(n2) <= 90) {
+                    lon = n1;
+                    lat = n2;
+                  } else {
+                    lat = n1;
+                    lon = n2;
+                  }
+                }
+              }
+              return { ...stop, lat, lon };
+            })
+          );
+          setStops(standardizedStops.flat());
+          setRoutes(data.map((obj) => obj.map_routes));
         });
-    }
-  }, [lineId]);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const addSecond = () => {
+      setSeconds((prevSeconds) => prevSeconds + 1);
+    };
+
+    const interval = setInterval(addSecond, 1000);
+    return () => clearInterval(interval);
+  }, []);
+  console.log(line);
+  useEffect(() => {
+    const counterId = setInterval(() => {
+      lastRefreshRef.current = lastRefreshRef.current + 1;
+    }, 1000);
+
+    return () => clearInterval(counterId);
+  }, []);
 
   if (loading) return <LoadingScreen />;
   if (error) return <div className="error-message">{error}</div>;
@@ -82,16 +128,46 @@ const LineTimetable = () => {
 
       <h2>Mapa</h2>
 
-      <MapRouteDisplay
-        routes={line.map((path) =>
-          path.stops.map((stop) => ({
-            ...stop,
-            map: stop.map || '',
-            street: stop.street || '',
-          }))
-        )}
-        colors={[line[0].line.color || '#e74c3c']}
-      />
+      <div className="container">
+        <MapOneLineDisplay
+          routes={routes}
+          activeBuses={activeBuses}
+          stops={stops}
+        />
+
+        <div className="info">
+          <div>
+            <div>
+              <img
+                className="bus-icon"
+                src={busIcon}
+                alt="icon"
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  verticalAlign: 'middle',
+                }}
+              />
+            </div>
+            {activeBuses.length}
+          </div>
+          <div>
+            <div>
+              <img
+                className="bus-icon"
+                src={refreshIcon}
+                alt="icon"
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  verticalAlign: 'middle',
+                }}
+              />
+            </div>{' '}
+            {seconds}s temu
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -188,7 +264,7 @@ const StopDisplay: React.FC<{ stop: Stop; lineId: string }> = ({ stop }) => {
             }
           >
             {stopType && <OptionalStop type={stopType} />}
-            {stop.name}{' '}
+            {stop.alias || stop.name}{' '}
           </div>
           {stop.is_on_request && <OnRequest />}
         </div>
