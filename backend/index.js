@@ -14,6 +14,7 @@ const routesRouter = require("./routes/routes");
 const linesRouter = require("./routes/lines");
 const stopsRouter = require("./routes/stops");
 const newsRouter = require("./routes/news");
+const sitemapRouter = require("./routes/sitemap");
 const errorMiddleware = require("./middleware/errorMiddleware");
 
 const app = express();
@@ -188,6 +189,7 @@ app.use("/api/routes", routesRouter);
 app.use("/api/lines", linesRouter);
 app.use("/api/stops", stopsRouter);
 app.use("/api/news", newsRouter);
+app.use(sitemapRouter);
 
 const frontendPath = path.resolve(__dirname, "public");
 
