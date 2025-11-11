@@ -986,6 +986,7 @@ const getAllRoutesForASpecificLine = async (line_id) => {
 aggregated_map_routes AS (
   SELECT 
     sdr.route_id,
+    sdr.departure_route_id,
     json_agg(
       json_build_object(
         'id', mr.id,
@@ -998,7 +999,7 @@ aggregated_map_routes AS (
     ) AS map_routes
   FROM selected_departure_routes sdr
   LEFT JOIN map_route mr ON mr.departure_route_id = sdr.departure_route_id
-  GROUP BY sdr.route_id
+  GROUP BY sdr.route_id, sdr.departure_route_id
 ),
 aggregated_stops AS (
   SELECT 
@@ -1019,14 +1020,15 @@ aggregated_stops AS (
   LEFT JOIN stop_group sg ON sg.id = s.stop_group_id
   GROUP BY sdr.route_id
 )
-SELECT DISTINCT ON (sdr.route_id)
+SELECT
   sdr.route_id AS base_route_id,
+  sdr.departure_route_id,
   amr.map_routes,
   ast.stops
 FROM selected_departure_routes sdr
-LEFT JOIN aggregated_map_routes amr ON amr.route_id = sdr.route_id
+LEFT JOIN aggregated_map_routes amr ON amr.departure_route_id = sdr.departure_route_id
 LEFT JOIN aggregated_stops ast ON ast.route_id = sdr.route_id
-ORDER BY sdr.route_id;`,
+ORDER BY sdr.route_id, sdr.departure_route_id;`,
     { line_id }
   );
 
