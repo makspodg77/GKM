@@ -20,7 +20,6 @@ const Vehicles = () => {
         const data = await service.getAllRoutes();
         if (isMounted) {
           setRoutes(data.routes);
-          console.log(data);
           const standardizedStops = data.stops.map((stop: any) => {
             let lat = null,
               lon = null;

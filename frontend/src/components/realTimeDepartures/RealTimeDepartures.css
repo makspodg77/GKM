@@ -102,20 +102,6 @@ html {
   border-bottom: 2px solid #d0d0d0;
 }
 
-.RealTimeDepartures .column-line {
-  width: 10%;
-  min-width: 70px;
-}
-
-.RealTimeDepartures .column-destination {
-  width: 60%;
-}
-
-.RealTimeDepartures .column-time {
-  width: 30%;
-  text-align: right;
-}
-
 .RealTimeDepartures .departure-row {
   display: flex;
   padding: 4px 0;
@@ -185,12 +171,11 @@ html {
   }
 
   .RealTimeDepartures .stop-id {
-    font-size: 1rem;
     margin-left: 10px;
   }
 
   .legend {
-    font-size: 3.5vh;
+    font-size: 1.9rem;
     padding-left: 1vh;
     padding-right: 1vh;
     height: 62px;
@@ -213,17 +198,17 @@ html {
   }
 
   .RealTimeDepartures .stop-header h1 {
-    font-size: 1rem;
+    font-size: 2rem;
   }
 
   .RealTimeDepartures .stop-header h2 {
-    font-size: 1.5rem;
+    font-size: 2rem;
   }
 
   .RealTimeDepartures .departure-row {
     width: 100%;
     margin: 0;
-    font-size: 1.3rem;
+    font-size: 1.5rem;
   }
 
   .RealTimeDepartures .line-name {
@@ -250,7 +235,27 @@ html {
     font-size: larger;
     align-items: center;
   }
+  .RealTimeDepartures .line-name {
+    width: 20%;
+  }
+  .legend {
+    font-size: 1rem;
+    height: 40px;
+  }
 
+  .RealTimeDepartures .destination {
+    width: 60%;
+  }
+
+  .RealTimeDepartures .departure-row > div:last-child {
+    width: 20%;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .RealTimeDepartures .stop-id {
+    font-size: 1rem;
+  }
   .RealTimeDepartures .departures-container,
   .RealTimeDepartures .stop-header {
     width: 100%;
@@ -261,7 +266,21 @@ html {
   }
 
   .RealTimeDepartures {
-    padding: 0;
+    padding: 2px;
+  }
+  .RealTimeDepartures .departure-row {
+    font-size: 1rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    box-sizing: border-box;
+  }
+
+  .RealTimeDepartures .stop-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .RealTimeDepartures .stop-header h2 {
+    font-size: 1.5rem;
   }
 
   .RealTimeDepartures .munip {
