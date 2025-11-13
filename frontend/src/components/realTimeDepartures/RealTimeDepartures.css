@@ -265,6 +265,12 @@ html {
     min-width: 45px;
   }
 
+  .RealTimeDepartures .stop-header {
+    height: 70px;
+    text-align: start;
+    width: 100%;
+  }
+
   .RealTimeDepartures {
     padding: 2px;
   }
@@ -276,15 +282,19 @@ html {
   }
 
   .RealTimeDepartures .stop-header h1 {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
   }
 
   .RealTimeDepartures .stop-header h2 {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
   }
 
   .RealTimeDepartures .munip {
-    width: 50px;
-    margin-left: 10px;
+    width: 40px;
+  }
+
+  .RealTimeDepartures .stop-info {
+    gap: 2vh;
+    width: 80%;
   }
 }
