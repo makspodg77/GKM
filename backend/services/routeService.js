@@ -1,5 +1,5 @@
 const { NotFoundError, ValidationError } = require("../utils/errorHandler");
-const { executeQuery } = require("../utils/sqlHelper");
+const { executeQuery, getPool } = require("../utils/sqlHelper");
 const { getLine, removeDuplicates } = require("./lineService");
 const {
   getStopsForRoute,
@@ -243,814 +243,707 @@ const getAdditionalStopsForRoutes = async (routeIds) => {
  * @param {string} line_name - Name of the line (e.g., "1", "A", "12")
  * @returns {Promise<Array>} Active buses with positions and route waypoints
  */
-const getActiveBusesForASpecificLine = async (line_id) => {
-  const result = await executeQuery(
-    `WITH current_context AS (
+async function getActiveBusesForASpecificLine(line_id) {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    await client.query(`
+      DO $$
+      DECLARE
+        v_current_time TIME := LOCALTIME;
+        v_time_window_start TIME := (LOCALTIME - INTERVAL '2 hours')::TIME;
+        v_time_window_end TIME := (LOCALTIME + INTERVAL '2 hours')::TIME;
+        v_line_id INT := ${line_id};
+      BEGIN
+        DROP TABLE IF EXISTS temp_context;
+        DROP TABLE IF EXISTS temp_active_timetable;
+        DROP TABLE IF EXISTS temp_active_stops_raw;
+        DROP TABLE IF EXISTS temp_active_stops;
+
+        CREATE TEMP TABLE temp_context AS
         SELECT 
           LOCALTIMESTAMP AS current_ts,
           CURRENT_DATE AS current_date,
-          LOCALTIME AS current_time
-      ),
-      filtered_routes AS (
-        SELECT
-          dr.id AS departure_route_id,
-          dr.route_id AS base_route_id,
-          fr.stop_number,
-          fr.travel_time,
-          fr.stop_id
-        FROM departure_route dr
-        JOIN full_route fr ON fr.route_id = dr.route_id
-        WHERE fr.is_optional = FALSE OR EXISTS (
-          SELECT 1
-          FROM additional_stop as2
-          WHERE as2.route_id = dr.id
-            AND (
-              as2.stop_number = fr.stop_number
-              OR as2.stop_number = fr.stop_id
-            )
-        )
-      ),
-      total_travel AS (
-        SELECT 
-          departure_route_id,
-          SUM(travel_time) AS total_travel_minutes
-        FROM filtered_routes
-        GROUP BY departure_route_id
-      ),
-      raw_active_routes AS (
+          LOCALTIME AS current_time;
+
+        CREATE TEMP TABLE temp_active_timetable AS
         SELECT 
           t.id AS timetable_id,
           t.route_id AS departure_route_id,
           t.departure_time,
-          dr.route_id AS base_route_id,
-          tt.total_travel_minutes,
-          cc.current_ts,
-          cc.current_time,
-          (t.departure_time + (tt.total_travel_minutes * INTERVAL '1 minute'))::time AS end_time,
-          (cc.current_date::timestamp + t.departure_time::interval) AS start_timestamp_today,
-          (cc.current_date::timestamp + t.departure_time::interval + (tt.total_travel_minutes * INTERVAL '1 minute')) AS end_timestamp_today
+          dr.route_id AS base_route_id
         FROM timetable t
         JOIN departure_route dr ON t.route_id = dr.id
-        JOIN total_travel tt ON t.route_id = tt.departure_route_id
-        CROSS JOIN current_context cc
+        JOIN route r ON dr.route_id = r.id
+        JOIN line l ON r.line_id = l.id
+        WHERE 
+          l.id = v_line_id
+          AND (
+            (v_time_window_end >= v_time_window_start AND t.departure_time BETWEEN v_time_window_start AND v_time_window_end)
+            OR (v_time_window_end < v_time_window_start AND (t.departure_time >= v_time_window_start OR t.departure_time <= v_time_window_end))
+          );
+
+        CREATE INDEX idx_temp_timetable_departure ON temp_active_timetable(departure_route_id);
+        CREATE INDEX idx_temp_timetable_base ON temp_active_timetable(base_route_id);
+
+        CREATE TEMP TABLE temp_active_stops_raw AS
+        SELECT DISTINCT
+          tat.departure_route_id,
+          tat.base_route_id,
+          fr.stop_number AS original_stop_number,
+          fr.stop_id,
+          fr.travel_time
+        FROM temp_active_timetable tat
+        JOIN full_route fr ON fr.route_id = tat.base_route_id
+        WHERE 
+          fr.is_optional = FALSE
+          OR EXISTS (
+            SELECT 1 
+            FROM additional_stop ads
+            WHERE ads.route_id = tat.departure_route_id
+              AND ads.stop_number = fr.stop_number
+          );
+
+        CREATE TEMP TABLE temp_active_stops AS
+        SELECT
+          departure_route_id,
+          base_route_id,
+          ROW_NUMBER() OVER (PARTITION BY departure_route_id ORDER BY original_stop_number) AS stop_number,
+          original_stop_number,
+          stop_id,
+          travel_time
+        FROM temp_active_stops_raw;
+      END $$;
+    `);
+
+    const result = await client.query(`
+      WITH current_context AS (
+        SELECT * FROM temp_context
       ),
+      route_data AS (
+        SELECT
+          tas.departure_route_id,
+          tat.timetable_id,
+          tat.departure_time,
+          tas.base_route_id,
+          tas.stop_number,
+          tas.stop_id,
+          tas.travel_time,
+          ROW_NUMBER() OVER (PARTITION BY tas.departure_route_id ORDER BY tas.stop_number) AS rn,
+          COUNT(*) OVER (PARTITION BY tas.departure_route_id) AS stop_count
+        FROM temp_active_stops tas
+        JOIN temp_active_timetable tat 
+          ON tas.departure_route_id = tat.departure_route_id
+          AND tas.base_route_id = tat.base_route_id
+      ),
+      route_travel AS (
+        SELECT
+          timetable_id,
+          departure_route_id,
+          departure_time,
+          base_route_id,
+          SUM(CASE WHEN rn = 1 THEN 0 ELSE travel_time END) AS total_travel_minutes
+        FROM route_data
+        GROUP BY timetable_id, departure_route_id, departure_time, base_route_id
+      ),
+      -- Filter to active routes
       active_routes AS (
         SELECT 
-          rar.timetable_id,
-          rar.departure_route_id,
-          rar.departure_time,
-          rar.base_route_id,
-          rar.total_travel_minutes,
-          rar.current_ts,
+          rt.*,
+          cc.current_ts,
+          cc.current_time,
+          (rt.departure_time + (rt.total_travel_minutes * INTERVAL '1 minute'))::time AS end_time,
           CASE 
-            WHEN rar.end_time < rar.departure_time AND rar.current_time < rar.departure_time
-              THEN rar.start_timestamp_today - INTERVAL '1 day'
-            ELSE rar.start_timestamp_today
+            WHEN (rt.departure_time + (rt.total_travel_minutes * INTERVAL '1 minute'))::time < rt.departure_time 
+             AND cc.current_time < rt.departure_time
+            THEN (cc.current_date - INTERVAL '1 day')::timestamp + rt.departure_time::interval
+            ELSE cc.current_date::timestamp + rt.departure_time::interval
           END AS departure_timestamp
-        FROM raw_active_routes rar
-        WHERE 
-          (
-            rar.end_time < rar.departure_time
-            AND (
-              rar.current_time >= rar.departure_time
-              OR rar.current_time < rar.end_time
+        FROM route_travel rt
+        CROSS JOIN current_context cc
+        WHERE rt.total_travel_minutes > 0
+          AND (
+            (
+              (rt.departure_time + (rt.total_travel_minutes * INTERVAL '1 minute'))::time < rt.departure_time
+              AND (cc.current_time >= rt.departure_time OR cc.current_time < (rt.departure_time + (rt.total_travel_minutes * INTERVAL '1 minute'))::time)
+            )
+            OR (
+              (rt.departure_time + (rt.total_travel_minutes * INTERVAL '1 minute'))::time >= rt.departure_time
+              AND cc.current_time >= rt.departure_time
+              AND cc.current_time < (rt.departure_time + (rt.total_travel_minutes * INTERVAL '1 minute'))::time
             )
           )
-          OR (
-            rar.end_time >= rar.departure_time
-            AND rar.current_time >= rar.departure_time
-            AND rar.current_time < rar.end_time
-          )
       ),
-      route_endpoints AS (
+      active_route_stops AS (
         SELECT
-          fr.departure_route_id,
-          COALESCE(s.alias, sg.name) AS stop_group_name,
-          ROW_NUMBER() OVER (
-            PARTITION BY fr.departure_route_id
-            ORDER BY fr.stop_number DESC
-          ) AS rn
-        FROM filtered_routes fr
-        JOIN stop s ON s.id = fr.stop_id
+          rd.timetable_id,
+          rd.departure_route_id,
+          rd.stop_number,
+          rd.stop_id,
+          rd.travel_time,
+          rd.rn,
+          COALESCE(s.alias, sg.name) AS stop_group_name
+        FROM route_data rd
+        JOIN active_routes ar ON ar.timetable_id = rd.timetable_id
+        JOIN stop s ON s.id = rd.stop_id
         JOIN stop_group sg ON sg.id = s.stop_group_id
       ),
+      stop_times_calc AS (
+        SELECT
+          ars.*,
+          SUM(CASE WHEN ars.rn = 1 THEN 0 ELSE ars.travel_time END) 
+            OVER (PARTITION BY ars.departure_route_id ORDER BY ars.stop_number) AS cumulative_minutes
+        FROM active_route_stops ars
+      ),
+      normalized_stops AS (
+        SELECT
+          stc.*,
+          stc.cumulative_minutes - MIN(stc.cumulative_minutes) OVER (PARTITION BY stc.departure_route_id) AS normalized_minutes
+        FROM stop_times_calc stc
+      ),
+      -- Route metadata
       route_details AS (
         SELECT DISTINCT ON (ar.departure_route_id)
           ar.departure_route_id,
-          ar.base_route_id,
           l.name AS line_name,
           l.id AS line_id,
-          COALESCE(re.stop_group_name, fallback_re.stop_group_name) AS direction,
           lt.color AS color,
-          l.vehicle_type_id
+          l.vehicle_type_id,
+          (
+            SELECT COALESCE(s.alias, sg.name)
+            FROM active_route_stops ars
+            JOIN stop s ON s.id = ars.stop_id
+            JOIN stop_group sg ON sg.id = s.stop_group_id
+            WHERE ars.departure_route_id = ar.departure_route_id
+            ORDER BY ars.stop_number DESC
+            LIMIT 1
+          ) AS direction
         FROM active_routes ar
         JOIN route r ON ar.base_route_id = r.id
         JOIN line l ON r.line_id = l.id
         JOIN line_type lt ON l.line_type_id = lt.id
-        LEFT JOIN route_endpoints re
-          ON re.departure_route_id = ar.departure_route_id
-          AND re.rn = 1
-        LEFT JOIN (
-          SELECT
-            dr.id AS departure_route_id,
-            COALESCE(s.alias, sg.name) AS stop_group_name,
-            ROW_NUMBER() OVER (
-              PARTITION BY dr.id
-              ORDER BY fr.stop_number DESC
-            ) AS rn
-          FROM departure_route dr
-          JOIN full_route fr ON fr.route_id = dr.route_id
-          JOIN stop s ON s.id = fr.stop_id
-          JOIN stop_group sg ON sg.id = s.stop_group_id
-        ) fallback_re
-          ON fallback_re.departure_route_id = ar.departure_route_id
-          AND fallback_re.rn = 1
       ),
-      cumulative_travel AS (
-        SELECT 
-          fr.departure_route_id,
-          fr.base_route_id,
-          fr.stop_number,
-          COALESCE(s.alias, sg.name) AS stop_group_name,
-          SUM(fr.travel_time) OVER (
-            PARTITION BY fr.departure_route_id
-            ORDER BY fr.stop_number
-          ) AS cumulative_minutes
-        FROM filtered_routes fr
-        JOIN stop s ON s.id = fr.stop_id
-        JOIN stop_group sg ON sg.id = s.stop_group_id
-      ),
-      normalized_travel AS (
+      -- Calculate stop arrival times
+      stop_arrivals AS (
         SELECT
-          ct.departure_route_id,
-          ct.base_route_id,
-          ct.stop_number,
-          ct.stop_group_name,
-          ct.cumulative_minutes - FIRST_VALUE(ct.cumulative_minutes) OVER (
-            PARTITION BY ct.departure_route_id
-            ORDER BY ct.stop_number
-          ) AS normalized_minutes
-        FROM cumulative_travel ct
+          ns.timetable_id,
+          ns.departure_route_id,
+          ns.stop_number,
+          ns.stop_group_name,
+          ar.departure_timestamp + (ns.normalized_minutes * INTERVAL '1 minute') AS arrival_time,
+          ar.current_ts
+        FROM normalized_stops ns
+        JOIN active_routes ar ON ar.timetable_id = ns.timetable_id
       ),
-      stop_times AS (
+      bus_position_base AS (
         SELECT
-          ar.timetable_id,
-          ar.departure_route_id,
-          ar.departure_time,
-          ar.departure_timestamp,
-          nt.stop_group_name,
-          nt.stop_number,
-          ar.departure_timestamp + (nt.normalized_minutes * INTERVAL '1 minute') AS arrival_timestamp
-        FROM active_routes ar
-        JOIN normalized_travel nt
-          ON ar.base_route_id = nt.base_route_id
-         AND ar.departure_route_id = nt.departure_route_id
+          sa.timetable_id,
+          sa.departure_route_id,
+          MAX(CASE WHEN sa.arrival_time <= sa.current_ts THEN sa.stop_number END) AS prev_stop_num,
+          MAX(CASE WHEN sa.arrival_time <= sa.current_ts THEN sa.arrival_time END) AS prev_time,
+          MIN(CASE WHEN sa.arrival_time > sa.current_ts THEN sa.stop_number END) AS next_stop_num,
+          MIN(CASE WHEN sa.arrival_time > sa.current_ts THEN sa.arrival_time END) AS next_time,
+          sa.current_ts,
+          ar.departure_timestamp
+        FROM stop_arrivals sa
+        JOIN active_routes ar ON ar.timetable_id = sa.timetable_id
+        GROUP BY sa.timetable_id, sa.departure_route_id, sa.current_ts, ar.departure_timestamp
       ),
-      previous_stop AS (
+      bus_position AS (
         SELECT
-          st.timetable_id,
-          st.stop_group_name,
-          st.stop_number,
-          st.arrival_timestamp,
-          ROW_NUMBER() OVER (PARTITION BY st.timetable_id ORDER BY st.stop_number DESC) as rn
-        FROM stop_times st
-        JOIN active_routes ar ON st.timetable_id = ar.timetable_id
-        WHERE st.arrival_timestamp <= ar.current_ts
+          bp.*,
+          prev_stop.stop_group_name AS prev_stop_name,
+          next_stop.stop_group_name AS next_stop_name
+        FROM bus_position_base bp
+        LEFT JOIN active_route_stops prev_stop 
+          ON prev_stop.departure_route_id = bp.departure_route_id 
+          AND prev_stop.stop_number = bp.prev_stop_num
+        LEFT JOIN active_route_stops next_stop 
+          ON next_stop.departure_route_id = bp.departure_route_id 
+          AND next_stop.stop_number = bp.next_stop_num
       ),
-      next_stop AS (
+      progress_calc AS (
         SELECT
-          st.timetable_id,
-          st.stop_group_name,
-          st.stop_number,
-          st.arrival_timestamp,
-          ROW_NUMBER() OVER (PARTITION BY st.timetable_id ORDER BY st.stop_number ASC) as rn
-        FROM stop_times st
-        JOIN active_routes ar ON st.timetable_id = ar.timetable_id
-        WHERE st.arrival_timestamp > ar.current_ts
-      ),
-      bus_progress AS (
-        SELECT 
-          bp_base.*,
+          bp.*,
+          EXTRACT(EPOCH FROM (bp.current_ts - COALESCE(bp.prev_time, bp.departure_timestamp))) AS elapsed_sec,
+          EXTRACT(EPOCH FROM (bp.next_time - COALESCE(bp.prev_time, bp.departure_timestamp))) AS total_sec,
           CASE 
-            WHEN bp_base.total_seconds > 0 
-            THEN GREATEST(0.0, LEAST(1.0, bp_base.elapsed_seconds / bp_base.total_seconds))
+            WHEN EXTRACT(EPOCH FROM (bp.next_time - COALESCE(bp.prev_time, bp.departure_timestamp))) > 0 
+            THEN GREATEST(0.0, LEAST(1.0, 
+              EXTRACT(EPOCH FROM (bp.current_ts - COALESCE(bp.prev_time, bp.departure_timestamp))) / 
+              EXTRACT(EPOCH FROM (bp.next_time - COALESCE(bp.prev_time, bp.departure_timestamp)))
+            ))
             ELSE 0.0
-          END AS progress_ratio
-        FROM (
-          SELECT
-            ar.timetable_id,
-            ar.departure_route_id,
-            ar.base_route_id,
-            COALESCE(ps.stop_number, 0) AS prev_stop_number,
-            ns.stop_number AS next_stop_number,
-            COALESCE(ps.arrival_timestamp, ar.departure_timestamp) AS prev_stop_timestamp,
-            ns.arrival_timestamp AS next_stop_timestamp,
-            EXTRACT(EPOCH FROM (ar.current_ts - COALESCE(ps.arrival_timestamp, ar.departure_timestamp))) AS elapsed_seconds,
-            EXTRACT(EPOCH FROM (ns.arrival_timestamp - COALESCE(ps.arrival_timestamp, ar.departure_timestamp))) AS total_seconds
-          FROM active_routes ar
-          LEFT JOIN previous_stop ps ON ar.timetable_id = ps.timetable_id AND ps.rn = 1
-          LEFT JOIN next_stop ns ON ar.timetable_id = ns.timetable_id AND ns.rn = 1
-          WHERE ns.stop_number IS NOT NULL
-        ) bp_base
+          END AS progress_pct
+        FROM bus_position bp
+        WHERE bp.next_stop_num IS NOT NULL
       ),
-      map_bounds AS (
+      map_segment AS (
         SELECT
-          bp.timetable_id,
-          bp.departure_route_id,
-          COALESCE(
-            (
-              SELECT MIN(mr2.id)
-              FROM map_route mr2
-              WHERE mr2.departure_route_id = bp.departure_route_id
-                AND mr2.stop_number = bp.prev_stop_number
-            ),
-            (
-              SELECT MIN(mr2.id)
-              FROM map_route mr2
-              WHERE mr2.departure_route_id = bp.departure_route_id
-            )
-          ) AS lower_bound_id,
-          COALESCE(
-            (
-              SELECT MIN(mr2.id)
-              FROM map_route mr2
-              WHERE mr2.departure_route_id = bp.departure_route_id
-                AND mr2.stop_number = bp.next_stop_number
-            ),
-            (
-              SELECT MAX(mr2.id)
-              FROM map_route mr2
-              WHERE mr2.departure_route_id = bp.departure_route_id
-            )
-          ) AS upper_bound_id
-        FROM bus_progress bp
-      ),
-      segment_path AS (
-        SELECT
-          bp.timetable_id,
-          bp.departure_route_id,
-          bp.base_route_id,
-          bp.prev_stop_number,
-          bp.next_stop_number,
-          bp.progress_ratio,
+          pc.timetable_id,
+          pc.departure_route_id,
+          pc.progress_pct,
           mr.id,
           mr.lat,
           mr.lon,
-          mr.stop_nearby,
-          mr.stop_number,
-          ROW_NUMBER() OVER (PARTITION BY bp.timetable_id ORDER BY mr.id) as path_point_order,
-          LAG(mr.lat) OVER (PARTITION BY bp.timetable_id ORDER BY mr.id) as prev_lat,
-          LAG(mr.lon) OVER (PARTITION BY bp.timetable_id ORDER BY mr.id) as prev_lon
-        FROM bus_progress bp
-        JOIN map_bounds mb
-          ON mb.timetable_id = bp.timetable_id
-         AND mb.departure_route_id = bp.departure_route_id
-        JOIN map_route mr ON bp.departure_route_id = mr.departure_route_id
-        WHERE mr.id BETWEEN mb.lower_bound_id AND mb.upper_bound_id
+          mr.stop_number
+        FROM progress_calc pc
+        JOIN map_route mr ON mr.departure_route_id = pc.departure_route_id
+        WHERE mr.id BETWEEN 
+          COALESCE((SELECT MIN(id) FROM map_route WHERE departure_route_id = pc.departure_route_id AND stop_number = pc.prev_stop_num), 
+                   (SELECT MIN(id) FROM map_route WHERE departure_route_id = pc.departure_route_id))
+          AND
+          COALESCE((SELECT MIN(id) FROM map_route WHERE departure_route_id = pc.departure_route_id AND stop_number = pc.next_stop_num),
+                   (SELECT MAX(id) FROM map_route WHERE departure_route_id = pc.departure_route_id))
       ),
-      path_with_distances AS (
+      distances AS (
         SELECT
-          sp.*,
+          ms.*,
+          LAG(ms.lat) OVER w AS prev_lat,
+          LAG(ms.lon) OVER w AS prev_lon
+        FROM map_segment ms
+        WINDOW w AS (PARTITION BY ms.timetable_id ORDER BY ms.id)
+      ),
+      segment_distances AS (
+        SELECT
+          d.*,
           CASE
-            WHEN sp.prev_lat IS NOT NULL AND sp.prev_lon IS NOT NULL
-            THEN 6371000 * acos(
-              least(1.0, greatest(-1.0,
-                cos(radians(sp.lat)) * cos(radians(sp.prev_lat)) *
-                cos(radians(sp.prev_lon) - radians(sp.lon)) +
-                sin(radians(sp.lat)) * sin(radians(sp.prev_lat))
-              ))
-            )
+            WHEN d.prev_lat IS NOT NULL
+            THEN 6371000 * acos(LEAST(1.0, GREATEST(-1.0,
+              cos(radians(d.lat)) * cos(radians(d.prev_lat)) *
+              cos(radians(d.prev_lon) - radians(d.lon)) +
+              sin(radians(d.lat)) * sin(radians(d.prev_lat))
+            )))
             ELSE 0
-          END as segment_distance
-        FROM segment_path sp
+          END AS seg_dist
+        FROM distances d
       ),
-      path_with_cumulative AS (
+      distance_calc AS (
         SELECT
-          pwd.*,
-          SUM(pwd.segment_distance) OVER (PARTITION BY pwd.timetable_id ORDER BY pwd.id) as cumulative_distance
-        FROM path_with_distances pwd
+          sd.*,
+          SUM(sd.seg_dist) OVER (PARTITION BY sd.timetable_id ORDER BY sd.id) AS cum_dist,
+          SUM(sd.seg_dist) OVER (PARTITION BY sd.timetable_id) AS total_dist
+        FROM segment_distances sd
       ),
-      path_with_total_distance AS (
-        SELECT
-          pwc.*,
-          MAX(pwc.cumulative_distance) OVER (PARTITION BY pwc.timetable_id) as total_distance
-        FROM path_with_cumulative pwc
-      ),
-      path_with_target AS (
-        SELECT
-          pwtd.*,
-          pwtd.progress_ratio * pwtd.total_distance as target_distance,
-          ABS(pwtd.cumulative_distance - (pwtd.progress_ratio * pwtd.total_distance)) as distance_from_target
-        FROM path_with_total_distance pwtd
-      ),
-      waypoint_before_target AS (
-        SELECT
-          pwt.timetable_id,
-          pwt.id,
-          pwt.lat,
-          pwt.lon,
-          pwt.cumulative_distance,
-          pwt.target_distance,
-          pwt.progress_ratio,
-          pwt.total_distance,
-          ROW_NUMBER() OVER (
-            PARTITION BY pwt.timetable_id 
-            ORDER BY pwt.cumulative_distance DESC
-          ) AS rn
-        FROM path_with_target pwt
-        WHERE pwt.cumulative_distance <= pwt.target_distance
-      ),
-      waypoint_after_target AS (
-        SELECT
-          pwt.timetable_id,
-          pwt.id,
-          pwt.lat,
-          pwt.lon,
-          pwt.cumulative_distance,
-          ROW_NUMBER() OVER (
-            PARTITION BY pwt.timetable_id 
-            ORDER BY pwt.cumulative_distance ASC
-          ) AS rn
-        FROM path_with_target pwt
-        WHERE pwt.cumulative_distance >= pwt.target_distance
-      ),
-      bus_location AS (
-        SELECT
-          wb.timetable_id,
-          wb.progress_ratio,
-          wb.total_distance,
-          wb.target_distance,
-          wb.id AS waypoint_before_id,
-          CASE
-            WHEN wa.cumulative_distance = wb.cumulative_distance THEN wb.lat
-            ELSE wb.lat + (wa.lat - wb.lat) * 
-              ((wb.target_distance - wb.cumulative_distance) / 
-               NULLIF(wa.cumulative_distance - wb.cumulative_distance, 0))
-          END AS lat,
-          CASE
-            WHEN wa.cumulative_distance = wb.cumulative_distance THEN wb.lon
-            ELSE wb.lon + (wa.lon - wb.lon) * 
-              ((wb.target_distance - wb.cumulative_distance) / 
-               NULLIF(wa.cumulative_distance - wb.cumulative_distance, 0))
-          END AS lon,
-          false as stop_nearby,
-          0 as stop_number
-        FROM waypoint_before_target wb
-        JOIN waypoint_after_target wa ON wb.timetable_id = wa.timetable_id AND wb.rn = 1 AND wa.rn = 1
-      ),
-      map_routes AS (
-        SELECT 
-          mr.departure_route_id,
-          json_agg(
-            json_build_object(
-              'id', mr.id,
-              'departure_route_id', mr.departure_route_id,
-              'lat', mr.lat,
-              'lon', mr.lon,
-              'stop_nearby', mr.stop_nearby,
-              'stop_number', mr.stop_number
-            ) ORDER BY mr.id
-          ) AS map_routes
-        FROM map_route mr
-        WHERE mr.departure_route_id IN (SELECT DISTINCT ar.departure_route_id FROM active_routes ar)
-        GROUP BY mr.departure_route_id
+      bus_coords AS (
+        SELECT DISTINCT ON (dc.timetable_id)
+          dc.timetable_id,
+          dc.progress_pct,
+          ROUND(dc.total_dist::numeric, 2) AS total_dist_m,
+          ROUND((dc.progress_pct * dc.total_dist)::numeric, 2) AS target_dist_m,
+          (
+            SELECT 
+              wb.lat + COALESCE((wa.lat - wb.lat) * 
+                ((dc.progress_pct * dc.total_dist - wb.cum_dist) / NULLIF(wa.cum_dist - wb.cum_dist, 0)), 0)
+            FROM distance_calc wb
+            CROSS JOIN LATERAL (
+              SELECT lat, cum_dist
+              FROM distance_calc
+              WHERE timetable_id = dc.timetable_id AND cum_dist >= (dc.progress_pct * dc.total_dist)
+              ORDER BY cum_dist LIMIT 1
+            ) wa
+            WHERE wb.timetable_id = dc.timetable_id AND wb.cum_dist <= (dc.progress_pct * dc.total_dist)
+            ORDER BY wb.cum_dist DESC LIMIT 1
+          ) AS bus_lat,
+          (
+            SELECT 
+              wb.lon + COALESCE((wa.lon - wb.lon) * 
+                ((dc.progress_pct * dc.total_dist - wb.cum_dist) / NULLIF(wa.cum_dist - wb.cum_dist, 0)), 0)
+            FROM distance_calc wb
+            CROSS JOIN LATERAL (
+              SELECT lon, cum_dist
+              FROM distance_calc
+              WHERE timetable_id = dc.timetable_id AND cum_dist >= (dc.progress_pct * dc.total_dist)
+              ORDER BY cum_dist LIMIT 1
+            ) wa
+            WHERE wb.timetable_id = dc.timetable_id AND wb.cum_dist <= (dc.progress_pct * dc.total_dist)
+            ORDER BY wb.cum_dist DESC LIMIT 1
+          ) AS bus_lon,
+          (
+            SELECT id FROM distance_calc
+            WHERE timetable_id = dc.timetable_id AND cum_dist <= (dc.progress_pct * dc.total_dist)
+            ORDER BY cum_dist DESC LIMIT 1
+          ) AS waypoint_id
+        FROM distance_calc dc
       )
+      -- Final output
       SELECT 
         ar.departure_route_id,
         ar.departure_time AS start_time,
         ar.base_route_id,
         rd.line_name,
+        rd.line_id,
         rd.vehicle_type_id,
         rd.color,
         rd.direction,
-        ps.stop_group_name AS previous_stop,
-        ps.stop_number AS prev_stop_num,
-        ns.stop_group_name AS next_stop,
-        ns.stop_number AS next_stop_num,
-        bp.progress_ratio,
-        bp.elapsed_seconds,
-        bp.total_seconds,
-        ROUND(bl.total_distance::numeric, 2) AS segment_distance_meters,
-        ROUND(bl.target_distance::numeric, 2) AS target_distance_meters,
-        bl.lat AS bus_latitude,
-        bl.lon AS bus_longitude,
-        bl.stop_nearby,
-        ROUND(next_wp.lat::numeric, 6) AS next_waypoint_lat,
-        ROUND(next_wp.lon::numeric, 6) AS next_waypoint_lon
+        pc.prev_stop_name AS previous_stop,
+        pc.prev_stop_num,
+        pc.next_stop_name AS next_stop,
+        pc.next_stop_num,
+        pc.progress_pct AS progress_ratio,
+        pc.elapsed_sec AS elapsed_seconds,
+        pc.total_sec AS total_seconds,
+        bc.total_dist_m AS segment_distance_meters,
+        bc.target_dist_m AS target_distance_meters,
+        bc.bus_lat AS bus_latitude,
+        bc.bus_lon AS bus_longitude,
+        false AS stop_nearby,
+        (
+          SELECT ROUND(lat::numeric, 6)
+          FROM map_route
+          WHERE departure_route_id = ar.departure_route_id AND id > bc.waypoint_id
+          ORDER BY id LIMIT 1
+        ) AS next_waypoint_lat,
+        (
+          SELECT ROUND(lon::numeric, 6)
+          FROM map_route
+          WHERE departure_route_id = ar.departure_route_id AND id > bc.waypoint_id
+          ORDER BY id LIMIT 1
+        ) AS next_waypoint_lon
       FROM active_routes ar
-      JOIN route_details rd
-        ON ar.base_route_id = rd.base_route_id
-       AND ar.departure_route_id = rd.departure_route_id
-      LEFT JOIN previous_stop ps ON ar.timetable_id = ps.timetable_id AND ps.rn = 1
-      LEFT JOIN next_stop ns ON ar.timetable_id = ns.timetable_id AND ns.rn = 1
-      LEFT JOIN bus_progress bp ON ar.timetable_id = bp.timetable_id
-      LEFT JOIN bus_location bl ON ar.timetable_id = bl.timetable_id
-      LEFT JOIN LATERAL (
-        SELECT mr2.lat, mr2.lon
-        FROM map_route mr2
-        WHERE mr2.departure_route_id = ar.departure_route_id
-          AND bl.waypoint_before_id IS NOT NULL
-          AND mr2.id > bl.waypoint_before_id
-        ORDER BY mr2.id ASC
-        LIMIT 1
-      ) next_wp ON true
-      LEFT JOIN map_routes mr_json ON ar.departure_route_id = mr_json.departure_route_id
-      WHERE rd.line_id = @line_id
-      ORDER BY ar.departure_timestamp;`,
-    { line_id }
-  );
+      JOIN route_details rd ON ar.departure_route_id = rd.departure_route_id
+      LEFT JOIN progress_calc pc ON ar.timetable_id = pc.timetable_id
+      LEFT JOIN bus_coords bc ON ar.timetable_id = bc.timetable_id
+      ORDER BY ar.departure_timestamp
+    `);
 
-  return result;
-};
+    await client.query(`
+      DROP TABLE IF EXISTS temp_context;
+      DROP TABLE IF EXISTS temp_active_timetable;
+      DROP TABLE IF EXISTS temp_active_stops;
+      DROP TABLE IF EXISTS temp_active_stops_raw;
+    `);
 
-const getMapRouteEveryVehicle = async () => {
-  const result = await executeQuery(
-    `WITH current_context AS (
+    return result.rows || [];
+  } catch (error) {
+    console.error("Query execution failed:", error);
+    try {
+      await client.query("DROP TABLE IF EXISTS temp_context");
+      await client.query("DROP TABLE IF EXISTS temp_active_timetable");
+      await client.query("DROP TABLE IF EXISTS temp_active_stops");
+      await client.query("DROP TABLE IF EXISTS temp_active_stops_raw");
+    } catch (cleanupError) {}
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+async function getMapRouteEveryVehicle() {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    await client.query(`
+      DO $$
+      DECLARE
+        v_current_time TIME := LOCALTIME;
+        v_time_window_start TIME := (LOCALTIME - INTERVAL '2 hours')::TIME;
+        v_time_window_end TIME := (LOCALTIME + INTERVAL '2 hours')::TIME;
+      BEGIN
+        DROP TABLE IF EXISTS temp_context;
+        DROP TABLE IF EXISTS temp_active_timetable;
+        DROP TABLE IF EXISTS temp_active_stops;
+        DROP TABLE IF EXISTS temp_active_stops_raw;
+
+        CREATE TEMP TABLE temp_context AS
         SELECT 
           LOCALTIMESTAMP AS current_ts,
           CURRENT_DATE AS current_date,
-          LOCALTIME AS current_time
-      ),
-      filtered_routes AS (
-        SELECT
-          dr.id AS departure_route_id,
-          dr.route_id AS base_route_id,
-          fr.stop_number,
-          fr.travel_time,
-          fr.stop_id
-        FROM departure_route dr
-        JOIN full_route fr ON fr.route_id = dr.route_id
-        WHERE fr.is_optional = FALSE OR EXISTS (
-          SELECT 1
-          FROM additional_stop as2
-          WHERE as2.route_id = dr.id
-            AND (
-              as2.stop_number = fr.stop_number
-              OR as2.stop_number = fr.stop_id
-            )
-        )
-      ),
-      ordered_filtered_routes AS (
-        SELECT
-          fr.*,
-          ROW_NUMBER() OVER (
-            PARTITION BY fr.departure_route_id
-            ORDER BY fr.stop_number
-          ) AS route_order
-        FROM filtered_routes fr
-      ),
-      effective_routes AS (
-        SELECT
-          ofr.departure_route_id,
-          ofr.base_route_id,
-          ofr.stop_number,
-          ofr.stop_id,
-          CASE WHEN ofr.route_order = 1 THEN 0 ELSE ofr.travel_time END AS travel_time
-        FROM ordered_filtered_routes ofr
-      ),
-      total_travel AS (
-        SELECT 
-          departure_route_id,
-          SUM(travel_time) AS total_travel_minutes
-        FROM effective_routes
-        GROUP BY departure_route_id
-      ),
-      raw_active_routes AS (
+          LOCALTIME AS current_time;
+
+        CREATE TEMP TABLE temp_active_timetable AS
         SELECT 
           t.id AS timetable_id,
           t.route_id AS departure_route_id,
           t.departure_time,
-          dr.route_id AS base_route_id,
-          tt.total_travel_minutes,
-          cc.current_ts,
-          cc.current_time,
-          (t.departure_time + (tt.total_travel_minutes * INTERVAL '1 minute'))::time AS end_time,
-          (cc.current_date::timestamp + t.departure_time::interval) AS start_timestamp_today,
-          (cc.current_date::timestamp + t.departure_time::interval + (tt.total_travel_minutes * INTERVAL '1 minute')) AS end_timestamp_today
+          dr.route_id AS base_route_id
         FROM timetable t
         JOIN departure_route dr ON t.route_id = dr.id
-        JOIN total_travel tt ON t.route_id = tt.departure_route_id
-        CROSS JOIN current_context cc
+        WHERE 
+          (v_time_window_end >= v_time_window_start AND t.departure_time BETWEEN v_time_window_start AND v_time_window_end)
+          OR (v_time_window_end < v_time_window_start AND (t.departure_time >= v_time_window_start OR t.departure_time <= v_time_window_end));
+
+        CREATE INDEX idx_temp_timetable_departure ON temp_active_timetable(departure_route_id);
+        CREATE INDEX idx_temp_timetable_base ON temp_active_timetable(base_route_id);
+
+        CREATE TEMP TABLE temp_active_stops_raw AS
+        SELECT DISTINCT
+          tat.departure_route_id,
+          tat.base_route_id,
+          fr.stop_number AS original_stop_number,
+          fr.stop_id,
+          fr.travel_time
+        FROM temp_active_timetable tat
+        JOIN full_route fr ON fr.route_id = tat.base_route_id
+        WHERE 
+          -- Include all non-optional stops
+          fr.is_optional = FALSE
+          -- Or include optional stops that are enabled in additional_stop
+          OR EXISTS (
+            SELECT 1 
+            FROM additional_stop ads
+            WHERE ads.route_id = tat.departure_route_id
+              AND ads.stop_number = fr.stop_number
+          );
+
+        CREATE TEMP TABLE temp_active_stops AS
+        SELECT
+          departure_route_id,
+          base_route_id,
+          ROW_NUMBER() OVER (PARTITION BY departure_route_id ORDER BY original_stop_number) AS stop_number,
+          original_stop_number,
+          stop_id,
+          travel_time
+        FROM temp_active_stops_raw;
+      END $$;
+    `);
+
+    const result = await client.query(`
+      WITH current_context AS (
+        SELECT * FROM temp_context
+      ),
+      route_data AS (
+        SELECT
+          tas.departure_route_id,
+          tat.timetable_id,
+          tat.departure_time,
+          tas.base_route_id,
+          tas.stop_number,
+          tas.stop_id,
+          tas.travel_time,
+          ROW_NUMBER() OVER (PARTITION BY tas.departure_route_id ORDER BY tas.stop_number) AS rn,
+          COUNT(*) OVER (PARTITION BY tas.departure_route_id) AS stop_count
+        FROM temp_active_stops tas
+        JOIN temp_active_timetable tat 
+          ON tas.departure_route_id = tat.departure_route_id
+          AND tas.base_route_id = tat.base_route_id
+      ),
+      route_travel AS (
+        SELECT
+          timetable_id,
+          departure_route_id,
+          departure_time,
+          base_route_id,
+          SUM(CASE WHEN rn = 1 THEN 0 ELSE travel_time END) AS total_travel_minutes
+        FROM route_data
+        GROUP BY timetable_id, departure_route_id, departure_time, base_route_id
       ),
       active_routes AS (
         SELECT 
-          rar.timetable_id,
-          rar.departure_route_id,
-          rar.departure_time,
-          rar.base_route_id,
-          rar.total_travel_minutes,
-          rar.current_ts,
+          rt.*,
+          cc.current_ts,
+          cc.current_time,
+          (rt.departure_time + (rt.total_travel_minutes * INTERVAL '1 minute'))::time AS end_time,
           CASE 
-            WHEN rar.end_time < rar.departure_time AND rar.current_time < rar.departure_time
-              THEN rar.start_timestamp_today - INTERVAL '1 day'
-            ELSE rar.start_timestamp_today
+            WHEN (rt.departure_time + (rt.total_travel_minutes * INTERVAL '1 minute'))::time < rt.departure_time 
+             AND cc.current_time < rt.departure_time
+            THEN (cc.current_date - INTERVAL '1 day')::timestamp + rt.departure_time::interval
+            ELSE cc.current_date::timestamp + rt.departure_time::interval
           END AS departure_timestamp
-        FROM raw_active_routes rar
-        WHERE 
-          (
-            rar.end_time < rar.departure_time
-            AND (
-              rar.current_time >= rar.departure_time
-              OR rar.current_time < rar.end_time
+        FROM route_travel rt
+        CROSS JOIN current_context cc
+        WHERE rt.total_travel_minutes > 0
+          AND (
+            (
+              (rt.departure_time + (rt.total_travel_minutes * INTERVAL '1 minute'))::time < rt.departure_time
+              AND (cc.current_time >= rt.departure_time OR cc.current_time < (rt.departure_time + (rt.total_travel_minutes * INTERVAL '1 minute'))::time)
+            )
+            OR (
+              (rt.departure_time + (rt.total_travel_minutes * INTERVAL '1 minute'))::time >= rt.departure_time
+              AND cc.current_time >= rt.departure_time
+              AND cc.current_time < (rt.departure_time + (rt.total_travel_minutes * INTERVAL '1 minute'))::time
             )
           )
-          OR (
-            rar.end_time >= rar.departure_time
-            AND rar.current_time >= rar.departure_time
-            AND rar.current_time < rar.end_time
-          )
       ),
-      route_endpoints AS (
+      active_route_stops AS (
         SELECT
-          er.departure_route_id,
-          COALESCE(s.alias, sg.name) AS stop_group_name,
-          ROW_NUMBER() OVER (
-            PARTITION BY er.departure_route_id
-            ORDER BY er.stop_number DESC
-          ) AS rn
-        FROM effective_routes er
-        JOIN stop s ON s.id = er.stop_id
+          rd.timetable_id,
+          rd.departure_route_id,
+          rd.stop_number,
+          rd.stop_id,
+          rd.travel_time,
+          rd.rn,
+          COALESCE(s.alias, sg.name) AS stop_group_name
+        FROM route_data rd
+        JOIN active_routes ar ON ar.timetable_id = rd.timetable_id
+        JOIN stop s ON s.id = rd.stop_id
         JOIN stop_group sg ON sg.id = s.stop_group_id
+      ),
+      stop_times_calc AS (
+        SELECT
+          ars.*,
+          SUM(CASE WHEN ars.rn = 1 THEN 0 ELSE ars.travel_time END) 
+            OVER (PARTITION BY ars.departure_route_id ORDER BY ars.stop_number) AS cumulative_minutes
+        FROM active_route_stops ars
+      ),
+      normalized_stops AS (
+        SELECT
+          stc.*,
+          stc.cumulative_minutes - MIN(stc.cumulative_minutes) OVER (PARTITION BY stc.departure_route_id) AS normalized_minutes
+        FROM stop_times_calc stc
       ),
       route_details AS (
         SELECT DISTINCT ON (ar.departure_route_id)
           ar.departure_route_id,
-          ar.base_route_id,
           l.name AS line_name,
-          COALESCE(re.stop_group_name, fallback_re.stop_group_name) AS direction,
           lt.color AS color,
-          l.vehicle_type_id
+          l.vehicle_type_id,
+          (
+            SELECT COALESCE(s.alias, sg.name)
+            FROM active_route_stops ars
+            JOIN stop s ON s.id = ars.stop_id
+            JOIN stop_group sg ON sg.id = s.stop_group_id
+            WHERE ars.departure_route_id = ar.departure_route_id
+            ORDER BY ars.stop_number DESC
+            LIMIT 1
+          ) AS direction
         FROM active_routes ar
         JOIN route r ON ar.base_route_id = r.id
         JOIN line l ON r.line_id = l.id
         JOIN line_type lt ON l.line_type_id = lt.id
-        LEFT JOIN route_endpoints re
-          ON re.departure_route_id = ar.departure_route_id
-          AND re.rn = 1
-        LEFT JOIN (
-          SELECT
-            dr.id AS departure_route_id,
-            COALESCE(s.alias, sg.name) AS stop_group_name,
-            ROW_NUMBER() OVER (
-              PARTITION BY dr.id
-              ORDER BY fr.stop_number DESC
-            ) AS rn
-          FROM departure_route dr
-          JOIN full_route fr ON fr.route_id = dr.route_id
-          JOIN stop s ON s.id = fr.stop_id
-          JOIN stop_group sg ON sg.id = s.stop_group_id
-        ) fallback_re
-          ON fallback_re.departure_route_id = ar.departure_route_id
-          AND fallback_re.rn = 1
       ),
-      cumulative_travel AS (
-        SELECT 
-          er.departure_route_id,
-          er.base_route_id,
-          er.stop_number,
-          COALESCE(s.alias, sg.name) AS stop_group_name,
-          SUM(er.travel_time) OVER (
-            PARTITION BY er.departure_route_id
-            ORDER BY er.stop_number
-          ) AS cumulative_minutes
-        FROM effective_routes er
-        JOIN stop s ON s.id = er.stop_id
-        JOIN stop_group sg ON sg.id = s.stop_group_id
-      ),
-      normalized_travel AS (
+      stop_arrivals AS (
         SELECT
-          ct.departure_route_id,
-          ct.base_route_id,
-          ct.stop_number,
-          ct.stop_group_name,
-          ct.cumulative_minutes - FIRST_VALUE(ct.cumulative_minutes) OVER (
-            PARTITION BY ct.departure_route_id
-            ORDER BY ct.stop_number
-          ) AS normalized_minutes
-        FROM cumulative_travel ct
+          ns.timetable_id,
+          ns.departure_route_id,
+          ns.stop_number,
+          ns.stop_group_name,
+          ar.departure_timestamp + (ns.normalized_minutes * INTERVAL '1 minute') AS arrival_time,
+          ar.current_ts
+        FROM normalized_stops ns
+        JOIN active_routes ar ON ar.timetable_id = ns.timetable_id
       ),
-      stop_times AS (
+      bus_position_base AS (
         SELECT
-          ar.timetable_id,
-          ar.departure_route_id,
-          ar.departure_time,
-          ar.departure_timestamp,
-          nt.stop_group_name,
-          nt.stop_number,
-          ar.departure_timestamp + (nt.normalized_minutes * INTERVAL '1 minute') AS arrival_timestamp
-        FROM active_routes ar
-        JOIN normalized_travel nt
-          ON ar.base_route_id = nt.base_route_id
-         AND ar.departure_route_id = nt.departure_route_id
+          sa.timetable_id,
+          sa.departure_route_id,
+          MAX(CASE WHEN sa.arrival_time <= sa.current_ts THEN sa.stop_number END) AS prev_stop_num,
+          MAX(CASE WHEN sa.arrival_time <= sa.current_ts THEN sa.arrival_time END) AS prev_time,
+          MIN(CASE WHEN sa.arrival_time > sa.current_ts THEN sa.stop_number END) AS next_stop_num,
+          MIN(CASE WHEN sa.arrival_time > sa.current_ts THEN sa.arrival_time END) AS next_time,
+          sa.current_ts,
+          ar.departure_timestamp
+        FROM stop_arrivals sa
+        JOIN active_routes ar ON ar.timetable_id = sa.timetable_id
+        GROUP BY sa.timetable_id, sa.departure_route_id, sa.current_ts, ar.departure_timestamp
       ),
-      previous_stop AS (
+      bus_position AS (
         SELECT
-          st.timetable_id,
-          st.stop_group_name,
-          st.stop_number,
-          st.arrival_timestamp,
-          ROW_NUMBER() OVER (PARTITION BY st.timetable_id ORDER BY st.stop_number DESC) as rn
-        FROM stop_times st
-        JOIN active_routes ar ON st.timetable_id = ar.timetable_id
-        WHERE st.arrival_timestamp <= ar.current_ts
+          bp.*,
+          prev_stop.stop_group_name AS prev_stop_name,
+          next_stop.stop_group_name AS next_stop_name
+        FROM bus_position_base bp
+        LEFT JOIN active_route_stops prev_stop 
+          ON prev_stop.departure_route_id = bp.departure_route_id 
+          AND prev_stop.stop_number = bp.prev_stop_num
+        LEFT JOIN active_route_stops next_stop 
+          ON next_stop.departure_route_id = bp.departure_route_id 
+          AND next_stop.stop_number = bp.next_stop_num
       ),
-      next_stop AS (
+      progress_calc AS (
         SELECT
-          st.timetable_id,
-          st.stop_group_name,
-          st.stop_number,
-          st.arrival_timestamp,
-          ROW_NUMBER() OVER (PARTITION BY st.timetable_id ORDER BY st.stop_number ASC) as rn
-        FROM stop_times st
-        JOIN active_routes ar ON st.timetable_id = ar.timetable_id
-        WHERE st.arrival_timestamp > ar.current_ts
-      ),
-      bus_progress AS (
-        SELECT 
-          bp_base.*,
+          bp.*,
+          EXTRACT(EPOCH FROM (bp.current_ts - COALESCE(bp.prev_time, bp.departure_timestamp))) AS elapsed_sec,
+          EXTRACT(EPOCH FROM (bp.next_time - COALESCE(bp.prev_time, bp.departure_timestamp))) AS total_sec,
           CASE 
-            WHEN bp_base.total_seconds > 0 
-            THEN GREATEST(0.0, LEAST(1.0, bp_base.elapsed_seconds / bp_base.total_seconds))
+            WHEN EXTRACT(EPOCH FROM (bp.next_time - COALESCE(bp.prev_time, bp.departure_timestamp))) > 0 
+            THEN GREATEST(0.0, LEAST(1.0, 
+              EXTRACT(EPOCH FROM (bp.current_ts - COALESCE(bp.prev_time, bp.departure_timestamp))) / 
+              EXTRACT(EPOCH FROM (bp.next_time - COALESCE(bp.prev_time, bp.departure_timestamp)))
+            ))
             ELSE 0.0
-          END AS progress_ratio
-        FROM (
-          SELECT
-            ar.timetable_id,
-            ar.departure_route_id,
-            ar.base_route_id,
-            COALESCE(ps.stop_number, 0) AS prev_stop_number,
-            ns.stop_number AS next_stop_number,
-            COALESCE(ps.arrival_timestamp, ar.departure_timestamp) AS prev_stop_timestamp,
-            ns.arrival_timestamp AS next_stop_timestamp,
-            EXTRACT(EPOCH FROM (ar.current_ts - COALESCE(ps.arrival_timestamp, ar.departure_timestamp))) AS elapsed_seconds,
-            EXTRACT(EPOCH FROM (ns.arrival_timestamp - COALESCE(ps.arrival_timestamp, ar.departure_timestamp))) AS total_seconds
-          FROM active_routes ar
-          LEFT JOIN previous_stop ps ON ar.timetable_id = ps.timetable_id AND ps.rn = 1
-          LEFT JOIN next_stop ns ON ar.timetable_id = ns.timetable_id AND ns.rn = 1
-          WHERE ns.stop_number IS NOT NULL
-        ) bp_base
+          END AS progress_pct
+        FROM bus_position bp
+        WHERE bp.next_stop_num IS NOT NULL
       ),
-      map_bounds AS (
+      map_segment AS (
         SELECT
-          bp.timetable_id,
-          bp.departure_route_id,
-          COALESCE(
-            (
-              SELECT MIN(mr2.id)
-              FROM map_route mr2
-              WHERE mr2.departure_route_id = bp.departure_route_id
-                AND mr2.stop_number = bp.prev_stop_number
-            ),
-            (
-              SELECT MIN(mr2.id)
-              FROM map_route mr2
-              WHERE mr2.departure_route_id = bp.departure_route_id
-            )
-          ) AS lower_bound_id,
-          COALESCE(
-            (
-              SELECT MIN(mr2.id)
-              FROM map_route mr2
-              WHERE mr2.departure_route_id = bp.departure_route_id
-                AND mr2.stop_number = bp.next_stop_number
-            ),
-            (
-              SELECT MAX(mr2.id)
-              FROM map_route mr2
-              WHERE mr2.departure_route_id = bp.departure_route_id
-            )
-          ) AS upper_bound_id
-        FROM bus_progress bp
-      ),
-      segment_path AS (
-        SELECT
-          bp.timetable_id,
-          bp.departure_route_id,
-          bp.base_route_id,
-          bp.prev_stop_number,
-          bp.next_stop_number,
-          bp.progress_ratio,
+          pc.timetable_id,
+          pc.departure_route_id,
+          pc.progress_pct,
           mr.id,
           mr.lat,
           mr.lon,
-          mr.stop_nearby,
-          mr.stop_number,
-          ROW_NUMBER() OVER (PARTITION BY bp.timetable_id ORDER BY mr.id) as path_point_order,
-          LAG(mr.lat) OVER (PARTITION BY bp.timetable_id ORDER BY mr.id) as prev_lat,
-          LAG(mr.lon) OVER (PARTITION BY bp.timetable_id ORDER BY mr.id) as prev_lon
-        FROM bus_progress bp
-        JOIN map_bounds mb
-          ON mb.timetable_id = bp.timetable_id
-         AND mb.departure_route_id = bp.departure_route_id
-        JOIN map_route mr ON bp.departure_route_id = mr.departure_route_id
-        WHERE mr.id BETWEEN mb.lower_bound_id AND mb.upper_bound_id
+          mr.stop_number
+        FROM progress_calc pc
+        JOIN map_route mr ON mr.departure_route_id = pc.departure_route_id
+        WHERE mr.id BETWEEN 
+          COALESCE((SELECT MIN(id) FROM map_route WHERE departure_route_id = pc.departure_route_id AND stop_number = pc.prev_stop_num), 
+                   (SELECT MIN(id) FROM map_route WHERE departure_route_id = pc.departure_route_id))
+          AND
+          COALESCE((SELECT MIN(id) FROM map_route WHERE departure_route_id = pc.departure_route_id AND stop_number = pc.next_stop_num),
+                   (SELECT MAX(id) FROM map_route WHERE departure_route_id = pc.departure_route_id))
       ),
-      path_with_distances AS (
+      distances AS (
         SELECT
-          sp.*,
+          ms.*,
+          LAG(ms.lat) OVER w AS prev_lat,
+          LAG(ms.lon) OVER w AS prev_lon
+        FROM map_segment ms
+        WINDOW w AS (PARTITION BY ms.timetable_id ORDER BY ms.id)
+      ),
+      segment_distances AS (
+        SELECT
+          d.*,
           CASE
-            WHEN sp.prev_lat IS NOT NULL AND sp.prev_lon IS NOT NULL
-            THEN 6371000 * acos(
-              least(1.0, greatest(-1.0,
-                cos(radians(sp.lat)) * cos(radians(sp.prev_lat)) *
-                cos(radians(sp.prev_lon) - radians(sp.lon)) +
-                sin(radians(sp.lat)) * sin(radians(sp.prev_lat))
-              ))
-            )
+            WHEN d.prev_lat IS NOT NULL
+            THEN 6371000 * acos(LEAST(1.0, GREATEST(-1.0,
+              cos(radians(d.lat)) * cos(radians(d.prev_lat)) *
+              cos(radians(d.prev_lon) - radians(d.lon)) +
+              sin(radians(d.lat)) * sin(radians(d.prev_lat))
+            )))
             ELSE 0
-          END as segment_distance
-        FROM segment_path sp
+          END AS seg_dist
+        FROM distances d
       ),
-      path_with_cumulative AS (
+      distance_calc AS (
         SELECT
-          pwd.*,
-          SUM(pwd.segment_distance) OVER (PARTITION BY pwd.timetable_id ORDER BY pwd.id) as cumulative_distance
-        FROM path_with_distances pwd
+          sd.*,
+          SUM(sd.seg_dist) OVER (PARTITION BY sd.timetable_id ORDER BY sd.id) AS cum_dist,
+          SUM(sd.seg_dist) OVER (PARTITION BY sd.timetable_id) AS total_dist
+        FROM segment_distances sd
       ),
-      path_with_total_distance AS (
-        SELECT
-          pwc.*,
-          MAX(pwc.cumulative_distance) OVER (PARTITION BY pwc.timetable_id) as total_distance
-        FROM path_with_cumulative pwc
-      ),
-      path_with_target AS (
-        SELECT
-          pwtd.*,
-          pwtd.progress_ratio * pwtd.total_distance as target_distance,
-          ABS(pwtd.cumulative_distance - (pwtd.progress_ratio * pwtd.total_distance)) as distance_from_target
-        FROM path_with_total_distance pwtd
-      ),
-      waypoint_before_target AS (
-        SELECT
-          pwt.timetable_id,
-          pwt.id,
-          pwt.lat,
-          pwt.lon,
-          pwt.cumulative_distance,
-          pwt.target_distance,
-          pwt.progress_ratio,
-          pwt.total_distance,
-          ROW_NUMBER() OVER (
-            PARTITION BY pwt.timetable_id 
-            ORDER BY pwt.cumulative_distance DESC
-          ) AS rn
-        FROM path_with_target pwt
-        WHERE pwt.cumulative_distance <= pwt.target_distance
-      ),
-      waypoint_after_target AS (
-        SELECT
-          pwt.timetable_id,
-          pwt.id,
-          pwt.lat,
-          pwt.lon,
-          pwt.cumulative_distance,
-          ROW_NUMBER() OVER (
-            PARTITION BY pwt.timetable_id 
-            ORDER BY pwt.cumulative_distance ASC
-          ) AS rn
-        FROM path_with_target pwt
-        WHERE pwt.cumulative_distance >= pwt.target_distance
-      ),
-      bus_location AS (
-        SELECT
-          wb.timetable_id,
-          wb.progress_ratio,
-          wb.total_distance,
-          wb.target_distance,
-          wb.id AS waypoint_before_id,
-          CASE
-            WHEN wa.cumulative_distance = wb.cumulative_distance THEN wb.lat
-            ELSE wb.lat + (wa.lat - wb.lat) * 
-              ((wb.target_distance - wb.cumulative_distance) / 
-               NULLIF(wa.cumulative_distance - wb.cumulative_distance, 0))
-          END AS lat,
-          CASE
-            WHEN wa.cumulative_distance = wb.cumulative_distance THEN wb.lon
-            ELSE wb.lon + (wa.lon - wb.lon) * 
-              ((wb.target_distance - wb.cumulative_distance) / 
-               NULLIF(wa.cumulative_distance - wb.cumulative_distance, 0))
-          END AS lon,
-          false as stop_nearby,
-          0 as stop_number
-        FROM waypoint_before_target wb
-        JOIN waypoint_after_target wa ON wb.timetable_id = wa.timetable_id AND wb.rn = 1 AND wa.rn = 1
-      ),
-      map_routes AS (
-        SELECT 
-          mr.departure_route_id,
-          json_agg(
-            json_build_object(
-              'id', mr.id,
-              'departure_route_id', mr.departure_route_id,
-              'lat', mr.lat,
-              'lon', mr.lon,
-              'stop_nearby', mr.stop_nearby,
-              'stop_number', mr.stop_number
-            ) ORDER BY mr.id
-          ) AS map_routes
-        FROM map_route mr
-        WHERE mr.departure_route_id IN (SELECT DISTINCT ar.departure_route_id FROM active_routes ar)
-        GROUP BY mr.departure_route_id
+      bus_coords AS (
+        SELECT DISTINCT ON (dc.timetable_id)
+          dc.timetable_id,
+          dc.progress_pct,
+          ROUND(dc.total_dist::numeric, 2) AS total_dist_m,
+          ROUND((dc.progress_pct * dc.total_dist)::numeric, 2) AS target_dist_m,
+          (
+            SELECT 
+              wb.lat + COALESCE((wa.lat - wb.lat) * 
+                ((dc.progress_pct * dc.total_dist - wb.cum_dist) / NULLIF(wa.cum_dist - wb.cum_dist, 0)), 0)
+            FROM distance_calc wb
+            CROSS JOIN LATERAL (
+              SELECT lat, cum_dist
+              FROM distance_calc
+              WHERE timetable_id = dc.timetable_id AND cum_dist >= (dc.progress_pct * dc.total_dist)
+              ORDER BY cum_dist LIMIT 1
+            ) wa
+            WHERE wb.timetable_id = dc.timetable_id AND wb.cum_dist <= (dc.progress_pct * dc.total_dist)
+            ORDER BY wb.cum_dist DESC LIMIT 1
+          ) AS bus_lat,
+          (
+            SELECT 
+              wb.lon + COALESCE((wa.lon - wb.lon) * 
+                ((dc.progress_pct * dc.total_dist - wb.cum_dist) / NULLIF(wa.cum_dist - wb.cum_dist, 0)), 0)
+            FROM distance_calc wb
+            CROSS JOIN LATERAL (
+              SELECT lon, cum_dist
+              FROM distance_calc
+              WHERE timetable_id = dc.timetable_id AND cum_dist >= (dc.progress_pct * dc.total_dist)
+              ORDER BY cum_dist LIMIT 1
+            ) wa
+            WHERE wb.timetable_id = dc.timetable_id AND wb.cum_dist <= (dc.progress_pct * dc.total_dist)
+            ORDER BY wb.cum_dist DESC LIMIT 1
+          ) AS bus_lon,
+          (
+            SELECT id FROM distance_calc
+            WHERE timetable_id = dc.timetable_id AND cum_dist <= (dc.progress_pct * dc.total_dist)
+            ORDER BY cum_dist DESC LIMIT 1
+          ) AS waypoint_id
+        FROM distance_calc dc
       )
       SELECT 
         ar.departure_route_id,
@@ -1060,47 +953,61 @@ const getMapRouteEveryVehicle = async () => {
         rd.vehicle_type_id,
         rd.color,
         rd.direction,
-        ps.stop_group_name AS previous_stop,
-        ps.stop_number AS prev_stop_num,
-        ns.stop_group_name AS next_stop,
-        ns.stop_number AS next_stop_num,
-        bp.progress_ratio,
-        bp.elapsed_seconds,
-        bp.total_seconds,
-        ROUND(bl.total_distance::numeric, 2) AS segment_distance_meters,
-        ROUND(bl.target_distance::numeric, 2) AS target_distance_meters,
-        bl.lat AS bus_latitude,
-        bl.lon AS bus_longitude,
-        bl.stop_nearby,
-        ROUND(next_wp.lat::numeric, 6) AS next_waypoint_lat,
-        ROUND(next_wp.lon::numeric, 6) AS next_waypoint_lon
+        pc.prev_stop_name AS previous_stop,
+        pc.prev_stop_num,
+        pc.next_stop_name AS next_stop,
+        pc.next_stop_num,
+        pc.progress_pct AS progress_ratio,
+        pc.elapsed_sec AS elapsed_seconds,
+        pc.total_sec AS total_seconds,
+        bc.total_dist_m AS segment_distance_meters,
+        bc.target_dist_m AS target_distance_meters,
+        bc.bus_lat AS bus_latitude,
+        bc.bus_lon AS bus_longitude,
+        false AS stop_nearby,
+        (
+          SELECT ROUND(lat::numeric, 6)
+          FROM map_route
+          WHERE departure_route_id = ar.departure_route_id AND id > bc.waypoint_id
+          ORDER BY id LIMIT 1
+        ) AS next_waypoint_lat,
+        (
+          SELECT ROUND(lon::numeric, 6)
+          FROM map_route
+          WHERE departure_route_id = ar.departure_route_id AND id > bc.waypoint_id
+          ORDER BY id LIMIT 1
+        ) AS next_waypoint_lon
       FROM active_routes ar
-      JOIN route_details rd
-        ON ar.base_route_id = rd.base_route_id
-       AND ar.departure_route_id = rd.departure_route_id
-      LEFT JOIN previous_stop ps ON ar.timetable_id = ps.timetable_id AND ps.rn = 1
-      LEFT JOIN next_stop ns ON ar.timetable_id = ns.timetable_id AND ns.rn = 1
-      LEFT JOIN bus_progress bp ON ar.timetable_id = bp.timetable_id
-      LEFT JOIN bus_location bl ON ar.timetable_id = bl.timetable_id
-      LEFT JOIN LATERAL (
-        SELECT mr2.lat, mr2.lon
-        FROM map_route mr2
-        WHERE mr2.departure_route_id = ar.departure_route_id
-          AND bl.waypoint_before_id IS NOT NULL
-          AND mr2.id > bl.waypoint_before_id
-        ORDER BY mr2.id ASC
-        LIMIT 1
-      ) next_wp ON true
-      LEFT JOIN map_routes mr_json ON ar.departure_route_id = mr_json.departure_route_id
-      ORDER BY ar.departure_timestamp;`
-  );
+      JOIN route_details rd ON ar.departure_route_id = rd.departure_route_id
+      LEFT JOIN progress_calc pc ON ar.timetable_id = pc.timetable_id
+      LEFT JOIN bus_coords bc ON ar.timetable_id = bc.timetable_id
+      ORDER BY ar.departure_timestamp
+    `);
 
-  return {
-    vehicles: result,
-    stops: [],
-  };
-};
+    await client.query(`
+      DROP TABLE IF EXISTS temp_context;
+      DROP TABLE IF EXISTS temp_active_timetable;
+      DROP TABLE IF EXISTS temp_active_stops;
+      DROP TABLE IF EXISTS temp_active_stops_raw;
+    `);
 
+    return {
+      vehicles: result.rows || [],
+      stops: [],
+    };
+  } catch (error) {
+    console.error("Query execution failed:", error);
+    try {
+      await client.query("DROP TABLE IF EXISTS temp_context");
+      await client.query("DROP TABLE IF EXISTS temp_active_timetable");
+      await client.query("DROP TABLE IF EXISTS temp_active_stops");
+      await client.query("DROP TABLE IF EXISTS temp_active_stops_raw");
+    } catch (cleanupError) {}
+    throw error;
+  } finally {
+    client.release();
+  }
+}
 const getAllRoutes = async () => {
   const result = await executeQuery(
     `SELECT 
