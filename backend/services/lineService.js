@@ -182,11 +182,11 @@ const getLinesFullRoutes = async (useCache = true) => {
     })
     .filter(Boolean);
 
-  const getRouteKey = (first, last) => {
+  const getRouteKey = (first, last, line) => {
     if (!first || !last || !first.name || !last.name) {
       return null;
     }
-    const stopNames = [first.name, last.name].sort().join("-");
+    const stopNames = [first.name, last.name, line].sort().join("-");
     return stopNames;
   };
 
@@ -200,7 +200,7 @@ const getLinesFullRoutes = async (useCache = true) => {
     if (stops.length < 2) return acc;
     const firstStop = stops[0];
     const lastStop = stops[stops.length - 1];
-    const routeKey = getRouteKey(firstStop, lastStop);
+    const routeKey = getRouteKey(firstStop, lastStop, line.name);
     if (!routeKey || usedRoutes.has(routeKey)) return acc;
 
     if (!acc[line.name_plural]) acc[line.name_plural] = { color: line.color };
