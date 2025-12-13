@@ -1,5 +1,5 @@
 import './Header.css';
-import Herb from '../../assets/Herb-Goleniowa-powiat.png';
+import Herb from '../../assets/Herb-Goleniowa-powiat.webp';
 import { Link } from 'react-router-dom';
 
 const Header = () => {
@@ -7,7 +7,14 @@ const Header = () => {
     <header className="site-header">
       <div className="header-container">
         <Link to="/" aria-label="Strona główna">
-          <img src={Herb} alt="Herb Gminy Goleniów" width="50" height="50" />
+          <img
+            src={Herb}
+            alt="Herb Gminy Goleniów"
+            width="50"
+            height="50"
+            fetchPriority="high"
+            loading="eager"
+          />
         </Link>
         <div className="site-title">
           <h1>Goleniowska Komunikacja Miejska</h1>

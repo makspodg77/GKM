@@ -4,12 +4,12 @@ import service, { RouteInfo } from '../../services/db';
 import { TransportLinesGrouped } from '../../services/db';
 import LoadingScreen from '../common/loadingScreen/LoadingScreen';
 import PageTitle from '../common/pageTitle/PageTitle';
-import herbGoleniow from '../../assets/Herb-Goleniowa.png';
-import herbNowogard from '../../assets/Herb-Nowogardu.png';
-import herbMaszewo from '../../assets/Herb-Maszewa.png';
-import herbOsina from '../../assets/Herb-Osiny.png';
-import herbPrzybiernow from '../../assets/Herb-Przybiernowa.png';
-import herbStepnica from '../../assets/Herb-Stepnicy.png';
+import herbGoleniow from '../../assets/Herb-Goleniowa.webp';
+import herbNowogard from '../../assets/Herb-Nowogardu.webp';
+import herbMaszewo from '../../assets/Herb-Maszewa.webp';
+import herbOsina from '../../assets/Herb-Osiny.webp';
+import herbPrzybiernow from '../../assets/Herb-Przybiernowa.webp';
+import herbStepnica from '../../assets/Herb-Stepnicy.webp';
 import { Link } from 'react-router-dom';
 
 const LineRoute: React.FC<{ route: RouteInfo }> = ({ route }) => (

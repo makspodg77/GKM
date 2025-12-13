@@ -8,7 +8,11 @@
   font-size: 1.4rem;
   padding-bottom: 0.5rem;
 }
-
+.LineTimetable ul {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
 .LineTimetable .line {
   width: 80px;
   height: 35px;

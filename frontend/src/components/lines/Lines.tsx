@@ -94,7 +94,7 @@ const Lines = () => {
             .map(([lineType, lineInfoArray]: [string, LineInfo[]]) => (
               <div key={lineType} className="line-category">
                 <h2 id={`category-${lineType}`}>{lineType}</h2>
-                <div
+                <ul
                   className="line-container"
                   role="list"
                   aria-labelledby={`category-${lineType}`}
@@ -106,17 +106,17 @@ const Lines = () => {
                       className="line-link"
                       aria-label={`Line ${line.name}`}
                     >
-                      <div className="line-wrapper" role="listitem">
+                      <li className="line-wrapper" role="listitem">
                         <div
                           className="line"
                           style={{ borderTop: `${line.color} 3px solid` }}
                         >
                           {line.name}
                         </div>
-                      </div>
+                      </li>
                     </Link>
                   ))}
-                </div>
+                </ul>
               </div>
             ))}
         </section>
