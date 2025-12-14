@@ -127,7 +127,14 @@ const App = () => {
   return (
     <Router>
       <Routes>
-        <Route path="/tablica/:stopId" element={<RealTimeDepartures />} />
+        <Route
+          path="/tablica/:stopId"
+          element={
+            <Suspense fallback={<LoadingScreen />}>
+              <RealTimeDepartures />
+            </Suspense>
+          }
+        />
         <Route
           path="/"
           element={

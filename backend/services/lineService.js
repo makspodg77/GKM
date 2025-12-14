@@ -83,7 +83,6 @@ const getLinesCategorized = async (useCache = true) => {
 
   const isNumber = (value) => !isNaN(value) && value.trim() !== "";
 
-  // sort lines inside each category
   Object.values(groupedLines).forEach((group) => {
     group.sort((a, b) => {
       const aIsNum = isNumber(a.name);
@@ -100,7 +99,6 @@ const getLinesCategorized = async (useCache = true) => {
     });
   });
 
-  // reorder categories
   const orderedGroupedLines = {};
 
   CATEGORY_ORDER.forEach((category) => {
@@ -109,7 +107,6 @@ const getLinesCategorized = async (useCache = true) => {
     }
   });
 
-  // append any unexpected categories at the end
   Object.keys(groupedLines).forEach((category) => {
     if (!orderedGroupedLines[category]) {
       orderedGroupedLines[category] = groupedLines[category];
