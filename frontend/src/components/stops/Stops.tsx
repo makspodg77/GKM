@@ -2,7 +2,7 @@ import './Stops.css';
 import service, { Stop, StopLetterListing } from '../../services/db';
 import { Link } from 'react-router-dom';
 import { useEffect, useState, useCallback } from 'react';
-import { debounce } from 'lodash';
+import debounce from 'lodash/debounce';
 import LoadingScreen from '../common/loadingScreen/LoadingScreen';
 import PageTitle from '../common/pageTitle/PageTitle';
 

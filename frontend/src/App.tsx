@@ -1,17 +1,27 @@
 import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
 import './App.css';
+import { Suspense, lazy } from 'react';
 import Header from './components/header/Header';
-import TransportLines from './components/transportLines/TransportLines';
-import Lines from './components/lines/Lines';
-import LineTimetable from './components/lineTimetable/LineTimetable';
-import LineStopTimetable from './components/lineStopTimetable/LineStopTimetable';
-import RealTimeDepartures from './components/realTimeDepartures/RealTimeDepartures';
-import StopGroup from './components/stopGroup/StopGroup';
-import LineRoute from './components/lineRoute/LineRoute';
-import StopTimetable from './components/stops/Stops';
-import News from './components/news/News';
+const TransportLines = lazy(
+  () => import('./components/transportLines/TransportLines')
+);
+const Lines = lazy(() => import('./components/lines/Lines'));
+const LineTimetable = lazy(
+  () => import('./components/lineTimetable/LineTimetable')
+);
+const LineStopTimetable = lazy(
+  () => import('./components/lineStopTimetable/LineStopTimetable')
+);
+const RealTimeDepartures = lazy(
+  () => import('./components/realTimeDepartures/RealTimeDepartures')
+);
+const StopGroup = lazy(() => import('./components/stopGroup/StopGroup'));
+const LineRoute = lazy(() => import('./components/lineRoute/LineRoute'));
+const StopTimetable = lazy(() => import('./components/stops/Stops'));
+const News = lazy(() => import('./components/news/News'));
 import About from './components/about/About';
-import Vehicles from './components/vehicles/Vehicles';
+const Vehicles = lazy(() => import('./components/vehicles/Vehicles'));
+import LoadingScreen from './components/common/loadingScreen/LoadingScreen';
 
 const PageStructure = (props: any) => {
   const getPathAfterHost = () => {
@@ -87,7 +97,7 @@ const PageStructure = (props: any) => {
             O projekcie
           </Link>
         </nav>
-        <section className="content">{props.children}</section>
+        <main className="content">{props.children}</main>
       </div>
       <footer>
         <div>
@@ -122,7 +132,9 @@ const App = () => {
           path="/"
           element={
             <PageStructure>
-              <Lines />
+              <Suspense fallback={<LoadingScreen />}>
+                <Lines />
+              </Suspense>
             </PageStructure>
           }
         />
@@ -130,7 +142,9 @@ const App = () => {
           path="/linie"
           element={
             <PageStructure>
-              <TransportLines />
+              <Suspense fallback={<LoadingScreen />}>
+                <TransportLines />
+              </Suspense>
             </PageStructure>
           }
         />
@@ -138,7 +152,9 @@ const App = () => {
           path="/rozklad-jazdy-wedlug-linii"
           element={
             <PageStructure>
-              <Lines />
+              <Suspense fallback={<LoadingScreen />}>
+                <Lines />
+              </Suspense>
             </PageStructure>
           }
         />
@@ -146,7 +162,9 @@ const App = () => {
           path="/rozklad-jazdy-wedlug-linii/:lineId"
           element={
             <PageStructure>
-              <LineTimetable />
+              <Suspense fallback={<LoadingScreen />}>
+                <LineTimetable />
+              </Suspense>
             </PageStructure>
           }
         />
@@ -154,7 +172,9 @@ const App = () => {
           path="/rozklad-jazdy-wedlug-linii/:routeId/:stopNumber"
           element={
             <PageStructure>
-              <LineStopTimetable />
+              <Suspense fallback={<LoadingScreen />}>
+                <LineStopTimetable />
+              </Suspense>
             </PageStructure>
           }
         />
@@ -163,7 +183,9 @@ const App = () => {
           path="/zespol-przystankowy/:stopId"
           element={
             <PageStructure>
-              <StopGroup />
+              <Suspense fallback={<LoadingScreen />}>
+                <StopGroup />
+              </Suspense>
             </PageStructure>
           }
         />
@@ -171,7 +193,9 @@ const App = () => {
           path="/rozklad-jazdy-wedlug-linii/kurs/:lineId/:timetableId/:stopNumber"
           element={
             <PageStructure>
-              <LineRoute />
+              <Suspense fallback={<LoadingScreen />}>
+                <LineRoute />
+              </Suspense>
             </PageStructure>
           }
         />
@@ -179,7 +203,9 @@ const App = () => {
           path="/rozklady-jazdy/wedlug-przystankow"
           element={
             <PageStructure>
-              <StopTimetable />
+              <Suspense fallback={<LoadingScreen />}>
+                <StopTimetable />
+              </Suspense>
             </PageStructure>
           }
         />
@@ -187,7 +213,9 @@ const App = () => {
           path="/aktualnosci"
           element={
             <PageStructure>
-              <News />
+              <Suspense fallback={<LoadingScreen />}>
+                <News />
+              </Suspense>
             </PageStructure>
           }
         />
@@ -195,7 +223,9 @@ const App = () => {
           path="/mapa-pojazdow-i-przystankow"
           element={
             <PageStructure>
-              <Vehicles />
+              <Suspense fallback={<LoadingScreen />}>
+                <Vehicles />
+              </Suspense>
             </PageStructure>
           }
         />

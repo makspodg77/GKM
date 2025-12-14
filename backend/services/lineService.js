@@ -49,6 +49,14 @@ const getAllLines = async (useCache = true) => {
   return results;
 };
 
+const CATEGORY_ORDER = [
+  "Linie tramwajowe dzienne",
+  "Linie autobusowe dzienne",
+  "Linie autobusowe dzienne ekspresowe",
+  "Linie kolejowe dzienne pasażerskie",
+  "Linie autobusowe nocne",
+];
+
 /**
  * Get all lines grouped by their line type
  * @param {boolean} [useCache=true] - Whether to use the cache
@@ -59,8 +67,11 @@ const getLinesCategorized = async (useCache = true) => {
 
   const groupedLines = lines.reduce((acc, line) => {
     let { name_plural, name, color, id } = line;
-    if (name_plural == "Linie autobusowe dzienne dodatkowe")
+
+    if (name_plural === "Linie autobusowe dzienne dodatkowe") {
       name_plural = "Linie autobusowe dzienne";
+    }
+
     if (!acc[name_plural]) {
       acc[name_plural] = [];
     }
@@ -70,7 +81,42 @@ const getLinesCategorized = async (useCache = true) => {
     return acc;
   }, {});
 
-  return groupedLines;
+  const isNumber = (value) => !isNaN(value) && value.trim() !== "";
+
+  // sort lines inside each category
+  Object.values(groupedLines).forEach((group) => {
+    group.sort((a, b) => {
+      const aIsNum = isNumber(a.name);
+      const bIsNum = isNumber(b.name);
+
+      if (aIsNum && !bIsNum) return -1;
+      if (!aIsNum && bIsNum) return 1;
+
+      if (aIsNum && bIsNum) {
+        return Number(a.name) - Number(b.name);
+      }
+
+      return a.name.localeCompare(b.name);
+    });
+  });
+
+  // reorder categories
+  const orderedGroupedLines = {};
+
+  CATEGORY_ORDER.forEach((category) => {
+    if (groupedLines[category]) {
+      orderedGroupedLines[category] = groupedLines[category];
+    }
+  });
+
+  // append any unexpected categories at the end
+  Object.keys(groupedLines).forEach((category) => {
+    if (!orderedGroupedLines[category]) {
+      orderedGroupedLines[category] = groupedLines[category];
+    }
+  });
+
+  return orderedGroupedLines;
 };
 
 const removeDuplicates = (stops) => {

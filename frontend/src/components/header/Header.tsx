@@ -12,7 +12,6 @@ const Header = () => {
             alt="Herb Gminy Goleniów"
             width="50"
             height="50"
-            fetchPriority="high"
             loading="eager"
           />
         </Link>

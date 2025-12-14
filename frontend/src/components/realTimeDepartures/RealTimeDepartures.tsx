@@ -2,13 +2,13 @@ import './RealTimeDepartures.css';
 import { useParams } from 'react-router-dom';
 import LoadingScreen from '../common/loadingScreen/LoadingScreen';
 import { useRealTimeDepartures } from '../../utils/departureUtils';
-import herbGoleniow from '../../assets/Herb-Goleniowa.png';
-import herbNowogard from '../../assets/Herb-Nowogardu.png';
-import herbMaszewo from '../../assets/Herb-Maszewa.png';
-import herbOsina from '../../assets/Herb-Osiny.png';
-import herbPrzybiernow from '../../assets/Herb-Przybiernowa.png';
-import herbStepnica from '../../assets/Herb-Stepnicy.png';
-import herbSzczecin from '../../assets/Herb-Szczecina.png';
+import herbGoleniow from '../../assets/Herb-Goleniowa.webp';
+import herbNowogard from '../../assets/Herb-Nowogardu.webp';
+import herbMaszewo from '../../assets/Herb-Maszewa.webp';
+import herbOsina from '../../assets/Herb-Osiny.webp';
+import herbPrzybiernow from '../../assets/Herb-Przybiernowa.webp';
+import herbStepnica from '../../assets/Herb-Stepnicy.webp';
+import herbSzczecin from '../../assets/Herb-Szczecina.webp';
 
 const municipalities = [
   {

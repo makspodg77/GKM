@@ -15,32 +15,7 @@ const Lines = () => {
     service
       .getLines()
       .then((data: LineCategoryListing) => {
-        const sortedLines: LineCategoryListing = {};
-        Object.entries(data).forEach(([category, lines]) => {
-          sortedLines[category] = [...lines].sort((a, b) => {
-            const aIsNumber = !isNaN(Number(a.name));
-            const bIsNumber = !isNaN(Number(b.name));
-
-            if (aIsNumber && bIsNumber) {
-              return Number(a.name) - Number(b.name);
-            }
-
-            if (!aIsNumber && !bIsNumber) {
-              return a.name.localeCompare(b.name);
-            }
-
-            if (aIsNumber && !bIsNumber) {
-              return -1;
-            }
-
-            if (!aIsNumber && bIsNumber) {
-              return 1;
-            }
-
-            return 0;
-          });
-        });
-        setLines(sortedLines);
+        setLines(data);
         setLoading(false);
       })
       .catch((error) => {
@@ -73,25 +48,8 @@ const Lines = () => {
       <PageTitle title="Rozkłady jazdy według linii" />
       {hasLines ? (
         <section className="LineTimetable">
-          {Object.entries(lines)
-            .sort(([lineTypeA], [lineTypeB]) => {
-              const lineTypeALower = lineTypeA.toLowerCase();
-              const lineTypeBLower = lineTypeB.toLowerCase();
-
-              const isDzienneA = lineTypeALower.includes('dzienne');
-              const isNocneA = lineTypeALower.includes('nocne');
-              const isDzienneB = lineTypeBLower.includes('dzienne');
-              const isNocneB = lineTypeBLower.includes('nocne');
-
-              if (isDzienneA && isNocneB) return -1;
-              if (isNocneA && isDzienneB) return 1;
-
-              return lineTypeA.localeCompare(lineTypeB, 'pl', {
-                numeric: true,
-                sensitivity: 'base',
-              });
-            })
-            .map(([lineType, lineInfoArray]: [string, LineInfo[]]) => (
+          {Object.entries(lines).map(
+            ([lineType, lineInfoArray]: [string, LineInfo[]]) => (
               <div key={lineType} className="line-category">
                 <h2 id={`category-${lineType}`}>{lineType}</h2>
                 <ul
@@ -100,25 +58,25 @@ const Lines = () => {
                   aria-labelledby={`category-${lineType}`}
                 >
                   {lineInfoArray.map((line: LineInfo) => (
-                    <Link
-                      key={line.id}
-                      to={`/rozklad-jazdy-wedlug-linii/${line.id}`}
-                      className="line-link"
-                      aria-label={`Line ${line.name}`}
-                    >
-                      <li className="line-wrapper" role="listitem">
+                    <li key={line.id} className="line-wrapper" role="listitem">
+                      <Link
+                        to={`/rozklad-jazdy-wedlug-linii/${line.id}`}
+                        className="line-link"
+                        aria-label={`Linia ${line.name}`}
+                      >
                         <div
                           className="line"
                           style={{ borderTop: `${line.color} 3px solid` }}
                         >
                           {line.name}
                         </div>
-                      </li>
-                    </Link>
+                      </Link>
+                    </li>
                   ))}
                 </ul>
               </div>
-            ))}
+            )
+          )}
         </section>
       ) : (
         <div className="no-lines">Brak dostępnych linii</div>

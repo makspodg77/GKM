@@ -155,10 +155,15 @@ app.use((req, res, next) => {
       res.set("Pragma", "no-cache");
       res.set("Expires", "0");
     } else {
-      res.set("Cache-Control", "public, max-age=300");
+      res.set("Cache-Control", "public, max-age=31536000, immutable");
     }
   }
   next();
+});
+
+app.get("/robots.txt", (req, res) => {
+  res.type("text/plain");
+  res.send("User-agent: *\nAllow: /");
 });
 
 const apiLimiter = rateLimit({

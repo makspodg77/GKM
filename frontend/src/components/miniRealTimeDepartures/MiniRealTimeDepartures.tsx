@@ -1,7 +1,7 @@
 import React, { useState, memo } from 'react';
 import { Link } from 'react-router-dom';
-import tabletIcon from '../../assets/tablet.png';
-import fullscreenIcon from '../../assets/tablica2.png';
+import tabletIcon from '../../assets/tablet.webp';
+import fullscreenIcon from '../../assets/tablica2.webp';
 import './MiniRealTimeDepartures.css';
 import { useRealTimeDepartures } from '../../utils/departureUtils';
 

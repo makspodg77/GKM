@@ -3,7 +3,7 @@ import './LineTimetable.css';
 import { useParams } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import service, { Stop } from '../../services/db';
-import displayIcon from '../../assets/tablica.png';
+import displayIcon from '../../assets/tablica.webp';
 import LoadingScreen from '../common/loadingScreen/LoadingScreen';
 import PageTitle from '../common/pageTitle/PageTitle';
 import OptionalStop from '../common/symbols/OptionalStop';
