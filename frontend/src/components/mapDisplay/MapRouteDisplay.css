@@ -113,7 +113,6 @@
   height: 100%;
 }
 
-/* Make the entire marker clickable/hoverable */
 .maplibregl-marker {
   cursor: pointer !important;
 }
@@ -122,7 +121,6 @@
   pointer-events: all !important;
 }
 
-/* Custom popup styling */
 .custom-map-popup .maplibregl-popup-content {
   padding: 0;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -139,11 +137,14 @@
   background-position: center;
   width: 20px;
   height: 20px;
-  filter: brightness(0) invert(1); /* Changes SVG to white */
+  filter: brightness(0) invert(1);
 }
 .stop-popup {
   z-index: 10000200;
+  border-radius: 4px;
+  padding: 5px;
 }
+
 .stop-popup-badge {
   display: inline-block;
   font-size: 11px;
@@ -216,6 +217,18 @@
   pointer-events: none;
 }
 
+.bus-marker-arrow::before {
+  content: '';
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  width: 30px;
+  height: 30px;
+  background: white;
+  clip-path: polygon(50% 0%, 70% 55%, 60% 100%, 40% 100%, 30% 55%);
+  transform: translateX(-50%);
+}
+
 .bus-marker-arrow::after {
   content: '';
   position: absolute;
@@ -226,7 +239,6 @@
   background: #1f1f1f;
   clip-path: polygon(50% 0%, 70% 55%, 60% 100%, 40% 100%, 30% 55%);
   transform: translateX(-50%);
-  border-radius: 2px 2px 6px 6px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
 }
 
@@ -241,6 +253,9 @@
 .bus-popup-name {
   padding: 5px;
   font-size: 18px;
+  border-radius: 4px;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
   background-color: #2c3e50;
   color: #ffffff;
   display: flex;

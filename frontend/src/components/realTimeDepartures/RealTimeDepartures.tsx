@@ -54,7 +54,7 @@ const municipalities = [
     id: 6,
     style: {
       background:
-        'linear-gradient(270deg,rgba(1, 147, 221, 1) 0%, rgba(0, 146, 63, 1) 21%, rgba(15, 153, 75, 1) 79%, rgba(255, 255, 255, 1) 100%)',
+        'linear-gradient(135deg, hsla(145, 100%, 29%, 1) 0%, hsla(44, 42%, 30%, 1) 50%, hsla(3, 77%, 48%, 1) 100%)',
     },
     emblem: herbOsina,
   },
