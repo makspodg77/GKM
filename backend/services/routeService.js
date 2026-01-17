@@ -36,13 +36,13 @@ const getStopsForRoutes = async (fullRouteIds) => {
 
   const params = distinctIds.reduce(
     (acc, id, i) => ({ ...acc, [`id${i}`]: id }),
-    {}
+    {},
   );
   const placeholders = distinctIds.map((_, i) => `@id${i}`).join(",");
 
   const results = await executeQuery(
     `SELECT * FROM full_route WHERE route_id IN (${placeholders})`,
-    params
+    params,
   );
 
   const resultsByRouteId = {};
@@ -54,7 +54,7 @@ const getStopsForRoutes = async (fullRouteIds) => {
   });
 
   return fullRouteIds.flatMap((id) =>
-    resultsByRouteId[id] ? [...resultsByRouteId[id]] : []
+    resultsByRouteId[id] ? [...resultsByRouteId[id]] : [],
   );
 };
 
@@ -79,7 +79,7 @@ const getLineRoutes = async (line_id, useCache = true) => {
 
   const lineExists = await executeQuery(
     `SELECT 1 FROM line WHERE id = @line_id`,
-    { line_id }
+    { line_id },
   );
 
   if (!lineExists.length) {
@@ -128,10 +128,10 @@ const getLineRoutes = async (line_id, useCache = true) => {
   }, {});
 
   const sortedRoutes = Object.keys(routeGroups).map((routeId) =>
-    routeGroups[routeId].sort((a, b) => a.stop_number - b.stop_number)
+    routeGroups[routeId].sort((a, b) => a.stop_number - b.stop_number),
   );
   const departureRoutes = await getDepartureRoutesByFullRouteIds(
-    Object.keys(routeGroups)
+    Object.keys(routeGroups),
   );
 
   const departurePromises = departureRoutes.map(async (route) => {
@@ -206,7 +206,7 @@ const getFullRoutesByStopId = async (stopId) => {
 
   const results = await executeQuery(
     `SELECT route_id FROM full_route WHERE stop_id = @stopId`,
-    { stopId }
+    { stopId },
   );
   const routeIds = results.map((r) => r.route_id);
 
@@ -226,14 +226,14 @@ const getAdditionalStopsForRoutes = async (routeIds) => {
 
   const params = routeIds.reduce(
     (acc, id, i) => ({ ...acc, [`id${i}`]: id }),
-    {}
+    {},
   );
   const placeholders = routeIds.map((_, i) => `@id${i}`).join(",");
 
   return executeQuery(
     `SELECT route_id, stop_number FROM additional_stop 
        WHERE route_id IN (${placeholders})`,
-    params
+    params,
   );
 };
 
@@ -568,7 +568,7 @@ async function getActiveBusesForASpecificLine(line_id) {
         FROM distance_calc dc
       )
       -- Final output
-      SELECT 
+      SELECT DISTINCT ON (ar.departure_time) 
         ar.departure_route_id,
         ar.departure_time AS start_time,
         ar.base_route_id,
@@ -605,7 +605,7 @@ async function getActiveBusesForASpecificLine(line_id) {
       JOIN route_details rd ON ar.departure_route_id = rd.departure_route_id
       LEFT JOIN progress_calc pc ON ar.timetable_id = pc.timetable_id
       LEFT JOIN bus_coords bc ON ar.timetable_id = bc.timetable_id
-      ORDER BY ar.departure_timestamp
+  ORDER BY ar.departure_time, ar.departure_timestamp;
     `);
 
     await client.query(`
@@ -945,7 +945,7 @@ async function getMapRouteEveryVehicle() {
           ) AS waypoint_id
         FROM distance_calc dc
       )
-      SELECT 
+      SELECT DISTINCT ON (ar.timetable_id) 
         ar.departure_route_id,
         ar.departure_time AS start_time,
         ar.base_route_id,
@@ -981,7 +981,7 @@ async function getMapRouteEveryVehicle() {
       JOIN route_details rd ON ar.departure_route_id = rd.departure_route_id
       LEFT JOIN progress_calc pc ON ar.timetable_id = pc.timetable_id
       LEFT JOIN bus_coords bc ON ar.timetable_id = bc.timetable_id
-      ORDER BY ar.departure_timestamp
+  ORDER BY ar.timetable_id, ar.departure_timestamp;
     `);
 
     await client.query(`
@@ -1023,7 +1023,7 @@ const getAllRoutes = async () => {
         ) ORDER BY mr.id
       ) AS map_routes
     FROM map_route mr
-    GROUP BY mr.departure_route_id`
+    GROUP BY mr.departure_route_id`,
   );
 
   const result2 = await executeQuery(
@@ -1031,7 +1031,7 @@ const getAllRoutes = async () => {
       s.map, sg.name, s.id, s.alias
       FROM stop_group sg
       LEFT JOIN stop s ON s.stop_group_id = sg.id
-      `
+      `,
   );
 
   return { stops: result2, routes: result };
@@ -1094,7 +1094,7 @@ FROM selected_departure_routes sdr
 LEFT JOIN aggregated_map_routes amr ON amr.departure_route_id = sdr.departure_route_id
 LEFT JOIN aggregated_stops ast ON ast.route_id = sdr.route_id
 ORDER BY sdr.route_id, sdr.departure_route_id;`,
-    { line_id }
+    { line_id },
   );
 
   return result;
@@ -1108,25 +1108,25 @@ ORDER BY sdr.route_id, sdr.departure_route_id;`,
 const getRoute = async (departure_id, line_id) => {
   if (!departure_id || isNaN(parseInt(departure_id))) {
     throw new ValidationError(
-      "departure ID parameter is required and must be a number"
+      "departure ID parameter is required and must be a number",
     );
   }
 
   const departureExists = await executeQuery(
     `SELECT * FROM timetable WHERE id = @departure_id`,
-    { departure_id }
+    { departure_id },
   );
 
   if (!departureExists.length) {
     throw new NotFoundError(
-      `Departure with ID = ${departure_id} does not exist`
+      `Departure with ID = ${departure_id} does not exist`,
     );
   }
 
   const departureRoute = (
     await executeQuery(
       `SELECT t.id AS timetable_id, dr.route_id AS full_route_id, dr.id AS departure_id, dr.signature, dr.color, t.departure_time FROM departure_route dr JOIN timetable t ON t.route_id = dr.id WHERE t.id = @departure_id`,
-      { departure_id }
+      { departure_id },
     )
   )[0];
 
@@ -1144,7 +1144,7 @@ const getRoute = async (departure_id, line_id) => {
     lineInfo: basicData,
     stops: calculateDepartureTimes(
       processedStops,
-      departureRoute.departure_time
+      departureRoute.departure_time,
     ),
   };
 };
@@ -1159,7 +1159,7 @@ const getRoute = async (departure_id, line_id) => {
 const calculateDepartureTimes = (
   stops,
   initialDeparture,
-  departureData = {}
+  departureData = {},
 ) => {
   let departureTime = initialDeparture;
   let previousTravelTime = 0;
