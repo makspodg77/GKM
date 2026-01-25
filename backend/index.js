@@ -120,10 +120,8 @@ app.use(
 
 const corsOptions = {
   origin: [
-    "https://goleniowkm.pl",
     "http://localhost:8080",
     "http://localhost:8081",
-    "https://*.azurewebsites.net",
     "https://gkm-eight.vercel.app",
     "http://www.komunikacjagoleniow.pl",
     "http://komunikacjagoleniow.pl",
