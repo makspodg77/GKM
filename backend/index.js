@@ -115,7 +115,7 @@ app.use(
     explorer: true,
     customCss: ".swagger-ui .topbar { display: none }",
     customSiteTitle: "GKM API Documentation",
-  })
+  }),
 );
 
 const corsOptions = {
@@ -124,6 +124,9 @@ const corsOptions = {
     "http://localhost:8080",
     "http://localhost:8081",
     "https://*.azurewebsites.net",
+    "https://gkm-eight.vercel.app",
+    "http://www.komunikacjagoleniow.pl",
+    "http://komunikacjagoleniow.pl",
   ],
   methods: ["GET"],
   maxAge: 86400,
@@ -134,7 +137,7 @@ app.use(express.json());
 app.use(
   helmet({
     contentSecurityPolicy: false,
-  })
+  }),
 );
 app.use(compression());
 
@@ -150,7 +153,7 @@ app.use((req, res, next) => {
     if (req.path.includes("/map-route/")) {
       res.set(
         "Cache-Control",
-        "no-store, no-cache, must-revalidate, proxy-revalidate"
+        "no-store, no-cache, must-revalidate, proxy-revalidate",
       );
       res.set("Pragma", "no-cache");
       res.set("Expires", "0");
@@ -181,12 +184,12 @@ app.use(
     transports: [new winston.transports.File({ filename: "access.log" })],
     format: winston.format.combine(
       winston.format.timestamp(),
-      winston.format.json()
+      winston.format.json(),
     ),
     meta: true,
     msg: "HTTP {{req.method}} {{req.url}}",
     expressFormat: true,
-  })
+  }),
 );
 
 app.use("/api/timetable", timetableRouter);
@@ -210,6 +213,6 @@ app.use(errorMiddleware);
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
   console.log(
-    `API documentation available at http://localhost:${port}/api-docs`
+    `API documentation available at http://localhost:${port}/api-docs`,
   );
 });
