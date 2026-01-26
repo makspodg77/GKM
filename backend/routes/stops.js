@@ -80,7 +80,7 @@ router.get(
     });
 
     res.json(groupedResults);
-  })
+  }),
 );
 
 /**
@@ -135,7 +135,15 @@ router.get(
     const { id } = req.params;
 
     res.json(await getStopGroupWithDepartures(id));
-  })
+  }),
 );
 
+router.get(
+  "/stops-ids",
+  asyncHandler(async (req, res) => {
+    const result = await executeQuery("select id from stop");
+    console.log(result);
+    res.json(result.map((r) => Number(r.id)));
+  }),
+);
 module.exports = router;
