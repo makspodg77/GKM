@@ -1,15 +1,8 @@
-html {
-  background-color: #212c3f;
-}
-
 .RealTimeDepartures {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  height: 100%;
-  align-items: center;
+  height: 100vh;
   background-color: #212c3f;
   padding: 3rem 2.25rem 4.75rem 3rem;
+  box-sizing: border-box;
 }
 
 .RealTimeDepartures .munip {
@@ -18,7 +11,7 @@ html {
 
 .background {
   width: 100%;
-  background-size: cover;
+  height: fit-content;
   background-color: #343b4b;
 }
 
