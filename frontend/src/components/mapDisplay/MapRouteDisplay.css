@@ -290,8 +290,13 @@
   align-items: center;
 }
 
+.nextStopFont {
+  font-weight: 600;
+}
+
 .nextstop {
   background-image: url('../../assets/b.svg');
+  font-weight: 600;
 }
 
 .map-container .stop-name {

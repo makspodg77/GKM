@@ -6,6 +6,7 @@ import arrowFart from '../../assets/tablica.png';
 import LoadingScreen from '../common/loadingScreen/LoadingScreen';
 import onRequestIcon from '../../assets/on_request.png';
 import PageTitle from '../common/pageTitle/PageTitle';
+import OnRequest from '../common/symbols/OnRequest';
 
 interface Stop {
   stop_id: string;
@@ -115,15 +116,7 @@ const LineRoute = () => {
                   to={`/rozklad-jazdy-wedlug-linii/${stop.route_id}/${stop.stop_number}`}
                 >
                   <span>{stop.alias || stop.name}</span>
-                  {stop.is_on_request && (
-                    <img
-                      width={'15px'}
-                      height={'15px'}
-                      src={onRequestIcon}
-                      title="Przystanek na żądanie"
-                      alt="Na żądanie"
-                    />
-                  )}
+                  {stop.is_on_request && <OnRequest />}
                   <span className="stop-id">
                     ({stop.stop_group_id}/{stop.stop_id})
                   </span>

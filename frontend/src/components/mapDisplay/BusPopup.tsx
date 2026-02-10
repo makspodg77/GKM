@@ -33,7 +33,7 @@ const BusPopup: React.FC<BusPopupProps> = ({
         </div>
         <div>
           <div className="nextstop"></div>
-          {next_stop}
+          <div className="nextStopFont">{next_stop}</div>
         </div>
         <span>Operator: PKS Kamień Pomorski</span>
       </div>
