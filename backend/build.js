@@ -18,7 +18,7 @@ runCommand("npm install");
 
 console.log("Copying necessary files...");
 if (!fs.existsSync(path.join(distDir, "config"))) {
-  fs.mkdirSync(path.join(distDir, "config"));
+  fs.mkdirSync(path.join(distDir, "config"), { recursive: true });
 }
 fs.copyFileSync("config/config.json", path.join(distDir, "config/config.json")); // Example for a config file
 
