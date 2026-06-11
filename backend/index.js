@@ -123,6 +123,7 @@ const corsOptions = {
     "http://localhost:8081",
     "https://gkm-eight.vercel.app",
     "https://goleniowkm.pl",
+    "https://www.goleniowkm.pl",
     "https://gkm-production.up.railway.app",
   ],
   methods: ["GET"],
