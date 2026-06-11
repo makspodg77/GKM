@@ -120,11 +120,10 @@ app.use(
 
 const corsOptions = {
   origin: [
-    "http://localhost:8080",
     "http://localhost:8081",
     "https://gkm-eight.vercel.app",
-    "https://www.komunikacjagoleniow.pl",
-    "https://komunikacjagoleniow.pl",
+    "https://goleniowkm.pl",
+    "https://gkm-production.up.railway.app",
   ],
   methods: ["GET"],
   maxAge: 86400,
@@ -179,7 +178,7 @@ app.use("/api", apiLimiter);
 
 app.use(
   expressWinston.logger({
-    transports: [new winston.transports.File({ filename: "access.log" })],
+    transports: [new winston.transports.Console()],
     format: winston.format.combine(
       winston.format.timestamp(),
       winston.format.json(),
